@@ -6,7 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreateSubmissionRequest {
-  taskId: string;
-  mediaUrls: string[];
-}
+export type SubmissionCaptureMetadata = { [key: string]: unknown };

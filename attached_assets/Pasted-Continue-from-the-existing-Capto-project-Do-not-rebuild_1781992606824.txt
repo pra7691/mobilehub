@@ -1,0 +1,65 @@
+Continue from the existing Capto project. Do not rebuild authentication, task management, local drafts, camera capture, mobile navigation, existing API structure, or admin dashboard layout.
+
+Build secure media upload and submission creation end-to-end.
+
+Scope:
+
+* Upload local drafts to cloud storage.
+* Create backend submission records.
+* Show uploaded submissions in “Under Review.”
+* Do not build admin approval/rejection yet.
+* Do not credit wallet balances yet.
+
+Use S3-compatible storage with a backend storage abstraction supporting AWS S3 or Cloudflare R2.
+
+Requirements:
+
+1. Backend generates short-lived presigned upload URLs.
+2. Mobile uploads directly to storage, never through NestJS.
+3. Add storage env variables and .env.example updates.
+4. Add Submission and SubmissionMedia Prisma models if not already complete.
+5. Save taskSnapshot, paymentAmountSnapshot, currencySnapshot, capture metadata, device metadata, media metadata, and upload timestamps.
+6. Submission statuses:
+   DRAFT, UPLOADING, UNDER_REVIEW, APPROVED, REJECTED, RESUBMISSION_REQUIRED, UPLOAD_FAILED.
+7. Add APIs:
+
+   * POST /submissions/initiate
+   * POST /submissions/:id/upload-complete
+   * POST /submissions/:id/upload-failed
+   * GET /submissions/my
+   * GET /submissions/my/:id
+   * DELETE /submissions/:id
+   * GET /admin/submissions
+   * GET /admin/submissions/:id
+8. Validate active task, task limits, duration, image count, collection type, max submissions per user, max total submissions, supported file types, and file-size limits.
+9. Mobile Draft screen:
+
+   * Add Upload Submission button.
+   * Show confirmation before upload.
+   * Show per-file and total upload progress.
+   * Retry failed uploads.
+   * Remove local draft only after backend confirms UNDER_REVIEW.
+10. My Uploads:
+
+* Drafts = local saved drafts.
+* Under Review = real API submissions.
+* Completed remains empty until review module is added.
+
+11. Admin submissions page:
+
+* Real submission list.
+* Read-only detail view.
+* Filters, search, media preview, metadata, task snapshot.
+* No approval/rejection buttons yet.
+
+12. Add idempotency protection to avoid duplicate submissions.
+13. Keep all existing OTP, task browsing, camera capture, and admin functionality working.
+
+At the end provide:
+
+* API route list
+* Prisma changes
+* Required storage env variables
+* Mobile upload test steps
+* Admin submission-view test steps
+* Known Expo background-upload limitations

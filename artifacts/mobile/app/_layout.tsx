@@ -38,7 +38,8 @@ function RootLayoutNav() {
     if (!isAuthenticated && !inAuth) {
       router.replace("/(auth)/login");
     } else if (isAuthenticated && inAuth) {
-      router.replace("/(tabs)/");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace("/(tabs)/" as any);
     }
   }, [isAuthenticated, isLoading, segments]);
 

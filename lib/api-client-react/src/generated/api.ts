@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminListSubmissionsParams,
   AdminLoginRequest,
   AdminUser,
   AdminUserListResponse,
@@ -29,15 +30,17 @@ import type {
   CreateAdminUserRequest,
   CreateCategoryRequest,
   CreateSubcategoryRequest,
-  CreateSubmissionRequest,
   CreateTaskRequest,
   DashboardStats,
+  DeleteMySubmission200,
   ErrorResponse,
   HealthStatus,
+  InitiateSubmissionRequest,
+  InitiateSubmissionResponse,
   ListAdminUsersParams,
   ListCategoriesParams,
+  ListMySubmissionsParams,
   ListSubcategoriesParams,
-  ListSubmissionsParams,
   ListTasksParams,
   ListUsersParams,
   ListWalletTransactionsParams,
@@ -57,9 +60,10 @@ import type {
   UpdateCategoryRequest,
   UpdateOtpSettingsRequest,
   UpdateSubcategoryRequest,
-  UpdateSubmissionStatusRequest,
   UpdateTaskRequest,
   UpdateUserRequest,
+  UploadCompleteRequest,
+  UploadFailedRequest,
   UploadUrlRequest,
   UploadUrlResponse,
   User,
@@ -2356,34 +2360,34 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getRequestUploadUrlMutationOptions(options));
     }
 
-export const getCreateSubmissionUrl = () => {
+export const getInitiateSubmissionUrl = () => {
 
 
 
 
-  return `/api/submissions`
+  return `/api/submissions/initiate`
 }
 
-export const createSubmission = async (createSubmissionRequest: CreateSubmissionRequest, options?: RequestInit): Promise<Submission> => {
+export const initiateSubmission = async (initiateSubmissionRequest: InitiateSubmissionRequest, options?: RequestInit): Promise<InitiateSubmissionResponse> => {
 
-  return customFetch<Submission>(getCreateSubmissionUrl(),
+  return customFetch<InitiateSubmissionResponse>(getInitiateSubmissionUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      createSubmissionRequest,)
+      initiateSubmissionRequest,)
   }
 );}
 
 
 
 
-export const getCreateSubmissionMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmission>>, TError,{data: BodyType<CreateSubmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createSubmission>>, TError,{data: BodyType<CreateSubmissionRequest>}, TContext> => {
+export const getInitiateSubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initiateSubmission>>, TError,{data: BodyType<InitiateSubmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof initiateSubmission>>, TError,{data: BodyType<InitiateSubmissionRequest>}, TContext> => {
 
-const mutationKey = ['createSubmission'];
+const mutationKey = ['initiateSubmission'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -2393,10 +2397,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSubmission>>, {data: BodyType<CreateSubmissionRequest>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof initiateSubmission>>, {data: BodyType<InitiateSubmissionRequest>}> = (props) => {
           const {data} = props ?? {};
 
-          return  createSubmission(data,requestOptions)
+          return  initiateSubmission(data,requestOptions)
         }
 
 
@@ -2406,22 +2410,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type CreateSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof createSubmission>>>
-    export type CreateSubmissionMutationBody = BodyType<CreateSubmissionRequest>
-    export type CreateSubmissionMutationError = ErrorType<unknown>
+    export type InitiateSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof initiateSubmission>>>
+    export type InitiateSubmissionMutationBody = BodyType<InitiateSubmissionRequest>
+    export type InitiateSubmissionMutationError = ErrorType<unknown>
 
-    export const useCreateSubmission = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSubmission>>, TError,{data: BodyType<CreateSubmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    export const useInitiateSubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initiateSubmission>>, TError,{data: BodyType<InitiateSubmissionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof createSubmission>>,
+        Awaited<ReturnType<typeof initiateSubmission>>,
         TError,
-        {data: BodyType<CreateSubmissionRequest>},
+        {data: BodyType<InitiateSubmissionRequest>},
         TContext
       > => {
-      return useMutation(getCreateSubmissionMutationOptions(options));
+      return useMutation(getInitiateSubmissionMutationOptions(options));
     }
 
-export const getListSubmissionsUrl = (params?: ListSubmissionsParams,) => {
+export const getListMySubmissionsUrl = (params?: ListMySubmissionsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -2433,12 +2437,12 @@ export const getListSubmissionsUrl = (params?: ListSubmissionsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/submissions?${stringifiedParams}` : `/api/submissions`
+  return stringifiedParams.length > 0 ? `/api/submissions/my?${stringifiedParams}` : `/api/submissions/my`
 }
 
-export const listSubmissions = async (params?: ListSubmissionsParams, options?: RequestInit): Promise<SubmissionListResponse> => {
+export const listMySubmissions = async (params?: ListMySubmissionsParams, options?: RequestInit): Promise<SubmissionListResponse> => {
 
-  return customFetch<SubmissionListResponse>(getListSubmissionsUrl(params),
+  return customFetch<SubmissionListResponse>(getListMySubmissionsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2451,42 +2455,42 @@ export const listSubmissions = async (params?: ListSubmissionsParams, options?: 
 
 
 
-export const getListSubmissionsQueryKey = (params?: ListSubmissionsParams,) => {
+export const getListMySubmissionsQueryKey = (params?: ListMySubmissionsParams,) => {
     return [
-    `/api/submissions`, ...(params ? [params] : [])
+    `/api/submissions/my`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listSubmissions>>, TError = ErrorType<unknown>>(params?: ListSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListMySubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listMySubmissions>>, TError = ErrorType<unknown>>(params?: ListMySubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMySubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListSubmissionsQueryKey(params);
+  const queryKey =  queryOptions?.queryKey ?? getListMySubmissionsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSubmissions>>> = ({ signal }) => listSubmissions(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMySubmissions>>> = ({ signal }) => listMySubmissions(params, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSubmissions>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMySubmissions>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type ListSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listSubmissions>>>
-export type ListSubmissionsQueryError = ErrorType<unknown>
+export type ListMySubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listMySubmissions>>>
+export type ListMySubmissionsQueryError = ErrorType<unknown>
 
 
 
-export function useListSubmissions<TData = Awaited<ReturnType<typeof listSubmissions>>, TError = ErrorType<unknown>>(
- params?: ListSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListMySubmissions<TData = Awaited<ReturnType<typeof listMySubmissions>>, TError = ErrorType<unknown>>(
+ params?: ListMySubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMySubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListSubmissionsQueryOptions(params,options)
+  const queryOptions = getListMySubmissionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2499,17 +2503,17 @@ export function useListSubmissions<TData = Awaited<ReturnType<typeof listSubmiss
 
 
 
-export const getGetSubmissionUrl = (id: string,) => {
+export const getGetMySubmissionUrl = (id: string,) => {
 
 
 
 
-  return `/api/submissions/${id}`
+  return `/api/submissions/my/${id}`
 }
 
-export const getSubmission = async (id: string, options?: RequestInit): Promise<Submission> => {
+export const getMySubmission = async (id: string, options?: RequestInit): Promise<Submission> => {
 
-  return customFetch<Submission>(getGetSubmissionUrl(id),
+  return customFetch<Submission>(getGetMySubmissionUrl(id),
   {
     ...options,
     method: 'GET'
@@ -2522,42 +2526,42 @@ export const getSubmission = async (id: string, options?: RequestInit): Promise<
 
 
 
-export const getGetSubmissionQueryKey = (id: string,) => {
+export const getGetMySubmissionQueryKey = (id: string,) => {
     return [
-    `/api/submissions/${id}`
+    `/api/submissions/my/${id}`
     ] as const;
     }
 
 
-export const getGetSubmissionQueryOptions = <TData = Awaited<ReturnType<typeof getSubmission>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmission>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMySubmissionQueryOptions = <TData = Awaited<ReturnType<typeof getMySubmission>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMySubmission>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetSubmissionQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getGetMySubmissionQueryKey(id);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubmission>>> = ({ signal }) => getSubmission(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMySubmission>>> = ({ signal }) => getMySubmission(id, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubmission>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMySubmission>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetSubmissionQueryResult = NonNullable<Awaited<ReturnType<typeof getSubmission>>>
-export type GetSubmissionQueryError = ErrorType<unknown>
+export type GetMySubmissionQueryResult = NonNullable<Awaited<ReturnType<typeof getMySubmission>>>
+export type GetMySubmissionQueryError = ErrorType<unknown>
 
 
 
-export function useGetSubmission<TData = Awaited<ReturnType<typeof getSubmission>>, TError = ErrorType<unknown>>(
- id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubmission>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetMySubmission<TData = Awaited<ReturnType<typeof getMySubmission>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMySubmission>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetSubmissionQueryOptions(id,options)
+  const queryOptions = getGetMySubmissionQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2570,35 +2574,35 @@ export function useGetSubmission<TData = Awaited<ReturnType<typeof getSubmission
 
 
 
-export const getUpdateSubmissionStatusUrl = (id: string,) => {
+export const getMarkUploadCompleteUrl = (id: string,) => {
 
 
 
 
-  return `/api/submissions/${id}/status`
+  return `/api/submissions/${id}/upload-complete`
 }
 
-export const updateSubmissionStatus = async (id: string,
-    updateSubmissionStatusRequest: UpdateSubmissionStatusRequest, options?: RequestInit): Promise<Submission> => {
+export const markUploadComplete = async (id: string,
+    uploadCompleteRequest: UploadCompleteRequest, options?: RequestInit): Promise<Submission> => {
 
-  return customFetch<Submission>(getUpdateSubmissionStatusUrl(id),
+  return customFetch<Submission>(getMarkUploadCompleteUrl(id),
   {
     ...options,
-    method: 'PATCH',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      updateSubmissionStatusRequest,)
+      uploadCompleteRequest,)
   }
 );}
 
 
 
 
-export const getUpdateSubmissionStatusMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmissionStatus>>, TError,{id: string;data: BodyType<UpdateSubmissionStatusRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateSubmissionStatus>>, TError,{id: string;data: BodyType<UpdateSubmissionStatusRequest>}, TContext> => {
+export const getMarkUploadCompleteMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markUploadComplete>>, TError,{id: string;data: BodyType<UploadCompleteRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markUploadComplete>>, TError,{id: string;data: BodyType<UploadCompleteRequest>}, TContext> => {
 
-const mutationKey = ['updateSubmissionStatus'];
+const mutationKey = ['markUploadComplete'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -2608,10 +2612,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSubmissionStatus>>, {id: string;data: BodyType<UpdateSubmissionStatusRequest>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markUploadComplete>>, {id: string;data: BodyType<UploadCompleteRequest>}> = (props) => {
           const {id,data} = props ?? {};
 
-          return  updateSubmissionStatus(id,data,requestOptions)
+          return  markUploadComplete(id,data,requestOptions)
         }
 
 
@@ -2621,20 +2625,299 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpdateSubmissionStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateSubmissionStatus>>>
-    export type UpdateSubmissionStatusMutationBody = BodyType<UpdateSubmissionStatusRequest>
-    export type UpdateSubmissionStatusMutationError = ErrorType<unknown>
+    export type MarkUploadCompleteMutationResult = NonNullable<Awaited<ReturnType<typeof markUploadComplete>>>
+    export type MarkUploadCompleteMutationBody = BodyType<UploadCompleteRequest>
+    export type MarkUploadCompleteMutationError = ErrorType<unknown>
 
-    export const useUpdateSubmissionStatus = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSubmissionStatus>>, TError,{id: string;data: BodyType<UpdateSubmissionStatusRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    export const useMarkUploadComplete = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markUploadComplete>>, TError,{id: string;data: BodyType<UploadCompleteRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof updateSubmissionStatus>>,
+        Awaited<ReturnType<typeof markUploadComplete>>,
         TError,
-        {id: string;data: BodyType<UpdateSubmissionStatusRequest>},
+        {id: string;data: BodyType<UploadCompleteRequest>},
         TContext
       > => {
-      return useMutation(getUpdateSubmissionStatusMutationOptions(options));
+      return useMutation(getMarkUploadCompleteMutationOptions(options));
     }
+
+export const getMarkUploadFailedUrl = (id: string,) => {
+
+
+
+
+  return `/api/submissions/${id}/upload-failed`
+}
+
+export const markUploadFailed = async (id: string,
+    uploadFailedRequest: UploadFailedRequest, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getMarkUploadFailedUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      uploadFailedRequest,)
+  }
+);}
+
+
+
+
+export const getMarkUploadFailedMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markUploadFailed>>, TError,{id: string;data: BodyType<UploadFailedRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markUploadFailed>>, TError,{id: string;data: BodyType<UploadFailedRequest>}, TContext> => {
+
+const mutationKey = ['markUploadFailed'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markUploadFailed>>, {id: string;data: BodyType<UploadFailedRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  markUploadFailed(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkUploadFailedMutationResult = NonNullable<Awaited<ReturnType<typeof markUploadFailed>>>
+    export type MarkUploadFailedMutationBody = BodyType<UploadFailedRequest>
+    export type MarkUploadFailedMutationError = ErrorType<unknown>
+
+    export const useMarkUploadFailed = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markUploadFailed>>, TError,{id: string;data: BodyType<UploadFailedRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markUploadFailed>>,
+        TError,
+        {id: string;data: BodyType<UploadFailedRequest>},
+        TContext
+      > => {
+      return useMutation(getMarkUploadFailedMutationOptions(options));
+    }
+
+export const getDeleteMySubmissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/submissions/${id}`
+}
+
+export const deleteMySubmission = async (id: string, options?: RequestInit): Promise<DeleteMySubmission200> => {
+
+  return customFetch<DeleteMySubmission200>(getDeleteMySubmissionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteMySubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMySubmission>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMySubmission>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteMySubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMySubmission>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteMySubmission(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMySubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMySubmission>>>
+
+    export type DeleteMySubmissionMutationError = ErrorType<unknown>
+
+    export const useDeleteMySubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMySubmission>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMySubmission>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteMySubmissionMutationOptions(options));
+    }
+
+export const getAdminListSubmissionsUrl = (params?: AdminListSubmissionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/submissions?${stringifiedParams}` : `/api/admin/submissions`
+}
+
+export const adminListSubmissions = async (params?: AdminListSubmissionsParams, options?: RequestInit): Promise<SubmissionListResponse> => {
+
+  return customFetch<SubmissionListResponse>(getAdminListSubmissionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListSubmissionsQueryKey = (params?: AdminListSubmissionsParams,) => {
+    return [
+    `/api/admin/submissions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getAdminListSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof adminListSubmissions>>, TError = ErrorType<unknown>>(params?: AdminListSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListSubmissionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListSubmissions>>> = ({ signal }) => adminListSubmissions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListSubmissions>>>
+export type AdminListSubmissionsQueryError = ErrorType<unknown>
+
+
+
+export function useAdminListSubmissions<TData = Awaited<ReturnType<typeof adminListSubmissions>>, TError = ErrorType<unknown>>(
+ params?: AdminListSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListSubmissionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminGetSubmissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/submissions/${id}`
+}
+
+export const adminGetSubmission = async (id: string, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getAdminGetSubmissionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetSubmissionQueryKey = (id: string,) => {
+    return [
+    `/api/admin/submissions/${id}`
+    ] as const;
+    }
+
+
+export const getAdminGetSubmissionQueryOptions = <TData = Awaited<ReturnType<typeof adminGetSubmission>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetSubmission>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetSubmissionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetSubmission>>> = ({ signal }) => adminGetSubmission(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetSubmission>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetSubmissionQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetSubmission>>>
+export type AdminGetSubmissionQueryError = ErrorType<unknown>
+
+
+
+export function useAdminGetSubmission<TData = Awaited<ReturnType<typeof adminGetSubmission>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetSubmission>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetSubmissionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetUserWalletUrl = (userId: string,) => {
 

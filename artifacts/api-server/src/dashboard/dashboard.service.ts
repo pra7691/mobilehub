@@ -12,7 +12,7 @@ export class DashboardService {
       this.prisma.task.count({ where: { deletedAt: null } }),
       this.prisma.task.count({ where: { deletedAt: null, status: 'active' } }),
       this.prisma.submission.count(),
-      this.prisma.submission.count({ where: { status: 'pending' } }),
+      this.prisma.submission.count({ where: { status: 'UNDER_REVIEW' } }),
       this.prisma.wallet.findMany({ select: { balance: true } }),
     ]);
 
@@ -46,7 +46,7 @@ export class DashboardService {
     const items = [
       ...recentSubmissions.map(s => ({
         id: s.id,
-        type: s.status === 'approved' ? 'submission_approved' : s.status === 'rejected' ? 'submission_rejected' : 'new_submission',
+        type: s.status === 'APPROVED' ? 'submission_approved' : s.status === 'REJECTED' ? 'submission_rejected' : 'new_submission',
         description: `${s.user.phoneNumber} submitted "${s.task.title}"`,
         createdAt: s.createdAt,
       })),
@@ -74,16 +74,16 @@ export class DashboardService {
     for (let i = 0; i < 30; i++) {
       const d = new Date(thirtyDaysAgo);
       d.setDate(d.getDate() + i);
-      trendMap.set(d.toISOString().split('T')[0], { count: 0, approved: 0, rejected: 0 });
+      trendMap.set(d.toISOString().split('T')[0]!, { count: 0, approved: 0, rejected: 0 });
     }
 
     for (const s of submissions) {
-      const key = s.createdAt.toISOString().split('T')[0];
+      const key = s.createdAt.toISOString().split('T')[0]!;
       const entry = trendMap.get(key);
       if (entry) {
         entry.count++;
-        if (s.status === 'approved') entry.approved++;
-        if (s.status === 'rejected') entry.rejected++;
+        if (s.status === 'APPROVED') entry.approved++;
+        if (s.status === 'REJECTED') entry.rejected++;
       }
     }
 

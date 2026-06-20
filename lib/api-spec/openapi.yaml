@@ -16,6 +16,7 @@ tags:
   - name: subcategories
   - name: tasks
   - name: submissions
+  - name: admin-submissions
   - name: storage
   - name: wallet
   - name: wallet-transactions
@@ -610,9 +611,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadUrlResponse"
 
-  /submissions:
+  /submissions/initiate:
     post:
-      operationId: createSubmission
+      operationId: initiateSubmission
       tags: [submissions]
       security:
         - BearerAuth: []
@@ -621,35 +622,29 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateSubmissionRequest"
+              $ref: "#/components/schemas/InitiateSubmissionRequest"
       responses:
         "201":
-          description: Submission created
+          description: Submission initiated with upload targets
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Submission"
+                $ref: "#/components/schemas/InitiateSubmissionResponse"
+
+  /submissions/my:
     get:
-      operationId: listSubmissions
+      operationId: listMySubmissions
       tags: [submissions]
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PageParam"
         - $ref: "#/components/parameters/LimitParam"
-        - name: taskId
-          in: query
-          schema:
-            type: string
-        - name: userId
-          in: query
-          schema:
-            type: string
         - name: status
           in: query
           schema:
             type: string
-            enum: [pending, approved, rejected, under_review]
+            enum: [DRAFT, UPLOADING, UNDER_REVIEW, APPROVED, REJECTED, RESUBMISSION_REQUIRED, UPLOAD_FAILED]
       responses:
         "200":
           description: OK
@@ -658,9 +653,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/SubmissionListResponse"
 
-  /submissions/{id}:
+  /submissions/my/{id}:
     get:
-      operationId: getSubmission
+      operationId: getMySubmission
       tags: [submissions]
       security:
         - BearerAuth: []
@@ -674,9 +669,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Submission"
 
-  /submissions/{id}/status:
-    patch:
-      operationId: updateSubmissionStatus
+  /submissions/{id}/upload-complete:
+    post:
+      operationId: markUploadComplete
       tags: [submissions]
       security:
         - BearerAuth: []
@@ -687,7 +682,108 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateSubmissionStatusRequest"
+              $ref: "#/components/schemas/UploadCompleteRequest"
+      responses:
+        "200":
+          description: Submission moved to UNDER_REVIEW
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /submissions/{id}/upload-failed:
+    post:
+      operationId: markUploadFailed
+      tags: [submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadFailedRequest"
+      responses:
+        "200":
+          description: Submission marked UPLOAD_FAILED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /submissions/{id}:
+    delete:
+      operationId: deleteMySubmission
+      tags: [submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                required: [deleted]
+
+  /admin/submissions:
+    get:
+      operationId: adminListSubmissions
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, UPLOADING, UNDER_REVIEW, APPROVED, REJECTED, RESUBMISSION_REQUIRED, UPLOAD_FAILED]
+        - name: collectionType
+          in: query
+          schema:
+            type: string
+            enum: [VIDEO, IMAGE, AUDIO]
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: subcategoryId
+          in: query
+          schema:
+            type: string
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmissionListResponse"
+
+  /admin/submissions/{id}:
+    get:
+      operationId: adminGetSubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
           description: OK
@@ -1499,16 +1595,132 @@ components:
           type: string
       required: [uploadURL, objectPath]
 
-    CreateSubmissionRequest:
+    MediaFileInput:
+      type: object
+      properties:
+        filename:
+          type: string
+        fileSize:
+          type: number
+        contentType:
+          type: string
+      required: [filename]
+
+    InitiateSubmissionRequest:
       type: object
       properties:
         taskId:
           type: string
-        mediaUrls:
+        mediaFiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaFileInput"
+        durationSeconds:
+          type: integer
+        imageCount:
+          type: integer
+        captureMetadata:
+          type: object
+        captureStartedAt:
+          type: string
+          format: date-time
+        captureEndedAt:
+          type: string
+          format: date-time
+        devicePlatform:
+          type: string
+        deviceModel:
+          type: string
+        osVersion:
+          type: string
+        cameraUsed:
+          type: string
+        lensRequested:
+          type: string
+        orientation:
+          type: string
+      required: [taskId, mediaFiles]
+
+    UploadTarget:
+      type: object
+      properties:
+        mediaId:
+          type: string
+        storageKey:
+          type: string
+        uploadUrl:
+          type: string
+        filename:
+          type: string
+        sortOrder:
+          type: integer
+      required: [mediaId, storageKey, uploadUrl, filename, sortOrder]
+
+    InitiateSubmissionResponse:
+      type: object
+      properties:
+        submissionId:
+          type: string
+        uploadTargets:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadTarget"
+      required: [submissionId, uploadTargets]
+
+    UploadedMediaInput:
+      type: object
+      properties:
+        mediaId:
+          type: string
+        fileSize:
+          type: number
+      required: [mediaId]
+
+    UploadCompleteRequest:
+      type: object
+      properties:
+        uploadedMedia:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadedMediaInput"
+      required: [uploadedMedia]
+
+    UploadFailedRequest:
+      type: object
+      properties:
+        failureReason:
+          type: string
+        failedMediaIds:
           type: array
           items:
             type: string
-      required: [taskId, mediaUrls]
+
+    SubmissionMedia:
+      type: object
+      properties:
+        id:
+          type: string
+        mediaType:
+          type: string
+          enum: [VIDEO, IMAGE, AUDIO, THUMBNAIL]
+        storageKey:
+          type: string
+        mediaUrl:
+          type: string
+        thumbnailUrl:
+          type: string
+        fileSize:
+          type: number
+        durationSeconds:
+          type: integer
+        mimeType:
+          type: string
+        sortOrder:
+          type: integer
+        uploadStatus:
+          type: string
+          enum: [PENDING, UPLOADING, UPLOADED, FAILED]
+      required: [id, mediaType, storageKey, mediaUrl, mimeType, sortOrder, uploadStatus]
 
     Submission:
       type: object
@@ -1523,34 +1735,64 @@ components:
           type: string
         user:
           $ref: "#/components/schemas/User"
+        categoryId:
+          type: string
+        subcategoryId:
+          type: string
+        collectionType:
+          type: string
+          enum: [VIDEO, IMAGE, AUDIO]
         status:
           type: string
-          enum: [pending, approved, rejected, under_review]
-        reviewNote:
+          enum: [DRAFT, UPLOADING, UNDER_REVIEW, APPROVED, REJECTED, RESUBMISSION_REQUIRED, UPLOAD_FAILED]
+        submittedAt:
           type: string
-        rewardAmount:
+          format: date-time
+        uploadStartedAt:
+          type: string
+          format: date-time
+        uploadCompletedAt:
+          type: string
+          format: date-time
+        captureStartedAt:
+          type: string
+          format: date-time
+        captureEndedAt:
+          type: string
+          format: date-time
+        durationSeconds:
+          type: integer
+        imageCount:
+          type: integer
+        totalFileSize:
           type: number
-        mediaUrls:
+        devicePlatform:
+          type: string
+        deviceModel:
+          type: string
+        osVersion:
+          type: string
+        captureMetadata:
+          type: object
+        taskSnapshot:
+          type: object
+        paymentAmountSnapshot:
+          type: number
+        currencySnapshot:
+          type: string
+        failureReason:
+          type: string
+        media:
           type: array
           items:
-            type: string
+            $ref: "#/components/schemas/SubmissionMedia"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, taskId, userId, status, rewardAmount, mediaUrls, createdAt, updatedAt]
-
-    UpdateSubmissionStatusRequest:
-      type: object
-      properties:
-        status:
-          type: string
-          enum: [approved, rejected, under_review]
-        reviewNote:
-          type: string
-      required: [status]
+      required: [id, taskId, userId, collectionType, status, taskSnapshot, paymentAmountSnapshot, currencySnapshot, media, createdAt, updatedAt]
 
     SubmissionListResponse:
       type: object

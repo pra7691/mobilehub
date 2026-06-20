@@ -1,0 +1,124 @@
+Continue from the existing Capto project. Do not rebuild authentication, tasks, capture, uploads, submissions, review workflow, wallet, or existing navigation.
+
+Build Profile, Support, FAQ, Privacy Policy, Terms and Conditions, and static-content management.
+
+Requirements:
+
+1. Mobile Profile
+   Create or complete profile screen with:
+
+* Mobile number
+* User ID
+* Registration date
+* Total submissions
+* Approved submissions
+* Pending submissions
+* Lifetime earnings
+* Available balance
+
+Menu items:
+
+* Support
+* FAQ
+* Privacy Policy
+* Terms and Conditions
+* App Version
+* Logout
+
+Optional:
+
+* Delete account should only be shown as “Contact Support to delete account” for now.
+* Do not add editable profile fields yet.
+
+2. Support
+   Create Support settings in admin:
+
+* Support email
+* Support WhatsApp number
+* Support phone optional
+* Support working hours optional
+* Support message optional
+
+Mobile support page:
+
+* Show support details from API.
+* Tap email opens mail client.
+* Tap WhatsApp opens WhatsApp URL.
+* Add “Copy support email” fallback.
+* Do not add live chat.
+
+3. FAQ
+   Admin can:
+
+* Create FAQ
+* Edit FAQ
+* Reorder FAQ
+* Enable/disable FAQ
+* Soft delete FAQ
+
+FAQ fields:
+
+* question
+* answer
+* displayOrder
+* isActive
+
+Mobile FAQ:
+
+* Search FAQ
+* Accordion expand/collapse
+* Loading and empty state
+
+4. Static pages
+   Admin can manage:
+
+* Privacy Policy
+* Terms and Conditions
+* App Notices / Announcements
+
+Static page fields:
+
+* title
+* slug
+* content
+* isPublished
+* version
+* updatedAt
+
+Mobile:
+
+* Render policy/terms content cleanly.
+* Show last updated date.
+* App Notices can be shown on home as dismissible banner.
+
+5. Backend APIs
+   Add:
+
+* GET /public/faq
+* GET /public/pages/:slug
+* GET /public/support
+* GET /public/notices
+* Admin CRUD for FAQ, pages, support settings, notices
+
+Ensure public APIs only return active/published content.
+
+6. Logout
+
+* Clear access token and refresh token securely.
+* Clear local session state.
+* Preserve unsent local drafts unless user explicitly deletes them.
+* Redirect to mobile login screen.
+
+7. Quality
+
+* Keep dark/cyan design.
+* Add proper API error states.
+* Add admin validation.
+* Keep all existing functionality intact.
+
+At the end provide:
+
+* APIs added
+* Admin test flow
+* Mobile test flow
+* Any pending limitations

@@ -62,7 +62,8 @@ export default function OtpScreen() {
         onSuccess: async (tokens) => {
           await login(tokens.accessToken, tokens.refreshToken);
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.replace("/(tabs)/");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          router.replace("/(tabs)/" as any);
         },
         onError: () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

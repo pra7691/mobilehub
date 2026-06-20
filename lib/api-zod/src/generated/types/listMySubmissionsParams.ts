@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LimitParamParameter } from './limitParamParameter';
-import type { ListSubmissionsStatus } from './listSubmissionsStatus';
+import type { ListMySubmissionsStatus } from './listMySubmissionsStatus';
 import type { PageParamParameter } from './pageParamParameter';
 
-export type ListSubmissionsParams = {
+export type ListMySubmissionsParams = {
 /**
  * @minimum 1
  */
@@ -19,7 +19,5 @@ page?: PageParamParameter;
  * @maximum 100
  */
 limit?: LimitParamParameter;
-taskId?: string;
-userId?: string;
-status?: ListSubmissionsStatus;
+status?: ListMySubmissionsStatus;
 };

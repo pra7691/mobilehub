@@ -480,20 +480,115 @@ export interface UploadUrlResponse {
   objectPath: string;
 }
 
-export interface CreateSubmissionRequest {
-  taskId: string;
-  mediaUrls: string[];
+export interface MediaFileInput {
+  filename: string;
+  fileSize?: number;
+  contentType?: string;
 }
+
+export type InitiateSubmissionRequestCaptureMetadata = { [key: string]: unknown };
+
+export interface InitiateSubmissionRequest {
+  taskId: string;
+  mediaFiles: MediaFileInput[];
+  durationSeconds?: number;
+  imageCount?: number;
+  captureMetadata?: InitiateSubmissionRequestCaptureMetadata;
+  captureStartedAt?: string;
+  captureEndedAt?: string;
+  devicePlatform?: string;
+  deviceModel?: string;
+  osVersion?: string;
+  cameraUsed?: string;
+  lensRequested?: string;
+  orientation?: string;
+}
+
+export interface UploadTarget {
+  mediaId: string;
+  storageKey: string;
+  uploadUrl: string;
+  filename: string;
+  sortOrder: number;
+}
+
+export interface InitiateSubmissionResponse {
+  submissionId: string;
+  uploadTargets: UploadTarget[];
+}
+
+export interface UploadedMediaInput {
+  mediaId: string;
+  fileSize?: number;
+}
+
+export interface UploadCompleteRequest {
+  uploadedMedia: UploadedMediaInput[];
+}
+
+export interface UploadFailedRequest {
+  failureReason?: string;
+  failedMediaIds?: string[];
+}
+
+export type SubmissionMediaMediaType = typeof SubmissionMediaMediaType[keyof typeof SubmissionMediaMediaType];
+
+
+export const SubmissionMediaMediaType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+  THUMBNAIL: 'THUMBNAIL',
+} as const;
+
+export type SubmissionMediaUploadStatus = typeof SubmissionMediaUploadStatus[keyof typeof SubmissionMediaUploadStatus];
+
+
+export const SubmissionMediaUploadStatus = {
+  PENDING: 'PENDING',
+  UPLOADING: 'UPLOADING',
+  UPLOADED: 'UPLOADED',
+  FAILED: 'FAILED',
+} as const;
+
+export interface SubmissionMedia {
+  id: string;
+  mediaType: SubmissionMediaMediaType;
+  storageKey: string;
+  mediaUrl: string;
+  thumbnailUrl?: string;
+  fileSize?: number;
+  durationSeconds?: number;
+  mimeType: string;
+  sortOrder: number;
+  uploadStatus: SubmissionMediaUploadStatus;
+}
+
+export type SubmissionCollectionType = typeof SubmissionCollectionType[keyof typeof SubmissionCollectionType];
+
+
+export const SubmissionCollectionType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+} as const;
 
 export type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionStatus];
 
 
 export const SubmissionStatus = {
-  pending: 'pending',
-  approved: 'approved',
-  rejected: 'rejected',
-  under_review: 'under_review',
+  DRAFT: 'DRAFT',
+  UPLOADING: 'UPLOADING',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
+  UPLOAD_FAILED: 'UPLOAD_FAILED',
 } as const;
+
+export type SubmissionCaptureMetadata = { [key: string]: unknown };
+
+export type SubmissionTaskSnapshot = { [key: string]: unknown };
 
 export interface Submission {
   id: string;
@@ -501,26 +596,29 @@ export interface Submission {
   task?: Task;
   userId: string;
   user?: User;
+  categoryId?: string;
+  subcategoryId?: string;
+  collectionType: SubmissionCollectionType;
   status: SubmissionStatus;
-  reviewNote?: string;
-  rewardAmount: number;
-  mediaUrls: string[];
+  submittedAt?: string;
+  uploadStartedAt?: string;
+  uploadCompletedAt?: string;
+  captureStartedAt?: string;
+  captureEndedAt?: string;
+  durationSeconds?: number;
+  imageCount?: number;
+  totalFileSize?: number;
+  devicePlatform?: string;
+  deviceModel?: string;
+  osVersion?: string;
+  captureMetadata?: SubmissionCaptureMetadata;
+  taskSnapshot: SubmissionTaskSnapshot;
+  paymentAmountSnapshot: number;
+  currencySnapshot: string;
+  failureReason?: string;
+  media: SubmissionMedia[];
   createdAt: string;
   updatedAt: string;
-}
-
-export type UpdateSubmissionStatusRequestStatus = typeof UpdateSubmissionStatusRequestStatus[keyof typeof UpdateSubmissionStatusRequestStatus];
-
-
-export const UpdateSubmissionStatusRequestStatus = {
-  approved: 'approved',
-  rejected: 'rejected',
-  under_review: 'under_review',
-} as const;
-
-export interface UpdateSubmissionStatusRequest {
-  status: UpdateSubmissionStatusRequestStatus;
-  reviewNote?: string;
 }
 
 export interface SubmissionListResponse {
@@ -733,7 +831,7 @@ export const ListTasksCollectionType = {
   AUDIO: 'AUDIO',
 } as const;
 
-export type ListSubmissionsParams = {
+export type ListMySubmissionsParams = {
 /**
  * @minimum 1
  */
@@ -743,19 +841,64 @@ page?: PageParamParameter;
  * @maximum 100
  */
 limit?: LimitParamParameter;
-taskId?: string;
-userId?: string;
-status?: ListSubmissionsStatus;
+status?: ListMySubmissionsStatus;
 };
 
-export type ListSubmissionsStatus = typeof ListSubmissionsStatus[keyof typeof ListSubmissionsStatus];
+export type ListMySubmissionsStatus = typeof ListMySubmissionsStatus[keyof typeof ListMySubmissionsStatus];
 
 
-export const ListSubmissionsStatus = {
-  pending: 'pending',
-  approved: 'approved',
-  rejected: 'rejected',
-  under_review: 'under_review',
+export const ListMySubmissionsStatus = {
+  DRAFT: 'DRAFT',
+  UPLOADING: 'UPLOADING',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
+  UPLOAD_FAILED: 'UPLOAD_FAILED',
+} as const;
+
+export type DeleteMySubmission200 = {
+  deleted: boolean;
+};
+
+export type AdminListSubmissionsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+status?: AdminListSubmissionsStatus;
+collectionType?: AdminListSubmissionsCollectionType;
+categoryId?: string;
+subcategoryId?: string;
+userId?: string;
+search?: string;
+};
+
+export type AdminListSubmissionsStatus = typeof AdminListSubmissionsStatus[keyof typeof AdminListSubmissionsStatus];
+
+
+export const AdminListSubmissionsStatus = {
+  DRAFT: 'DRAFT',
+  UPLOADING: 'UPLOADING',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
+  UPLOAD_FAILED: 'UPLOAD_FAILED',
+} as const;
+
+export type AdminListSubmissionsCollectionType = typeof AdminListSubmissionsCollectionType[keyof typeof AdminListSubmissionsCollectionType];
+
+
+export const AdminListSubmissionsCollectionType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
 } as const;
 
 export type ListWalletTransactionsParams = {

@@ -16,7 +16,7 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useGetTask, getListSubmissionsQueryKey } from "@workspace/api-client-react";
+import { useGetTask, getListMySubmissionsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useDrafts } from "@/contexts/DraftContext";
@@ -209,7 +209,7 @@ export default function ReviewScreen() {
         clearPendingCapture();
       }
 
-      await queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getListMySubmissionsQueryKey() });
 
       setSubmittedToast(true);
       setSubmitting(false);

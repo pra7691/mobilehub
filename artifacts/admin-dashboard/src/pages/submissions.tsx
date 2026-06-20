@@ -1,174 +1,350 @@
 import { useState } from "react";
-import { useListSubmissions, useUpdateSubmissionStatus, getListSubmissionsQueryKey, ListSubmissionsStatus } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  useAdminListSubmissions,
+  useAdminGetSubmission,
+  getAdminListSubmissionsQueryKey,
+  getAdminGetSubmissionQueryKey,
+  type Submission,
+  type SubmissionMedia,
+} from "@workspace/api-client-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, Search, Filter } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDistanceToNow } from "date-fns";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Filter,
+  Image,
+  Video,
+  Mic,
+  X,
+  ExternalLink,
+  Info,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { formatDistanceToNow, format } from "date-fns";
+
+type SubmissionStatusValue =
+  | "DRAFT"
+  | "UPLOADING"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "RESUBMISSION_REQUIRED"
+  | "UPLOAD_FAILED";
+
+type CollectionTypeValue = "VIDEO" | "IMAGE" | "AUDIO";
+
+const STATUS_BADGE: Record<
+  SubmissionStatusValue,
+  { label: string; className: string }
+> = {
+  DRAFT: {
+    label: "Draft",
+    className: "bg-slate-500/15 text-slate-400 border-none",
+  },
+  UPLOADING: {
+    label: "Uploading",
+    className: "bg-cyan-500/15 text-cyan-400 border-none",
+  },
+  UNDER_REVIEW: {
+    label: "Under Review",
+    className: "bg-amber-500/15 text-amber-400 border-none",
+  },
+  APPROVED: {
+    label: "Approved",
+    className: "bg-emerald-500/15 text-emerald-500 border-none",
+  },
+  REJECTED: {
+    label: "Rejected",
+    className: "bg-red-500/15 text-red-500 border-none",
+  },
+  RESUBMISSION_REQUIRED: {
+    label: "Resubmit",
+    className: "bg-orange-500/15 text-orange-400 border-none",
+  },
+  UPLOAD_FAILED: {
+    label: "Upload Failed",
+    className: "bg-red-900/30 text-red-400 border-none",
+  },
+};
+
+const COLLECTION_ICON: Record<CollectionTypeValue, React.ReactNode> = {
+  VIDEO: <Video className="h-3.5 w-3.5" />,
+  IMAGE: <Image className="h-3.5 w-3.5" />,
+  AUDIO: <Mic className="h-3.5 w-3.5" />,
+};
+
+function getStatusBadge(status: string) {
+  const cfg =
+    STATUS_BADGE[status as SubmissionStatusValue] ?? STATUS_BADGE["DRAFT"];
+  return <Badge className={cfg.className}>{cfg.label}</Badge>;
+}
+
+function getTaskTitle(sub: Submission): string {
+  return (
+    (sub.taskSnapshot as { title?: string } | undefined)?.title ??
+    "Unknown Task"
+  );
+}
 
 export default function Submissions() {
-  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<ListSubmissionsStatus | "all">("under_review");
+  const [statusFilter, setStatusFilter] = useState<
+    SubmissionStatusValue | "all"
+  >("UNDER_REVIEW");
+  const [collectionFilter, setCollectionFilter] = useState<
+    CollectionTypeValue | "all"
+  >("all");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const limit = 15;
 
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null);
-  const [reviewNote, setReviewNote] = useState("");
-
-  const { data, isLoading } = useListSubmissions({ 
-    page, 
+  const { data, isLoading } = useAdminListSubmissions({
+    page,
     limit,
-    status: statusFilter !== "all" ? statusFilter : undefined
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    collectionType: collectionFilter !== "all" ? collectionFilter : undefined,
+    search: search || undefined,
   });
 
-  const updateStatusMutation = useUpdateSubmissionStatus();
-
-  const handleApprove = (id: string) => {
-    updateStatusMutation.mutate(
-      { id, data: { status: "approved" } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() });
-        }
-      }
-    );
-  };
-
-  const openRejectDialog = (id: string) => {
-    setActiveSubmissionId(id);
-    setReviewNote("");
-    setRejectDialogOpen(true);
-  };
-
-  const handleReject = () => {
-    if (!activeSubmissionId || !reviewNote) return;
-    
-    updateStatusMutation.mutate(
-      { id: activeSubmissionId, data: { status: "rejected", reviewNote } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() });
-          setRejectDialogOpen(false);
-        }
-      }
-    );
-  };
-
-  const getStatusBadge = (s: string) => {
-    switch (s) {
-      case 'approved': return <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 border-none">Approved</Badge>;
-      case 'rejected': return <Badge variant="destructive" className="bg-destructive/15 text-destructive hover:bg-destructive/25 border-none">Rejected</Badge>;
-      case 'under_review': return <Badge className="bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 border-none">Under Review</Badge>;
-      case 'pending': return <Badge variant="secondary" className="bg-muted text-muted-foreground border-none">Pending</Badge>;
-      default: return <Badge variant="outline">{s}</Badge>;
+  const { data: selectedSub, isLoading: detailLoading } = useAdminGetSubmission(
+    selectedId ?? "",
+    {
+      query: {
+        enabled: !!selectedId,
+        queryKey: getAdminGetSubmissionQueryKey(selectedId ?? ""),
+      },
     }
-  };
+  );
+
+  function openDetail(id: string) {
+    setSelectedId(id);
+    setDetailOpen(true);
+  }
+
+  function handleSearch() {
+    setSearch(searchInput.trim());
+    setPage(1);
+  }
+
+  function clearSearch() {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+  }
+
+  const taskSnapshot = selectedSub?.taskSnapshot as
+    | {
+        title?: string;
+        collectionType?: string;
+        paymentAmount?: number;
+        currency?: string;
+        minimumDurationSeconds?: number;
+        maximumDurationSeconds?: number;
+        minimumImageCount?: number;
+        maximumImageCount?: number;
+        category?: { name: string };
+        subcategory?: { name: string };
+      }
+    | undefined;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
-          <p className="text-sm text-muted-foreground">Review and approve incoming data.</p>
-        </div>
-        
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select value={statusFilter} onValueChange={(v: any) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-card">
-              <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="under_review">Under Review</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+          <p className="text-sm text-muted-foreground">
+            View incoming field data submissions.
+          </p>
         </div>
       </div>
 
+      {/* Filters row */}
+      <div className="flex flex-wrap gap-3">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9 pr-9 bg-card"
+            placeholder="Search by ID, phone, task…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          {searchInput && (
+            <button
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={clearSearch}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Status filter */}
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v as SubmissionStatusValue | "all");
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[180px] bg-card">
+            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+            <SelectItem value="APPROVED">Approved</SelectItem>
+            <SelectItem value="REJECTED">Rejected</SelectItem>
+            <SelectItem value="UPLOAD_FAILED">Upload Failed</SelectItem>
+            <SelectItem value="UPLOADING">Uploading</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
+            <SelectItem value="RESUBMISSION_REQUIRED">Resubmit Required</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Collection type filter */}
+        <Select
+          value={collectionFilter}
+          onValueChange={(v) => {
+            setCollectionFilter(v as CollectionTypeValue | "all");
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[150px] bg-card">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="IMAGE">📷 Image</SelectItem>
+            <SelectItem value="VIDEO">🎥 Video</SelectItem>
+            <SelectItem value="AUDIO">🎙️ Audio</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {search && (
+          <Button variant="ghost" size="sm" onClick={clearSearch}>
+            <X className="h-3.5 w-3.5 mr-1" />
+            Clear search
+          </Button>
+        )}
+      </div>
+
+      {/* Table */}
       <div className="border border-border rounded-md bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead>Task</TableHead>
               <TableHead>User</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Submitted</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Reward</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                  {Array.from({ length: 7 }).map((_, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : data?.data?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  No submissions found matching the criteria.
+                <TableCell
+                  colSpan={7}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  No submissions found.
                 </TableCell>
               </TableRow>
             ) : (
               data?.data?.map((sub) => (
-                <TableRow key={sub.id}>
+                <TableRow
+                  key={sub.id}
+                  className="cursor-pointer hover:bg-muted/30"
+                  onClick={() => openDetail(sub.id)}
+                >
                   <TableCell>
-                    <div className="font-medium text-foreground">{sub.task?.title || "Unknown Task"}</div>
-                    <div className="text-xs text-muted-foreground font-mono mt-0.5">ID: {sub.id.substring(0,8)}...</div>
+                    <div className="font-medium text-foreground">
+                      {getTaskTitle(sub)}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                      {sub.id.substring(0, 8)}…
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{sub.user?.phoneNumber || "Unknown User"}</div>
+                    <div className="text-sm">
+                      {sub.user?.phoneNumber ?? "—"}
+                    </div>
+                    {sub.user?.name && (
+                      <div className="text-xs text-muted-foreground">
+                        {sub.user.name}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm" title={new Date(sub.createdAt).toLocaleString()}>
-                      {formatDistanceToNow(new Date(sub.createdAt), { addSuffix: true })}
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      {COLLECTION_ICON[sub.collectionType as CollectionTypeValue]}
+                      <span className="text-xs">{sub.collectionType}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div
+                      className="text-sm"
+                      title={
+                        sub.submittedAt
+                          ? new Date(sub.submittedAt).toLocaleString()
+                          : new Date(sub.createdAt).toLocaleString()
+                      }
+                    >
+                      {formatDistanceToNow(
+                        new Date(sub.submittedAt ?? sub.createdAt),
+                        { addSuffix: true }
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(sub.status)}</TableCell>
                   <TableCell className="text-right font-mono text-sm font-medium">
-                    ${sub.rewardAmount.toFixed(2)}
+                    {sub.currencySnapshot === "INR" ? "₹" : "$"}
+                    {sub.paymentAmountSnapshot.toFixed(2)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {(sub.status === "pending" || sub.status === "under_review") && (
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => openRejectDialog(sub.id)}
-                          disabled={updateStatusMutation.isPending}
-                        >
-                          <XCircle className="h-4 w-4" />
-                          <span className="sr-only">Reject</span>
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                          onClick={() => handleApprove(sub.id)}
-                          disabled={updateStatusMutation.isPending}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span className="sr-only">Approve</span>
-                        </Button>
-                      </div>
-                    )}
+                  <TableCell>
+                    <Info className="h-4 w-4 text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ))
@@ -177,24 +353,27 @@ export default function Submissions() {
         </Table>
       </div>
 
+      {/* Pagination */}
       {data?.meta && data.meta.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing <span className="font-medium">{data.data.length}</span> of <span className="font-medium">{data.meta.total}</span> submissions
+            Showing{" "}
+            <span className="font-medium">{data.data.length}</span> of{" "}
+            <span className="font-medium">{data.meta.total}</span> submissions
           </p>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setPage(p => p + 1)}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
               disabled={page >= data.meta.totalPages}
             >
               <ChevronRight className="h-4 w-4" />
@@ -203,30 +382,251 @@ export default function Submissions() {
         </div>
       )}
 
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] border-border bg-card">
-          <DialogHeader>
-            <DialogTitle>Reject Submission</DialogTitle>
-            <DialogDescription>
-              Provide a reason for rejecting this submission. The user will see this note.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Textarea 
-              placeholder="e.g. Photo is too blurry, missing required details..."
-              value={reviewNote}
-              onChange={(e) => setReviewNote(e.target.value)}
-              className="bg-background min-h-[100px]"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!reviewNote || updateStatusMutation.isPending}>
-              Confirm Rejection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Detail panel */}
+      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-card border-border">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="text-lg">Submission Detail</SheetTitle>
+          </SheetHeader>
+
+          {detailLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-6 w-full" />
+              ))}
+            </div>
+          ) : selectedSub ? (
+            <div className="space-y-6 text-sm">
+              {/* Status + IDs */}
+              <section className="space-y-2">
+                <div className="flex items-center gap-3">
+                  {getStatusBadge(selectedSub.status)}
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {selectedSub.id}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                  <DetailRow
+                    label="User"
+                    value={selectedSub.user?.phoneNumber ?? "—"}
+                  />
+                  <DetailRow
+                    label="Collection"
+                    value={selectedSub.collectionType}
+                  />
+                  <DetailRow
+                    label="Created"
+                    value={format(
+                      new Date(selectedSub.createdAt),
+                      "dd MMM yyyy HH:mm"
+                    )}
+                  />
+                  {selectedSub.submittedAt && (
+                    <DetailRow
+                      label="Submitted"
+                      value={format(
+                        new Date(selectedSub.submittedAt),
+                        "dd MMM yyyy HH:mm"
+                      )}
+                    />
+                  )}
+                  {selectedSub.uploadCompletedAt && (
+                    <DetailRow
+                      label="Upload completed"
+                      value={format(
+                        new Date(selectedSub.uploadCompletedAt),
+                        "dd MMM yyyy HH:mm"
+                      )}
+                    />
+                  )}
+                  {selectedSub.failureReason && (
+                    <DetailRow
+                      label="Failure"
+                      value={selectedSub.failureReason}
+                    />
+                  )}
+                </div>
+              </section>
+
+              {/* Task snapshot */}
+              {taskSnapshot && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Task Snapshot
+                  </h3>
+                  <div className="bg-background rounded-lg border border-border p-3 space-y-1">
+                    <p className="font-medium text-foreground">
+                      {taskSnapshot.title ?? "—"}
+                    </p>
+                    <div className="grid grid-cols-2 gap-1 text-muted-foreground mt-2">
+                      {taskSnapshot.category && (
+                        <DetailRow
+                          label="Category"
+                          value={taskSnapshot.category.name}
+                        />
+                      )}
+                      {taskSnapshot.subcategory && (
+                        <DetailRow
+                          label="Subcategory"
+                          value={taskSnapshot.subcategory.name}
+                        />
+                      )}
+                      <DetailRow
+                        label="Reward"
+                        value={`${taskSnapshot.currency === "INR" ? "₹" : "$"}${taskSnapshot.paymentAmount?.toFixed(2) ?? "—"}`}
+                      />
+                      {taskSnapshot.minimumDurationSeconds != null && (
+                        <DetailRow
+                          label="Min duration"
+                          value={`${taskSnapshot.minimumDurationSeconds}s`}
+                        />
+                      )}
+                      {taskSnapshot.maximumDurationSeconds != null && (
+                        <DetailRow
+                          label="Max duration"
+                          value={`${taskSnapshot.maximumDurationSeconds}s`}
+                        />
+                      )}
+                      {taskSnapshot.minimumImageCount != null && (
+                        <DetailRow
+                          label="Min images"
+                          value={String(taskSnapshot.minimumImageCount)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* Capture metadata */}
+              {(selectedSub.durationSeconds != null ||
+                selectedSub.imageCount != null ||
+                selectedSub.deviceModel ||
+                selectedSub.devicePlatform) && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Capture Info
+                  </h3>
+                  <div className="bg-background rounded-lg border border-border p-3 grid grid-cols-2 gap-1 text-muted-foreground">
+                    {selectedSub.durationSeconds != null && (
+                      <DetailRow
+                        label="Duration"
+                        value={`${selectedSub.durationSeconds}s`}
+                      />
+                    )}
+                    {selectedSub.imageCount != null && (
+                      <DetailRow
+                        label="Images"
+                        value={String(selectedSub.imageCount)}
+                      />
+                    )}
+                    {selectedSub.totalFileSize != null && (
+                      <DetailRow
+                        label="Total size"
+                        value={`${(Number(selectedSub.totalFileSize) / (1024 * 1024)).toFixed(1)} MB`}
+                      />
+                    )}
+                    {selectedSub.devicePlatform && (
+                      <DetailRow
+                        label="Platform"
+                        value={selectedSub.devicePlatform}
+                      />
+                    )}
+                    {selectedSub.deviceModel && (
+                      <DetailRow
+                        label="Device"
+                        value={selectedSub.deviceModel}
+                      />
+                    )}
+                    {(selectedSub.captureMetadata as Record<string, string> | undefined)?.cameraUsed && (
+                      <DetailRow
+                        label="Camera"
+                        value={(selectedSub.captureMetadata as Record<string, string>).cameraUsed}
+                      />
+                    )}
+                    {(selectedSub.captureMetadata as Record<string, string> | undefined)?.orientation && (
+                      <DetailRow
+                        label="Orientation"
+                        value={(selectedSub.captureMetadata as Record<string, string>).orientation}
+                      />
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Media files */}
+              {selectedSub.media && selectedSub.media.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Media ({selectedSub.media.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedSub.media.map((m: SubmissionMedia, i: number) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center gap-3 bg-background border border-border rounded-lg p-3"
+                      >
+                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0">
+                          {m.mediaType === "VIDEO" ? (
+                            <Video className="h-4 w-4" />
+                          ) : m.mediaType === "AUDIO" ? (
+                            <Mic className="h-4 w-4" />
+                          ) : (
+                            <Image className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground">
+                            File {i + 1}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {m.mimeType}
+                            {m.fileSize != null &&
+                              ` · ${(Number(m.fileSize) / (1024 * 1024)).toFixed(1)} MB`}
+                            {m.durationSeconds != null &&
+                              ` · ${m.durationSeconds}s`}
+                          </p>
+                          <Badge
+                            className={
+                              m.uploadStatus === "UPLOADED"
+                                ? "bg-emerald-500/15 text-emerald-500 border-none text-xs mt-1"
+                                : m.uploadStatus === "FAILED"
+                                  ? "bg-red-500/15 text-red-500 border-none text-xs mt-1"
+                                  : "bg-slate-500/15 text-slate-400 border-none text-xs mt-1"
+                            }
+                          >
+                            {m.uploadStatus}
+                          </Badge>
+                        </div>
+                        {m.uploadStatus === "UPLOADED" && m.mediaUrl && (
+                          <a
+                            href={m.mediaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="col-span-1">
+      <span className="text-xs text-muted-foreground">{label}: </span>
+      <span className="text-xs text-foreground font-medium">{value}</span>
     </div>
   );
 }

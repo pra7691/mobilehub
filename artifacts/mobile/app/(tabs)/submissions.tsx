@@ -12,8 +12,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import {
-  useListSubmissions,
-  getListSubmissionsQueryKey,
+  useListMySubmissions,
+  getListMySubmissionsQueryKey,
 } from "@workspace/api-client-react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/useColors";
@@ -22,19 +22,41 @@ import { useDrafts } from "@/contexts/DraftContext";
 import type { LocalDraft } from "@/lib/drafts";
 import { submitDraft, type SubmitProgress } from "@/lib/submitDraft";
 
+type SubmissionStatus =
+  | "DRAFT"
+  | "UPLOADING"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "RESUBMISSION_REQUIRED"
+  | "UPLOAD_FAILED";
+
 interface Submission {
   id: string;
-  status: "pending" | "approved" | "rejected" | "under_review";
-  rewardAmount: number;
+  status: SubmissionStatus;
+  paymentAmountSnapshot: number;
+  currencySnapshot: string;
+  collectionType: string;
   createdAt: string;
   task?: { title: string; collectionType?: string } | null;
+  taskSnapshot?: { title?: string; collectionType?: string };
 }
 
-const SUBMISSION_STATUS_CONFIG = {
-  pending: { label: "Pending", color: "#f59e0b", bg: "#422006" },
-  approved: { label: "Approved", color: "#22c55e", bg: "#052e16" },
-  rejected: { label: "Rejected", color: "#ef4444", bg: "#450a0a" },
-  under_review: { label: "Under Review", color: "#8b5cf6", bg: "#2e1065" },
+const SUBMISSION_STATUS_CONFIG: Record<
+  SubmissionStatus,
+  { label: string; color: string; bg: string }
+> = {
+  DRAFT: { label: "Draft", color: "#94a3b8", bg: "#1e293b" },
+  UPLOADING: { label: "Uploading", color: "#06b6d4", bg: "#0c2033" },
+  UNDER_REVIEW: { label: "Under Review", color: "#8b5cf6", bg: "#2e1065" },
+  APPROVED: { label: "Approved", color: "#22c55e", bg: "#052e16" },
+  REJECTED: { label: "Rejected", color: "#ef4444", bg: "#450a0a" },
+  RESUBMISSION_REQUIRED: {
+    label: "Resubmit",
+    color: "#f59e0b",
+    bg: "#422006",
+  },
+  UPLOAD_FAILED: { label: "Upload Failed", color: "#f87171", bg: "#3b0a0a" },
 };
 
 const COLLECTION_TYPE_ICON: Record<string, string> = {
@@ -58,7 +80,11 @@ export default function SubmissionsScreen() {
   const router = useRouter();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<TabId>(
-    tabParam === "drafts" ? "drafts" : tabParam === "completed" ? "completed" : "under_review"
+    tabParam === "drafts"
+      ? "drafts"
+      : tabParam === "completed"
+        ? "completed"
+        : "under_review"
   );
 
   useEffect(() => {
@@ -69,25 +95,27 @@ export default function SubmissionsScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
-  const [submitProgress, setSubmitProgress] = useState<SubmitProgress | null>(null);
+  const [submitProgress, setSubmitProgress] = useState<SubmitProgress | null>(
+    null
+  );
 
-  const { data, isLoading } = useListSubmissions();
+  const { data, isLoading } = useListMySubmissions();
   const submissions: Submission[] =
     (data as { data?: Submission[] } | undefined)?.data ?? [];
 
   const { drafts, deleteDraft } = useDrafts();
 
-  const underReview = submissions.filter(
-    (s) => s.status === "pending" || s.status === "under_review"
+  const underReview = submissions.filter((s) =>
+    (["UPLOADING", "UNDER_REVIEW", "RESUBMISSION_REQUIRED"] as SubmissionStatus[]).includes(s.status)
   );
-  const completed = submissions.filter(
-    (s) => s.status === "approved" || s.status === "rejected"
+  const completed = submissions.filter((s) =>
+    (["APPROVED", "REJECTED", "UPLOAD_FAILED"] as SubmissionStatus[]).includes(s.status)
   );
 
   async function handleRefresh() {
     setRefreshing(true);
     await queryClient.invalidateQueries({
-      queryKey: getListSubmissionsQueryKey(),
+      queryKey: getListMySubmissionsQueryKey(),
     });
     setRefreshing(false);
   }
@@ -109,28 +137,43 @@ export default function SubmissionsScreen() {
 
   async function handleSubmitDraft(draft: LocalDraft) {
     setSubmittingId(draft.id);
-    setSubmitProgress({ phase: "uploading", current: 0, total: draft.mediaUris.length });
+    setSubmitProgress({
+      phase: "preparing",
+      current: 0,
+      total: draft.mediaUris.length,
+    });
     try {
       await submitDraft(draft, (progress) => {
         setSubmitProgress(progress);
       });
       await deleteDraft(draft.id);
-      await queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() });
+      await queryClient.invalidateQueries({
+        queryKey: getListMySubmissionsQueryKey(),
+      });
       setSubmittingId(null);
       setSubmitProgress(null);
       setActiveTab("under_review");
     } catch (err) {
       setSubmittingId(null);
       setSubmitProgress(null);
-      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      const message =
+        err instanceof Error ? err.message : "Unknown error occurred";
       Alert.alert("Submission Failed", message, [{ text: "OK" }]);
     }
   }
 
   function confirmSubmitDraft(draft: LocalDraft) {
+    const mediaCount = draft.mediaUris.length;
+    const typeLabel =
+      draft.collectionType === "IMAGE"
+        ? `${mediaCount} photo${mediaCount !== 1 ? "s" : ""}`
+        : draft.collectionType === "VIDEO"
+          ? "video"
+          : "audio recording";
+
     Alert.alert(
       "Submit for Review?",
-      `This will upload your "${draft.taskTitle}" and send it for admin review.`,
+      `Upload ${typeLabel} for "${draft.taskTitle}" and send it for admin review. You'll earn ₹${draft.paymentAmount} upon approval.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -222,15 +265,17 @@ export default function SubmissionsScreen() {
                   </View>
                 </View>
 
-                {/* Upload progress bar */}
+                {/* Upload progress */}
                 {isSubmitting && submitProgress && (
                   <View style={styles.uploadProgress}>
                     <ActivityIndicator color="#8b5cf6" size="small" />
                     <View style={styles.uploadProgressText}>
                       <Text style={styles.uploadProgressLabel}>
-                        {submitProgress.phase === "uploading"
-                          ? `Uploading ${submitProgress.current} of ${submitProgress.total}…`
-                          : "Submitting…"}
+                        {submitProgress.phase === "preparing"
+                          ? "Preparing…"
+                          : submitProgress.phase === "uploading"
+                            ? `Uploading ${submitProgress.current} of ${submitProgress.total}…`
+                            : "Finalising…"}
                       </Text>
                       <View style={styles.progressBar}>
                         <View
@@ -252,7 +297,11 @@ export default function SubmissionsScreen() {
 
                 <View style={styles.cardBottom}>
                   <View style={styles.dateRow}>
-                    <Feather name="calendar" size={12} color={colors.mutedForeground} />
+                    <Feather
+                      name="calendar"
+                      size={12}
+                      color={colors.mutedForeground}
+                    />
                     <Text style={styles.dateText}>{date}</Text>
                   </View>
                   <View style={styles.typeRow}>
@@ -311,16 +360,24 @@ export default function SubmissionsScreen() {
               tintColor={colors.primary}
             />
           }
-          renderItem={({ item }) => <SubmissionCard item={item} styles={styles} colors={colors} />}
-          ListHeaderComponent={isLoading ? (
-            <View style={{ paddingVertical: 20, alignItems: "center" }}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : null}
+          renderItem={({ item }) => (
+            <SubmissionCard item={item} styles={styles} colors={colors} />
+          )}
+          ListHeaderComponent={
+            isLoading ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.empty}>
-                <Feather name="clock" size={40} color={colors.mutedForeground} />
+                <Feather
+                  name="clock"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
                 <Text style={styles.emptyText}>Nothing under review</Text>
                 <Text style={styles.emptySubtext}>
                   Uploaded submissions appear here
@@ -345,16 +402,24 @@ export default function SubmissionsScreen() {
               tintColor={colors.primary}
             />
           }
-          renderItem={({ item }) => <SubmissionCard item={item} styles={styles} colors={colors} />}
-          ListHeaderComponent={isLoading ? (
-            <View style={{ paddingVertical: 20, alignItems: "center" }}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : null}
+          renderItem={({ item }) => (
+            <SubmissionCard item={item} styles={styles} colors={colors} />
+          )}
+          ListHeaderComponent={
+            isLoading ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.empty}>
-                <Feather name="check-circle" size={40} color={colors.mutedForeground} />
+                <Feather
+                  name="check-circle"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
                 <Text style={styles.emptyText}>No completed submissions</Text>
                 <Text style={styles.emptySubtext}>
                   Approved and rejected submissions appear here
@@ -368,6 +433,18 @@ export default function SubmissionsScreen() {
   );
 }
 
+function getTaskTitle(item: Submission): string {
+  return (
+    (item.taskSnapshot as { title?: string } | undefined)?.title ??
+    item.task?.title ??
+    "Task"
+  );
+}
+
+function getCollectionType(item: Submission): string {
+  return item.collectionType ?? item.task?.collectionType ?? "";
+}
+
 function SubmissionCard({
   item,
   styles,
@@ -378,19 +455,20 @@ function SubmissionCard({
   colors: ReturnType<typeof useColors>;
 }) {
   const config =
-    SUBMISSION_STATUS_CONFIG[item.status] ?? SUBMISSION_STATUS_CONFIG.pending;
+    SUBMISSION_STATUS_CONFIG[item.status] ??
+    SUBMISSION_STATUS_CONFIG["UNDER_REVIEW"];
   const date = new Date(item.createdAt).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
   });
+  const collType = getCollectionType(item);
+  const title = getTaskTitle(item);
   return (
     <View style={styles.card} testID={`card-submission-${item.id}`}>
       <View style={styles.cardTop}>
         <Text style={styles.taskTitle} numberOfLines={1}>
-          {item.task?.collectionType
-            ? (COLLECTION_TYPE_ICON[item.task.collectionType] ?? "") + " "
-            : ""}
-          {item.task?.title ?? "Task"}
+          {collType ? (COLLECTION_TYPE_ICON[collType] ?? "") + " " : ""}
+          {title}
         </Text>
         <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
           <Text style={[styles.statusText, { color: config.color }]}>
@@ -403,11 +481,11 @@ function SubmissionCard({
           <Feather name="calendar" size={12} color={colors.mutedForeground} />
           <Text style={styles.dateText}>{date}</Text>
         </View>
-        {item.status === "approved" && (
+        {item.status === "APPROVED" && (
           <View style={styles.payoutRow}>
             <Feather name="trending-up" size={12} color={colors.success} />
             <Text style={[styles.payoutText, { color: colors.success }]}>
-              ₹{item.rewardAmount} earned
+              ₹{item.paymentAmountSnapshot} earned
             </Text>
           </View>
         )}
@@ -513,7 +591,11 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: colors.foreground,
     },
     statusBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-    statusText: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.2 },
+    statusText: {
+      fontSize: 11,
+      fontFamily: "Inter_600SemiBold",
+      letterSpacing: 0.2,
+    },
 
     readyBadge: {
       backgroundColor: "#0c2033",

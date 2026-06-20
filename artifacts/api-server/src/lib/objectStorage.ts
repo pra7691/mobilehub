@@ -75,14 +75,41 @@ async function signObjectURL({
 export interface UploadUrlResult {
   uploadURL: string;
   objectPath: string;
+  objectKey: string;
 }
 
-export async function generateUploadUrl(): Promise<UploadUrlResult> {
+export async function generateUploadUrl(params: {
+  submissionId?: string;
+  index?: number;
+  ext?: string;
+  contentType?: string;
+} = {}): Promise<UploadUrlResult> {
   const privateObjectDir = getPrivateObjectDir();
+  const suffix = params.ext ? `.${params.ext}` : "";
   const objectId = randomUUID();
-  const fullPath = `${privateObjectDir}/uploads/${objectId}`;
-  const { bucketName, objectName } = parseObjectPath(fullPath);
-  const uploadURL = await signObjectURL({ bucketName, objectName, method: "PUT", ttlSec: 900 });
-  const objectPath = `/objects/uploads/${objectId}`;
-  return { uploadURL, objectPath };
+  const subDir = params.submissionId
+    ? `submissions/${params.submissionId}`
+    : "uploads";
+  const objectName = params.index != null
+    ? `${subDir}/${params.index}_${objectId}${suffix}`
+    : `${subDir}/${objectId}${suffix}`;
+
+  const fullPath = `${privateObjectDir}/${objectName}`;
+  const { bucketName, objectName: bucketObjectName } = parseObjectPath(fullPath);
+  const uploadURL = await signObjectURL({
+    bucketName,
+    objectName: bucketObjectName,
+    method: "PUT",
+    ttlSec: 900,
+  });
+
+  // objectKey is used to later generate a signed read URL; objectPath is what we store
+  const objectKey = fullPath;
+  const objectPath = `/objects/${objectName}`;
+  return { uploadURL, objectPath, objectKey };
+}
+
+export async function generateReadUrl(objectKey: string): Promise<string> {
+  const { bucketName, objectName } = parseObjectPath(objectKey);
+  return signObjectURL({ bucketName, objectName, method: "GET", ttlSec: 3600 });
 }

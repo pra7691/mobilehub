@@ -1,93 +1,609 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SubmissionStatus } from '@prisma/client';
+import { StorageService } from '../storage/storage.service';
+import {
+  SubmissionStatus,
+  MediaType,
+  MediaUploadStatus,
+  CollectionType,
+  Prisma,
+} from '@prisma/client';
 
-interface ListParams { page?: number; limit?: number; taskId?: string; userId?: string; status?: SubmissionStatus }
+// Max file sizes in bytes
+const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
+const MAX_AUDIO_SIZE = 100 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
+
+// Presigned URL TTL in seconds (15 minutes)
+const UPLOAD_URL_TTL = 900;
+
+function getMediaTypeForCollection(collectionType: CollectionType): MediaType {
+  switch (collectionType) {
+    case 'VIDEO': return 'VIDEO';
+    case 'AUDIO': return 'AUDIO';
+    case 'IMAGE': return 'IMAGE';
+  }
+}
+
+function getMimeType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    mp4: 'video/mp4',
+    mov: 'video/quicktime',
+    m4a: 'audio/mp4',
+    aac: 'audio/aac',
+    mp3: 'audio/mpeg',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+  };
+  return map[ext] ?? 'application/octet-stream';
+}
+
+function getMaxFileSizeForType(mediaType: MediaType): number {
+  switch (mediaType) {
+    case 'VIDEO': return MAX_VIDEO_SIZE;
+    case 'AUDIO': return MAX_AUDIO_SIZE;
+    case 'IMAGE': return MAX_IMAGE_SIZE;
+    default: return MAX_IMAGE_SIZE;
+  }
+}
+
+function buildTaskSnapshot(task: {
+  id: string;
+  title: string;
+  description: string | null;
+  detailedInstructions: string | null;
+  collectionType: CollectionType;
+  paymentAmount: Prisma.Decimal;
+  currency: string;
+  minimumDurationSeconds: number | null;
+  maximumDurationSeconds: number | null;
+  minimumImageCount: number | null;
+  maximumImageCount: number | null;
+  category: { id: string; name: string };
+  subcategory: { id: string; name: string } | null;
+}): object {
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    detailedInstructions: task.detailedInstructions,
+    collectionType: task.collectionType,
+    paymentAmount: task.paymentAmount.toNumber(),
+    currency: task.currency,
+    minimumDurationSeconds: task.minimumDurationSeconds,
+    maximumDurationSeconds: task.maximumDurationSeconds,
+    minimumImageCount: task.minimumImageCount,
+    maximumImageCount: task.maximumImageCount,
+    category: task.category,
+    subcategory: task.subcategory,
+  };
+}
+
+function formatSubmission(s: {
+  id: string;
+  userId: string;
+  taskId: string;
+  categoryId: string | null;
+  subcategoryId: string | null;
+  collectionType: CollectionType;
+  status: SubmissionStatus;
+  submittedAt: Date | null;
+  uploadStartedAt: Date | null;
+  uploadCompletedAt: Date | null;
+  captureStartedAt: Date | null;
+  captureEndedAt: Date | null;
+  durationSeconds: number | null;
+  imageCount: number | null;
+  totalFileSize: bigint | null;
+  devicePlatform: string | null;
+  deviceModel: string | null;
+  osVersion: string | null;
+  cameraUsed: string | null;
+  lensRequested: string | null;
+  orientation: string | null;
+  captureMetadata: Prisma.JsonValue | null;
+  taskSnapshot: Prisma.JsonValue;
+  paymentAmountSnapshot: Prisma.Decimal;
+  currencySnapshot: string;
+  failureReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  task?: object | null;
+  user?: object | null;
+  media?: {
+    id: string;
+    mediaType: MediaType;
+    storageKey: string;
+    mediaUrl: string;
+    thumbnailUrl: string | null;
+    fileSize: bigint | null;
+    durationSeconds: number | null;
+    mimeType: string;
+    sortOrder: number;
+    uploadStatus: MediaUploadStatus;
+  }[];
+}) {
+  return {
+    ...s,
+    totalFileSize: s.totalFileSize != null ? Number(s.totalFileSize) : null,
+    paymentAmountSnapshot: s.paymentAmountSnapshot.toNumber(),
+    media: s.media?.map(m => ({
+      ...m,
+      fileSize: m.fileSize != null ? Number(m.fileSize) : null,
+    })) ?? [],
+  };
+}
+
+const SUBMISSION_INCLUDE = {
+  task: {
+    select: {
+      id: true,
+      title: true,
+      collectionType: true,
+      paymentAmount: true,
+      currency: true,
+      status: true,
+      category: { select: { id: true, name: true } },
+      subcategory: { select: { id: true, name: true } },
+    },
+  },
+  user: { select: { id: true, phoneNumber: true, name: true, status: true } },
+  media: {
+    select: {
+      id: true,
+      mediaType: true,
+      storageKey: true,
+      mediaUrl: true,
+      thumbnailUrl: true,
+      fileSize: true,
+      durationSeconds: true,
+      mimeType: true,
+      sortOrder: true,
+      uploadStatus: true,
+    },
+    orderBy: { sortOrder: 'asc' as const },
+  },
+} satisfies Prisma.SubmissionInclude;
 
 @Injectable()
 export class SubmissionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
-  private toResponse(s: {
-    id: string;
-    taskId: string;
-    userId: string;
-    status: SubmissionStatus;
-    reviewNote: string | null;
-    rewardAmount: { toNumber(): number };
-    mediaUrls: string[];
-    createdAt: Date;
-    updatedAt: Date;
-    task?: object | null;
-    user?: object | null;
-  }) {
-    return { ...s, rewardAmount: s.rewardAmount.toNumber() };
+  // ─── POST /submissions/initiate ────────────────────────────────────────────
+  async initiate(
+    userId: string,
+    body: {
+      taskId: string;
+      mediaFiles: Array<{
+        filename: string;
+        fileSize?: number;
+        contentType?: string;
+      }>;
+      durationSeconds?: number;
+      imageCount?: number;
+      captureMetadata?: object;
+      captureStartedAt?: string;
+      captureEndedAt?: string;
+      devicePlatform?: string;
+      deviceModel?: string;
+      osVersion?: string;
+      cameraUsed?: string;
+      lensRequested?: string;
+      orientation?: string;
+    },
+  ) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: body.taskId },
+      include: {
+        category: { select: { id: true, name: true } },
+        subcategory: { select: { id: true, name: true } },
+      },
+    });
+    if (!task || task.deletedAt) throw new NotFoundException('Task not found');
+    if (task.status !== 'active') {
+      throw new BadRequestException('Task is not currently active');
+    }
+
+    // Date-based availability
+    const now = new Date();
+    if (task.startDate && task.startDate > now) {
+      throw new BadRequestException('Task is not yet available');
+    }
+    if (task.endDate && task.endDate < now) {
+      throw new BadRequestException('Task submission window has closed');
+    }
+
+    // Must have at least one media file
+    if (body.mediaFiles.length === 0) {
+      throw new BadRequestException('At least one media file is required');
+    }
+
+    // Validate collection type matches
+    const expectedMediaType = getMediaTypeForCollection(task.collectionType);
+
+    // Per-user submission limit
+    if (task.maxSubmissionsPerUser) {
+      const userCount = await this.prisma.submission.count({
+        where: {
+          userId,
+          taskId: body.taskId,
+          status: { notIn: ['DRAFT', 'UPLOAD_FAILED'] },
+        },
+      });
+      if (userCount >= task.maxSubmissionsPerUser) {
+        throw new BadRequestException(
+          `You have reached the maximum of ${task.maxSubmissionsPerUser} submission(s) for this task`,
+        );
+      }
+    }
+
+    // Total submission limit
+    if (task.maxTotalSubmissions) {
+      const totalCount = await this.prisma.submission.count({
+        where: {
+          taskId: body.taskId,
+          status: { notIn: ['DRAFT', 'UPLOAD_FAILED'] },
+        },
+      });
+      if (totalCount >= task.maxTotalSubmissions) {
+        throw new BadRequestException('This task has reached its submission limit');
+      }
+    }
+
+    // Duration validation
+    if (task.collectionType !== 'IMAGE') {
+      if (
+        body.durationSeconds != null &&
+        task.minimumDurationSeconds != null &&
+        body.durationSeconds < task.minimumDurationSeconds
+      ) {
+        throw new BadRequestException(
+          `Recording is too short. Minimum ${task.minimumDurationSeconds}s required`,
+        );
+      }
+      if (
+        body.durationSeconds != null &&
+        task.maximumDurationSeconds != null &&
+        body.durationSeconds > task.maximumDurationSeconds
+      ) {
+        throw new BadRequestException(
+          `Recording exceeds maximum duration of ${task.maximumDurationSeconds}s`,
+        );
+      }
+    }
+
+    // Image count validation
+    if (task.collectionType === 'IMAGE') {
+      const count = body.mediaFiles.length;
+      if (task.minimumImageCount && count < task.minimumImageCount) {
+        throw new BadRequestException(
+          `Minimum ${task.minimumImageCount} image(s) required`,
+        );
+      }
+      if (task.maximumImageCount && count > task.maximumImageCount) {
+        throw new BadRequestException(
+          `Maximum ${task.maximumImageCount} image(s) allowed`,
+        );
+      }
+    }
+
+    // File size validation
+    for (const file of body.mediaFiles) {
+      const maxSize = getMaxFileSizeForType(expectedMediaType);
+      if (file.fileSize && file.fileSize > maxSize) {
+        throw new BadRequestException(
+          `File "${file.filename}" exceeds the maximum allowed size`,
+        );
+      }
+    }
+
+    // Compute total file size
+    const totalFileSize = body.mediaFiles.reduce(
+      (sum, f) => sum + (f.fileSize ?? 0),
+      0,
+    );
+
+    // Create submission in DRAFT status
+    const submission = await this.prisma.submission.create({
+      data: {
+        userId,
+        taskId: body.taskId,
+        categoryId: task.categoryId,
+        subcategoryId: task.subcategoryId ?? null,
+        collectionType: task.collectionType,
+        status: 'DRAFT',
+        durationSeconds: body.durationSeconds ?? null,
+        imageCount: body.mediaFiles.length,
+        totalFileSize: totalFileSize > 0 ? BigInt(totalFileSize) : null,
+        captureStartedAt: body.captureStartedAt ? new Date(body.captureStartedAt) : null,
+        captureEndedAt: body.captureEndedAt ? new Date(body.captureEndedAt) : null,
+        captureMetadata: body.captureMetadata ?? undefined,
+        taskSnapshot: buildTaskSnapshot(task) as Prisma.InputJsonValue,
+        paymentAmountSnapshot: task.paymentAmount,
+        currencySnapshot: task.currency,
+        devicePlatform: body.devicePlatform ?? null,
+        deviceModel: body.deviceModel ?? null,
+        osVersion: body.osVersion ?? null,
+        cameraUsed: body.cameraUsed ?? null,
+        lensRequested: body.lensRequested ?? null,
+        orientation: body.orientation ?? null,
+      },
+    });
+
+    // Generate presigned URLs and create SubmissionMedia rows
+    const uploadTargets: Array<{
+      mediaId: string;
+      storageKey: string;
+      uploadUrl: string;
+      filename: string;
+      sortOrder: number;
+    }> = [];
+
+    for (let i = 0; i < body.mediaFiles.length; i++) {
+      const file = body.mediaFiles[i]!;
+      const mimeType = file.contentType ?? getMimeType(file.filename);
+      const ext = file.filename.split('.').pop() ?? 'bin';
+
+      const { uploadURL, objectPath, objectKey } = await this.storage.getUploadUrl({
+        submissionId: submission.id,
+        index: i,
+        ext,
+        contentType: mimeType,
+      });
+
+      const media = await this.prisma.submissionMedia.create({
+        data: {
+          submissionId: submission.id,
+          mediaType: expectedMediaType,
+          storageKey: objectKey,
+          mediaUrl: objectPath,
+          mimeType,
+          sortOrder: i,
+          fileSize: file.fileSize ? BigInt(file.fileSize) : null,
+          uploadStatus: 'PENDING',
+        },
+      });
+
+      uploadTargets.push({
+        mediaId: media.id,
+        storageKey: objectKey,
+        uploadUrl: uploadURL,
+        filename: file.filename,
+        sortOrder: i,
+      });
+    }
+
+    // Mark as UPLOADING
+    await this.prisma.submission.update({
+      where: { id: submission.id },
+      data: { status: 'UPLOADING', uploadStartedAt: new Date() },
+    });
+
+    return {
+      submissionId: submission.id,
+      uploadTargets,
+    };
   }
 
-  async list(params: ListParams) {
+  // ─── POST /submissions/:id/upload-complete ─────────────────────────────────
+  async uploadComplete(
+    userId: string,
+    submissionId: string,
+    body: {
+      uploadedMedia: Array<{ mediaId: string; fileSize?: number }>;
+    },
+  ) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: { media: true },
+    });
+    if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.userId !== userId) throw new ForbiddenException('Access denied');
+    if (submission.status !== 'UPLOADING' && submission.status !== 'DRAFT') {
+      throw new BadRequestException(
+        `Cannot complete upload for submission in status ${submission.status}`,
+      );
+    }
+
+    // Mark each uploaded media
+    for (const uploaded of body.uploadedMedia) {
+      await this.prisma.submissionMedia.update({
+        where: { id: uploaded.mediaId },
+        data: {
+          uploadStatus: 'UPLOADED',
+          fileSize: uploaded.fileSize ? BigInt(uploaded.fileSize) : undefined,
+        },
+      });
+    }
+
+    // Verify all media uploaded
+    const pendingMedia = await this.prisma.submissionMedia.count({
+      where: {
+        submissionId,
+        uploadStatus: { notIn: ['UPLOADED'] },
+      },
+    });
+    if (pendingMedia > 0) {
+      throw new BadRequestException(
+        `${pendingMedia} media file(s) have not been uploaded yet`,
+      );
+    }
+
+    const updated = await this.prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: 'UNDER_REVIEW',
+        submittedAt: new Date(),
+        uploadCompletedAt: new Date(),
+      },
+      include: SUBMISSION_INCLUDE,
+    });
+
+    return formatSubmission(updated);
+  }
+
+  // ─── POST /submissions/:id/upload-failed ───────────────────────────────────
+  async uploadFailed(
+    userId: string,
+    submissionId: string,
+    body: { failureReason?: string; failedMediaIds?: string[] },
+  ) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+    });
+    if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.userId !== userId) throw new ForbiddenException('Access denied');
+
+    // Mark failed media
+    if (body.failedMediaIds && body.failedMediaIds.length > 0) {
+      await this.prisma.submissionMedia.updateMany({
+        where: { submissionId, id: { in: body.failedMediaIds } },
+        data: { uploadStatus: 'FAILED' },
+      });
+    }
+
+    const updated = await this.prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: 'UPLOAD_FAILED',
+        failureReason: body.failureReason ?? null,
+      },
+      include: SUBMISSION_INCLUDE,
+    });
+
+    return formatSubmission(updated);
+  }
+
+  // ─── GET /submissions/my ───────────────────────────────────────────────────
+  async listMine(
+    userId: string,
+    params: { page?: number; limit?: number; status?: string },
+  ) {
     const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
+    const limit = Math.min(params.limit ?? 20, 100);
     const skip = (page - 1) * limit;
-    const where: Record<string, unknown> = {};
-    if (params.taskId) where.taskId = params.taskId;
-    if (params.userId) where.userId = params.userId;
-    if (params.status) where.status = params.status;
+    const where: Prisma.SubmissionWhereInput = { userId };
+    if (params.status) {
+      where.status = params.status as SubmissionStatus;
+    }
 
     const [total, data] = await Promise.all([
       this.prisma.submission.count({ where }),
       this.prisma.submission.findMany({
-        where, skip, take: limit,
+        where,
+        skip,
+        take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
-          user: { select: { id: true, phoneNumber: true, name: true, status: true } },
-        },
+        include: SUBMISSION_INCLUDE,
       }),
     ]);
-    return { data: data.map(s => this.toResponse(s)), meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+
+    return {
+      data: data.map(formatSubmission),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
-  async create(userId: string, taskId: string, mediaUrls: string[]) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) throw new NotFoundException('Task not found');
-    const s = await this.prisma.submission.create({
-      data: {
-        taskId,
-        userId,
-        status: 'pending',
-        rewardAmount: task.paymentAmount,
-        mediaUrls,
-      },
-      include: {
-        task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
-        user: { select: { id: true, phoneNumber: true, name: true, status: true } },
-      },
+  // ─── GET /submissions/my/:id ───────────────────────────────────────────────
+  async findMine(userId: string, submissionId: string) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: SUBMISSION_INCLUDE,
     });
-    return this.toResponse(s);
+    if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.userId !== userId) throw new ForbiddenException('Access denied');
+    return formatSubmission(submission);
   }
 
-  async findOne(id: string) {
-    const s = await this.prisma.submission.findUnique({
-      where: { id },
-      include: {
-        task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
-        user: { select: { id: true, phoneNumber: true, name: true, status: true } },
-      },
+  // ─── DELETE /submissions/:id ───────────────────────────────────────────────
+  async deleteSubmission(userId: string, submissionId: string) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
     });
-    if (!s) throw new NotFoundException('Submission not found');
-    return this.toResponse(s);
+    if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.userId !== userId) throw new ForbiddenException('Access denied');
+
+    const deletableStatuses: SubmissionStatus[] = ['DRAFT', 'UPLOADING', 'UPLOAD_FAILED'];
+    if (!deletableStatuses.includes(submission.status)) {
+      throw new BadRequestException(
+        `Cannot delete a submission in status ${submission.status}`,
+      );
+    }
+
+    // SubmissionMedia rows cascade-deleted via schema
+    await this.prisma.submission.delete({ where: { id: submissionId } });
+    return { deleted: true };
   }
 
-  async updateStatus(id: string, status: SubmissionStatus, reviewNote?: string) {
-    await this.findOne(id);
-    const s = await this.prisma.submission.update({
-      where: { id },
-      data: { status, reviewNote },
-      include: {
-        task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
-        user: { select: { id: true, phoneNumber: true, name: true, status: true } },
-      },
+  // ─── Admin: GET /admin/submissions ────────────────────────────────────────
+  async adminList(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    collectionType?: string;
+    categoryId?: string;
+    subcategoryId?: string;
+    userId?: string;
+    search?: string;
+  }) {
+    const page = params.page ?? 1;
+    const limit = Math.min(params.limit ?? 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.SubmissionWhereInput = {};
+    if (params.status) where.status = params.status as SubmissionStatus;
+    if (params.collectionType) where.collectionType = params.collectionType as CollectionType;
+    if (params.categoryId) where.categoryId = params.categoryId;
+    if (params.subcategoryId) where.subcategoryId = params.subcategoryId;
+    if (params.userId) where.userId = params.userId;
+    if (params.search) {
+      where.OR = [
+        { id: { contains: params.search, mode: 'insensitive' } },
+        { user: { phoneNumber: { contains: params.search, mode: 'insensitive' } } },
+        {
+          taskSnapshot: {
+            path: ['title'],
+            string_contains: params.search,
+          },
+        },
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.submission.count({ where }),
+      this.prisma.submission.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: SUBMISSION_INCLUDE,
+      }),
+    ]);
+
+    return {
+      data: data.map(formatSubmission),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  // ─── Admin: GET /admin/submissions/:id ────────────────────────────────────
+  async adminFindOne(submissionId: string) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: SUBMISSION_INCLUDE,
     });
-    return this.toResponse(s);
+    if (!submission) throw new NotFoundException('Submission not found');
+    return formatSubmission(submission);
   }
 }

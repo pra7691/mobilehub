@@ -13,8 +13,20 @@ interface ListParams {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  private toResponse(user: { id: string; phoneNumber: string; name: string | null; status: UserStatus; createdAt: Date; updatedAt: Date; submissions?: { rewardAmount: { toNumber(): number } }[] }) {
-    const totalEarnings = user.submissions?.reduce((sum, s) => sum + s.rewardAmount.toNumber(), 0) ?? 0;
+  private toResponse(user: {
+    id: string;
+    phoneNumber: string;
+    name: string | null;
+    status: UserStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    submissions?: { paymentAmountSnapshot: { toNumber(): number } }[];
+  }) {
+    const totalEarnings =
+      user.submissions?.reduce(
+        (sum, s) => sum + s.paymentAmountSnapshot.toNumber(),
+        0
+      ) ?? 0;
     const totalSubmissions = user.submissions?.length ?? 0;
     return {
       id: user.id,
@@ -49,12 +61,12 @@ export class UsersService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { submissions: { select: { rewardAmount: true } } },
+        include: { submissions: { select: { paymentAmountSnapshot: true } } },
       }),
     ]);
 
     return {
-      data: data.map(this.toResponse),
+      data: data.map(u => this.toResponse(u)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -62,7 +74,7 @@ export class UsersService {
   async findOne(id: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
-      include: { submissions: { select: { rewardAmount: true } } },
+      include: { submissions: { select: { paymentAmountSnapshot: true } } },
     });
     if (!user) throw new NotFoundException('User not found');
     return this.toResponse(user);
@@ -73,7 +85,7 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data,
-      include: { submissions: { select: { rewardAmount: true } } },
+      include: { submissions: { select: { paymentAmountSnapshot: true } } },
     });
     return this.toResponse(user);
   }

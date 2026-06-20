@@ -1,0 +1,97 @@
+Continue from the existing Capto project. Do not add unrelated new features.
+
+Prepare the project for production deployment and perform a security/quality hardening pass.
+
+Requirements:
+
+1. Backend security
+
+* Rate limit OTP request and verification endpoints.
+* Rate limit login endpoints.
+* Add Helmet/security headers.
+* Restrict CORS by environment.
+* Validate all DTOs strictly.
+* Add request ID and structured logs.
+* Add centralized exception handling.
+* Add refresh-token rotation and invalidation.
+* Add admin session logout/invalidation.
+* Protect against duplicate upload completion and duplicate approval.
+* Ensure storage credentials are backend-only.
+* Add upload URL expiry validation.
+* Ensure sensitive values are never returned in API responses.
+
+2. Database
+
+* Add required indexes for:
+
+  * users mobile number
+  * submissions userId/status/taskId
+  * wallet transactions userId/createdAt
+  * OTP sessions mobile/expiry
+* Review cascade behavior and soft deletes.
+* Add migration safety notes.
+
+3. Monitoring
+
+* Health endpoint with database status.
+* Readiness endpoint.
+* Basic error logging integration abstraction.
+* Audit logs for admin actions:
+
+  * login
+  * task changes
+  * review actions
+  * OTP setting changes
+  * support/static content changes
+
+4. Admin protection
+
+* Add optional 2FA-ready architecture, but do not implement actual 2FA.
+* Force strong admin password validation.
+* Add change-password flow.
+* Add admin logout from all sessions option.
+
+5. Mobile production quality
+
+* Add offline/error banners.
+* Handle API timeout gracefully.
+* Add retry for safe GET requests.
+* Add app version display.
+* Add minimum supported app version backend setting structure.
+* Add production environment configuration.
+* Confirm all permission strings are correct for Android and iOS.
+
+6. Deployment
+   Prepare deployment docs and configuration for:
+
+* Backend: Dockerized NestJS app
+* Database: managed PostgreSQL
+* Storage: AWS S3 or Cloudflare R2
+* Admin dashboard: static deployment
+* Expo mobile: EAS Build configuration
+
+Include:
+
+* Dockerfile
+* docker-compose for local development
+* production environment variable list
+* CI-ready build scripts
+* database migration deployment commands
+* backup and restore notes
+* rollback notes
+
+7. Testing
+   Add or improve:
+
+* backend unit tests for OTP, submission creation, approval, wallet credit
+* API integration tests for main routes
+* basic mobile smoke-test checklist
+* admin smoke-test checklist
+
+At the end provide:
+
+* Production checklist
+* Security checklist
+* Required environment variables
+* Deployment sequence
+* Known risks before public launch

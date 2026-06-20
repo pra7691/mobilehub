@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionStatus];
+export type AdminListSubmissionsStatus = typeof AdminListSubmissionsStatus[keyof typeof AdminListSubmissionsStatus];
 
 
-export const SubmissionStatus = {
+export const AdminListSubmissionsStatus = {
   DRAFT: 'DRAFT',
   UPLOADING: 'UPLOADING',
   UNDER_REVIEW: 'UNDER_REVIEW',

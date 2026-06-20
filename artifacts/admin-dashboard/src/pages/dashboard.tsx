@@ -7,7 +7,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
   const { data: trendsData, isLoading: trendsLoading } = useGetSubmissionTrends();
-  const { data: activityData, isLoading: activityLoading } = useGetRecentActivity({ limit: 5 });
+  const { data: activityData, isLoading: activityLoading } = useGetRecentActivity();
 
   const statsItems = [
     { title: "Total Users", value: stats?.totalUsers, icon: Users, subtext: `${stats?.activeUsers || 0} active` },

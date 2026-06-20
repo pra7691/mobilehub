@@ -1,18 +1,67 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { SubmissionsService } from './submissions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { IsArray, IsEnum, IsOptional, IsString, ArrayMinSize } from 'class-validator';
-import { SubmissionStatus } from '@prisma/client';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsNumber,
+  Min,
+  ValidateNested,
+  IsObject,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import type { JwtPayload } from '../auth/strategies/jwt.strategy';
 
-class UpdateStatusBody {
-  @IsEnum(SubmissionStatus) status!: SubmissionStatus;
-  @IsOptional() @IsString() reviewNote?: string;
+class MediaFileDto {
+  @IsString() filename!: string;
+  @IsOptional() @IsNumber() fileSize?: number;
+  @IsOptional() @IsString() contentType?: string;
 }
 
-class CreateSubmissionBody {
+class InitiateSubmissionDto {
   @IsString() taskId!: string;
-  @IsArray() @IsString({ each: true }) @ArrayMinSize(1) mediaUrls!: string[];
+  @IsArray() @ValidateNested({ each: true }) @Type(() => MediaFileDto)
+  mediaFiles!: MediaFileDto[];
+  @IsOptional() @IsInt() durationSeconds?: number;
+  @IsOptional() @IsInt() imageCount?: number;
+  @IsOptional() @IsObject() captureMetadata?: object;
+  @IsOptional() @IsString() captureStartedAt?: string;
+  @IsOptional() @IsString() captureEndedAt?: string;
+  @IsOptional() @IsString() devicePlatform?: string;
+  @IsOptional() @IsString() deviceModel?: string;
+  @IsOptional() @IsString() osVersion?: string;
+  @IsOptional() @IsString() cameraUsed?: string;
+  @IsOptional() @IsString() lensRequested?: string;
+  @IsOptional() @IsString() orientation?: string;
+}
+
+class UploadedMediaDto {
+  @IsString() mediaId!: string;
+  @IsOptional() @IsNumber() fileSize?: number;
+}
+
+class UploadCompleteDto {
+  @IsArray() @ValidateNested({ each: true }) @Type(() => UploadedMediaDto)
+  uploadedMedia!: UploadedMediaDto[];
+}
+
+class UploadFailedDto {
+  @IsOptional() @IsString() failureReason?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) failedMediaIds?: string[];
 }
 
 @Controller('submissions')
@@ -20,35 +69,60 @@ class CreateSubmissionBody {
 export class SubmissionsController {
   constructor(private service: SubmissionsService) {}
 
-  @Get()
-  list(
+  // POST /submissions/initiate
+  @Post('initiate')
+  @HttpCode(HttpStatus.CREATED)
+  initiate(@Req() req: { user: JwtPayload }, @Body() body: InitiateSubmissionDto) {
+    return this.service.initiate(req.user.sub, body);
+  }
+
+  // POST /submissions/:id/upload-complete
+  @Post(':id/upload-complete')
+  @HttpCode(HttpStatus.OK)
+  uploadComplete(
+    @Req() req: { user: JwtPayload },
+    @Param('id') id: string,
+    @Body() body: UploadCompleteDto,
+  ) {
+    return this.service.uploadComplete(req.user.sub, id, body);
+  }
+
+  // POST /submissions/:id/upload-failed
+  @Post(':id/upload-failed')
+  @HttpCode(HttpStatus.OK)
+  uploadFailed(
+    @Req() req: { user: JwtPayload },
+    @Param('id') id: string,
+    @Body() body: UploadFailedDto,
+  ) {
+    return this.service.uploadFailed(req.user.sub, id, body);
+  }
+
+  // GET /submissions/my
+  @Get('my')
+  listMine(
+    @Req() req: { user: JwtPayload },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('taskId') taskId?: string,
-    @Query('userId') userId?: string,
-    @Query('status') status?: SubmissionStatus,
-    @Req() req?: { user: JwtPayload },
+    @Query('status') status?: string,
   ) {
-    const user = req?.user;
-    const effectiveUserId = user?.type === 'user' ? user.sub : userId;
-    return this.service.list({ page: page ? +page : 1, limit: limit ? +limit : 20, taskId, userId: effectiveUserId, status });
+    return this.service.listMine(req.user.sub, {
+      page: page ? +page : undefined,
+      limit: limit ? +limit : undefined,
+      status,
+    });
   }
 
-  @Post()
-  create(@Req() req: { user: JwtPayload }, @Body() body: CreateSubmissionBody) {
-    if (req.user.type !== 'user') {
-      throw new ForbiddenException('Only mobile users can submit');
-    }
-    return this.service.create(req.user.sub, body.taskId, body.mediaUrls);
+  // GET /submissions/my/:id
+  @Get('my/:id')
+  findMine(@Req() req: { user: JwtPayload }, @Param('id') id: string) {
+    return this.service.findMine(req.user.sub, id);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
-  }
-
-  @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: UpdateStatusBody) {
-    return this.service.updateStatus(id, body.status, body.reviewNote);
+  // DELETE /submissions/:id
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  delete(@Req() req: { user: JwtPayload }, @Param('id') id: string) {
+    return this.service.deleteSubmission(req.user.sub, id);
   }
 }

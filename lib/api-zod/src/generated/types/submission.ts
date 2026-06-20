@@ -5,7 +5,11 @@
  * Capto mobile data-collection platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { SubmissionCaptureMetadata } from './submissionCaptureMetadata';
+import type { SubmissionCollectionType } from './submissionCollectionType';
+import type { SubmissionMedia } from './submissionMedia';
 import type { SubmissionStatus } from './submissionStatus';
+import type { SubmissionTaskSnapshot } from './submissionTaskSnapshot';
 import type { Task } from './task';
 import type { User } from './user';
 
@@ -15,10 +19,27 @@ export interface Submission {
   task?: Task;
   userId: string;
   user?: User;
+  categoryId?: string;
+  subcategoryId?: string;
+  collectionType: SubmissionCollectionType;
   status: SubmissionStatus;
-  reviewNote?: string;
-  rewardAmount: number;
-  mediaUrls: string[];
+  submittedAt?: Date;
+  uploadStartedAt?: Date;
+  uploadCompletedAt?: Date;
+  captureStartedAt?: Date;
+  captureEndedAt?: Date;
+  durationSeconds?: number;
+  imageCount?: number;
+  totalFileSize?: number;
+  devicePlatform?: string;
+  deviceModel?: string;
+  osVersion?: string;
+  captureMetadata?: SubmissionCaptureMetadata;
+  taskSnapshot: SubmissionTaskSnapshot;
+  paymentAmountSnapshot: number;
+  currencySnapshot: string;
+  failureReason?: string;
+  media: SubmissionMedia[];
   createdAt: Date;
   updatedAt: Date;
 }

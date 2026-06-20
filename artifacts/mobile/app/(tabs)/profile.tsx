@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useGetMe, useGetUserWallet } from "@workspace/api-client-react";
+import { useGetMe, useGetUserWallet, getGetUserWalletQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -36,7 +36,7 @@ export default function ProfileScreen() {
 
   const { data: user, isLoading: loadingUser } = useGetMe() as { data: User | undefined; isLoading: boolean };
   const { data: wallet } = useGetUserWallet(user?.id ?? "", {
-    query: { enabled: !!user?.id },
+    query: { enabled: !!user?.id, queryKey: getGetUserWalletQueryKey(user?.id ?? "") },
   }) as { data: Wallet | undefined };
 
   async function handleLogout() {

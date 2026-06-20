@@ -1,0 +1,259 @@
+Continue from the existing Capto project. Do not rebuild authentication, task management, local drafts, camera capture, mobile navigation, existing API structure, or admin dashboard layout.
+
+Build secure media upload and submission creation end-to-end.
+
+Important scope boundary:
+
+* Implement upload from local drafts to cloud storage.
+* Create backend submission records.
+* Show uploaded submissions in “Under Review.”
+* Do not build admin approval/rejection workflow yet.
+* Do not credit wallet balances yet.
+* Do not implement withdrawals, payouts, notifications, AI validation, or real SMS OTP.
+
+1. Storage Architecture
+   Implement S3-compatible cloud storage integration.
+
+Requirements:
+
+* Create a storage abstraction in NestJS so AWS S3, Cloudflare R2, or another S3-compatible provider can be used later without rewriting business logic.
+* Use presigned upload URLs.
+* Mobile app must upload media directly to storage, not through the NestJS server.
+* Backend should generate secure short-lived presigned upload URLs.
+* Store only object keys and final media URLs/metadata in the database.
+* Add environment variables for storage provider, bucket name, region, endpoint, access key, secret key, and public URL base.
+* Add `.env.example` updates.
+
+2. Prisma / Database
+   Update schema and migrations for submission workflow.
+
+Submission fields should include:
+
+* id
+* userId
+* taskId
+* categoryId
+* subcategoryId
+* collectionType
+* status: DRAFT, UPLOADING, UNDER_REVIEW, APPROVED, REJECTED, RESUBMISSION_REQUIRED, UPLOAD_FAILED
+* submittedAt
+* uploadStartedAt
+* uploadCompletedAt
+* captureStartedAt
+* captureEndedAt
+* durationSeconds optional
+* imageCount optional
+* totalFileSize optional
+* devicePlatform optional
+* deviceModel optional
+* osVersion optional
+* cameraUsed optional
+* lensRequested optional
+* orientation optional
+* captureMetadata JSON
+* taskSnapshot JSON
+* paymentAmountSnapshot
+* currencySnapshot
+* createdAt
+* updatedAt
+
+Create a SubmissionMedia model:
+
+* id
+* submissionId
+* mediaType: VIDEO, IMAGE, AUDIO, THUMBNAIL
+* storageKey
+* mediaUrl
+* thumbnailUrl optional
+* fileSize optional
+* durationSeconds optional
+* width optional
+* height optional
+* mimeType
+* sortOrder
+* uploadStatus: PENDING, UPLOADING, UPLOADED, FAILED
+* createdAt
+* updatedAt
+
+Important:
+
+* Save a snapshot of task title, instructions, requirements, payment amount, category, and subcategory at submission time.
+* Future task edits must not alter old submission information.
+
+3. Backend APIs
+   Create and document these APIs with Swagger.
+
+Mobile-user authenticated APIs:
+
+* POST /submissions/initiate
+
+  * Creates a draft submission record from a local draft.
+  * Validates user, task availability, limits, and task requirements.
+  * Returns submission ID and upload targets/presigned URLs.
+
+* POST /submissions/:id/upload-complete
+
+  * Confirms upload completion.
+  * Validates all required media were uploaded.
+  * Changes submission status to UNDER_REVIEW.
+
+* POST /submissions/:id/upload-failed
+
+  * Marks failed upload with failure reason.
+
+* GET /submissions/my
+
+  * Returns current user submissions.
+  * Supports status filter, pagination, and sorting.
+  * Must include task snapshot and media preview details.
+
+* GET /submissions/my/:id
+
+  * Returns detailed submission information for the logged-in user only.
+
+* DELETE /submissions/:id
+
+  * Allow deletion only while status is DRAFT, UPLOADING, or UPLOAD_FAILED.
+  * Do not allow deleting UNDER_REVIEW or later submissions.
+
+Admin read APIs only for now:
+
+* GET /admin/submissions
+* GET /admin/submissions/:id
+
+Admin endpoints should display submissions but must not approve/reject yet.
+
+4. Upload Validation and Safety
+   Before initiating upload, backend must validate:
+
+* Task is active and available.
+* User has not exceeded maxSubmissionsPerUser.
+* Task has not exceeded maxTotalSubmissions.
+* Video/audio duration is within task limits.
+* Image count is within task limits.
+* Collection type matches task requirement.
+* Required media count exists.
+* File type is acceptable.
+* File-size limits are enforced through configurable server settings.
+* User owns the local draft being submitted.
+
+Use configurable maximum upload limits, with sensible defaults:
+
+* Video: 500 MB
+* Audio: 100 MB
+* Image: 20 MB each
+
+Do not trust metadata from mobile blindly. Store it, but mark it as client-captured metadata.
+
+5. Expo Mobile App — Upload From Draft
+   Update the Drafts tab and draft detail screen.
+
+Add:
+
+* “Upload Submission” button for READY_TO_UPLOAD drafts.
+* Confirmation screen before upload showing:
+
+  * task title
+  * collection type
+  * media count
+  * duration/image count
+  * expected payment amount
+  * note: “Your submission will be reviewed before earnings are added.”
+
+Upload flow:
+
+1. User taps Upload Submission.
+2. App calls initiate submission API.
+3. App receives presigned upload URLs.
+4. App uploads each local file directly to storage.
+5. Show per-file and overall upload progress.
+6. App calls upload-complete API.
+7. Local draft is removed only after backend confirms UNDER_REVIEW status.
+8. User sees “Submission uploaded successfully. It is now under review.”
+9. Redirect to My Uploads → Under Review.
+
+For failed uploads:
+
+* Keep local draft and submitted upload state.
+* Show retry button.
+* Resume/retry only failed files when possible.
+* Do not duplicate submission records accidentally.
+* Use idempotency protection for initiate and completion requests.
+
+6. My Uploads Updates
+   Drafts tab:
+
+* Show local drafts that are not uploaded.
+* Show failed uploads with Retry Upload.
+* Show upload progress if an upload is in progress.
+
+Under Review tab:
+
+* Replace placeholders with real backend submissions having UNDER_REVIEW status.
+* Show:
+
+  * task title
+  * category/subcategory
+  * collection type
+  * submitted date/time
+  * duration or image count
+  * expected payment amount
+  * status
+  * media thumbnail/preview where possible
+  * submission ID
+
+Completed tab:
+
+* Keep existing placeholder/empty state for now.
+* Do not show submissions as completed until admin review exists.
+
+7. Admin Dashboard — Submission Read-Only View
+   Update Submissions page to show real data.
+
+Admin can:
+
+* View submission list
+* Filter by status, collection type, category, subcategory, user, and date
+* Search by user mobile number, submission ID, or task title
+* Open submission detail side panel/page
+* View media preview
+* View metadata
+* View task snapshot
+* View expected payment amount
+* View upload status
+
+Do not add Approve, Reject, or Wallet Credit buttons yet.
+
+8. UI and Error Handling
+
+* Maintain existing dark/cyan Capto design.
+* Add robust loading, empty, upload-progress, retry, and failure states.
+* Show clear errors for:
+
+  * expired upload URL
+  * lost internet connection
+  * invalid local file
+  * insufficient storage
+  * failed direct upload
+  * submission-limit reached
+  * task no longer active
+* Warn user before leaving an upload screen while upload is active.
+* Prevent accidental duplicate uploads.
+* Handle app backgrounding during upload as safely as Expo allows.
+
+9. Testing and Seed Data
+
+* Keep existing 16 tasks and existing login flows unchanged.
+* Add at least one testable local draft-to-upload scenario for VIDEO, IMAGE, and AUDIO.
+* Do not expose cloud credentials in mobile code.
+* Ensure all storage credentials stay backend-only.
+
+At the end, provide:
+
+* Updated Prisma models and migration summary
+* API route list
+* Required environment variables
+* Exact mobile test flow for video, image, and audio upload
+* Exact admin test flow for viewing uploaded submissions
+* Known limitations, especially around background uploads in Expo Go
+* Confirm that no admin approval, wallet credit, or payout functionality was added in this step

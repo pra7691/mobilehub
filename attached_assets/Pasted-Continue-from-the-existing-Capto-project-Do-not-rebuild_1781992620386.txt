@@ -1,0 +1,133 @@
+Continue from the existing Capto project. Do not rebuild upload flow, camera capture, task management, OTP, or existing admin layout.
+
+Build the admin submission review workflow and automatic wallet credit.
+
+Scope:
+
+* Admin can approve, reject, or request resubmission.
+* Approved submissions automatically credit user wallet.
+* Mobile user can see reviewed status and earnings.
+* Do not add withdrawals or bank/UPI payouts yet.
+
+Requirements:
+
+1. Submission review actions
+   Add admin-only APIs:
+
+* POST /admin/submissions/:id/approve
+* POST /admin/submissions/:id/reject
+* POST /admin/submissions/:id/request-resubmission
+
+Approval fields:
+
+* approvedAmount, default to paymentAmountSnapshot
+* adminNote optional
+* reviewedBy
+* reviewedAt
+
+Rejection fields:
+
+* rejectionReason required
+* adminNote optional
+* reviewedBy
+* reviewedAt
+
+Resubmission fields:
+
+* resubmissionReason required
+* reviewedBy
+* reviewedAt
+
+2. Review rules
+
+* Only UNDER_REVIEW submissions can be approved, rejected, or marked for resubmission.
+* Prevent duplicate approval.
+* Approval must create exactly one WalletTransaction.
+* Wallet balance must update atomically in the same database transaction.
+* Rejected submissions must not create wallet credit.
+* Resubmission-required submissions must not create wallet credit.
+* Keep complete audit logs for all review actions.
+
+3. Wallet models
+   Ensure Wallet and WalletTransaction support:
+
+* userId
+* availableBalance
+* lifetimeEarnings
+* pendingBalance
+* transactionType: CREDIT, DEBIT, ADJUSTMENT
+* sourceType: SUBMISSION, ADMIN_ADJUSTMENT
+* sourceId
+* amount
+* balanceBefore
+* balanceAfter
+* status
+* note
+* createdAt
+
+4. Admin dashboard
+   Upgrade submission detail panel/page:
+
+* Video/image/audio preview
+* Task snapshot
+* Submission metadata
+* User details
+* Approve button
+* Reject button
+* Request Resubmission button
+* Approved amount input
+* Required rejection/resubmission reason form
+* Confirmation modal for approval
+* Submission review history/timeline
+
+Add wallet transaction page:
+
+* Search by user mobile, user ID, submission ID
+* Filter by date, transaction type, status
+* Show running balances and source submission
+* Admin adjustment is not required yet, only display structure.
+
+5. Mobile app
+   Update My Uploads:
+
+* Under Review: real pending submissions.
+* Completed: approved submissions.
+* Add Rejected / Needs Action section or filter.
+* Submission details should show:
+
+  * status
+  * reviewed date
+  * approved amount when approved
+  * rejection/resubmission reason when applicable
+  * task snapshot
+  * media preview where supported
+
+Update wallet:
+
+* Show available balance
+* Show pending earnings
+* Show lifetime earnings
+* Add statement screen with wallet transactions
+* Tapping an approved transaction opens related submission details.
+
+6. Notifications
+   Do not build push notifications yet.
+   Show status only when the user opens the app or refreshes.
+
+7. Safety and quality
+
+* Use database transactions for approval and wallet credit.
+* Prevent admin from reviewing deleted/ineligible submissions.
+* Add proper loading, confirmation, error, and empty states.
+* Maintain Capto dark/cyan design.
+* Keep APIs Swagger documented.
+
+At the end provide:
+
+* Review APIs
+* Wallet APIs
+* Prisma migration summary
+* Exact admin approval test
+* Exact rejection/resubmission test
+* Exact mobile balance and statement test
+* Confirmation that duplicate approval cannot create duplicate wallet credits
