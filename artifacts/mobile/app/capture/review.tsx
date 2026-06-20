@@ -16,10 +16,12 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useGetTask } from "@workspace/api-client-react";
+import { useGetTask, getListSubmissionsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useDrafts } from "@/contexts/DraftContext";
 import { copyMediaToDrafts, generateDraftId, getDraft } from "@/lib/drafts";
+import { submitDraft, type SubmitProgress } from "@/lib/submitDraft";
 import {
   clearPendingCapture,
   getPendingCapture,
@@ -37,16 +39,14 @@ const TYPE_ICON: Record<string, string> = {
 
 export default function ReviewScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { taskId, draftId } = useLocalSearchParams<{
     taskId: string;
     draftId?: string;
   }>();
   const { data: task } = useGetTask(taskId ?? "");
-  const { saveDraft } = useDrafts();
+  const { saveDraft, deleteDraft } = useDrafts();
 
-  // captureData may come from:
-  // 1. captureStore (freshly captured media)
-  // 2. AsyncStorage draft (when user taps a saved draft card)
   const [captureData, setCaptureData] = useState<PendingCapture | null>(
     getPendingCapture()
   );
@@ -54,11 +54,14 @@ export default function ReviewScreen() {
 
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState<SubmitProgress | null>(null);
+  const [submittedToast, setSubmittedToast] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [isDraftMode, setIsDraftMode] = useState(false);
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(draftId);
 
-  // Load from AsyncStorage when draftId is provided and captureStore is empty
   useEffect(() => {
     if (captureData || !draftId) return;
     setLoadingDraft(true);
@@ -73,6 +76,7 @@ export default function ReviewScreen() {
         setPendingCapture(data);
         setCaptureData(data);
         setIsDraftMode(true);
+        setCurrentDraftId(draftId);
       }
       setLoadingDraft(false);
     });
@@ -102,14 +106,12 @@ export default function ReviewScreen() {
       Alert.alert("Error", "Missing capture data. Please retake.");
       return;
     }
-    // If already saved as draft, just navigate back
     if (isDraftMode) {
       router.replace("/(tabs)/submissions?tab=drafts");
       return;
     }
     setSaving(true);
     try {
-      // Low-storage guard before copying media files
       const freeDisk = await FileSystem.getFreeDiskStorageAsync();
       if (freeDisk < MIN_FREE_BYTES_TO_SAVE) {
         Alert.alert(
@@ -128,7 +130,7 @@ export default function ReviewScreen() {
           ? "m4a"
           : "jpg";
 
-      const newDraftId = draftId ?? generateDraftId();
+      const newDraftId = currentDraftId ?? generateDraftId();
       const savedUris: string[] = [];
       for (let i = 0; i < captureData.mediaUris.length; i++) {
         const filename = `${newDraftId}_${i}.${ext}`;
@@ -162,7 +164,67 @@ export default function ReviewScreen() {
       Alert.alert("Save failed", "Could not save draft. Please try again.");
     }
     setSaving(false);
-  }, [captureData, task, saveDraft, router, draftId, isDraftMode]);
+  }, [captureData, task, saveDraft, router, currentDraftId, isDraftMode]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!captureData || !task) {
+      Alert.alert("Error", "Missing capture data. Please retake.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitProgress({ phase: "uploading", current: 0, total: captureData.mediaUris.length });
+
+    try {
+      if (isDraftMode && currentDraftId) {
+        const draft = await getDraft(currentDraftId);
+        if (!draft) throw new Error("Draft not found");
+        await submitDraft(draft, setSubmitProgress);
+        await deleteDraft(currentDraftId);
+      } else {
+        const ext =
+          captureData.collectionType === "VIDEO"
+            ? "mp4"
+            : captureData.collectionType === "AUDIO"
+            ? "m4a"
+            : "jpg";
+        const tempDraftId = generateDraftId();
+        const tempDraft = {
+          id: tempDraftId,
+          taskId: captureData.taskId,
+          taskTitle: task.title,
+          collectionType: captureData.collectionType,
+          paymentAmount: task.paymentAmount,
+          currency: task.currency ?? "INR",
+          mediaUris: captureData.mediaUris,
+          durationSeconds: captureData.durationSeconds,
+          imageCount:
+            captureData.collectionType === "IMAGE"
+              ? captureData.mediaUris.length
+              : undefined,
+          createdAt: new Date().toISOString(),
+          status: "ready_to_upload" as const,
+        };
+        await submitDraft(tempDraft, setSubmitProgress);
+        clearPendingCapture();
+      }
+
+      await queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() });
+
+      setSubmittedToast(true);
+      setSubmitting(false);
+      setSubmitProgress(null);
+      setTimeout(() => {
+        router.replace("/(tabs)/submissions?tab=under_review");
+      }, 1400);
+    } catch (err) {
+      setSubmitting(false);
+      setSubmitProgress(null);
+      const message =
+        err instanceof Error ? err.message : "Unknown error occurred";
+      Alert.alert("Submission Failed", message, [{ text: "OK" }]);
+    }
+  }, [captureData, task, isDraftMode, currentDraftId, deleteDraft, queryClient, router]);
 
   if (loadingDraft) {
     return (
@@ -189,11 +251,16 @@ export default function ReviewScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Toast */}
       {savedToast && (
         <View style={styles.toast}>
           <Feather name="check-circle" size={18} color="#22c55e" />
           <Text style={styles.toastText}>Draft saved!</Text>
+        </View>
+      )}
+      {submittedToast && (
+        <View style={[styles.toast, styles.toastSubmit]}>
+          <Feather name="send" size={18} color="#8b5cf6" />
+          <Text style={[styles.toastText, { color: "#8b5cf6" }]}>Submitted for review!</Text>
         </View>
       )}
 
@@ -213,7 +280,6 @@ export default function ReviewScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Media preview */}
         <View style={styles.preview}>
           {captureData.collectionType === "VIDEO" && captureData.mediaUris[0] && (
             <Video
@@ -312,7 +378,6 @@ export default function ReviewScreen() {
           )}
         </View>
 
-        {/* Task summary */}
         {task && (
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Task Requirements</Text>
@@ -363,11 +428,56 @@ export default function ReviewScreen() {
           </View>
         )}
 
+        {/* Progress indicator during submission */}
+        {submitting && submitProgress && (
+          <View style={styles.progressCard}>
+            <ActivityIndicator color="#8b5cf6" size="small" />
+            <View style={styles.progressText}>
+              {submitProgress.phase === "uploading" ? (
+                <Text style={styles.progressLabel}>
+                  Uploading {submitProgress.current} of {submitProgress.total}…
+                </Text>
+              ) : (
+                <Text style={styles.progressLabel}>Submitting for review…</Text>
+              )}
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.round(
+                        (submitProgress.current / Math.max(submitProgress.total, 1)) * 100
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
         <View style={styles.actions}>
+          {/* Submit button */}
           <TouchableOpacity
-            style={styles.saveDraftBtn}
+            style={[styles.submitBtn, (submitting || saving) && styles.btnDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting || saving}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Feather name="send" size={18} color="#fff" />
+                <Text style={styles.submitBtnText}>Submit for Review</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Save draft button */}
+          <TouchableOpacity
+            style={[styles.saveDraftBtn, (submitting || saving) && styles.btnDisabled]}
             onPress={handleSaveDraft}
-            disabled={saving}
+            disabled={submitting || saving}
           >
             {saving ? (
               <ActivityIndicator color="#0f1117" size="small" />
@@ -418,6 +528,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#22c55e",
   },
+  toastSubmit: { borderColor: "#8b5cf6" },
   toastText: { color: "#22c55e", fontSize: 14, fontFamily: "Inter_600SemiBold" },
 
   header: {
@@ -534,9 +645,54 @@ const styles = StyleSheet.create({
   summaryKey: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280" },
   summaryVal: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
 
+  progressCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#0e0826",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#4c1d95",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  progressText: { flex: 1, gap: 8 },
+  progressLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: "#a78bfa",
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: "#1e1b4b",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#8b5cf6",
+    borderRadius: 2,
+  },
+
   actions: {
     marginHorizontal: 16,
     marginTop: 4,
+    gap: 10,
+  },
+  submitBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#7c3aed",
+    borderRadius: 14,
+    paddingVertical: 16,
+  },
+  submitBtnText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
   },
   saveDraftBtn: {
     flexDirection: "row",
@@ -545,11 +701,12 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: "#06b6d4",
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
   saveDraftBtnText: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
     color: "#0f1117",
   },
+  btnDisabled: { opacity: 0.5 },
 });

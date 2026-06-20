@@ -469,6 +469,22 @@ export interface TaskListResponse {
   meta: PaginationMeta;
 }
 
+export interface UploadUrlRequest {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+}
+
+export interface CreateSubmissionRequest {
+  taskId: string;
+  mediaUrls: string[];
+}
+
 export type SubmissionStatus = typeof SubmissionStatus[keyof typeof SubmissionStatus];
 
 
@@ -488,6 +504,7 @@ export interface Submission {
   status: SubmissionStatus;
   reviewNote?: string;
   rewardAmount: number;
+  mediaUrls: string[];
   createdAt: string;
   updatedAt: string;
 }

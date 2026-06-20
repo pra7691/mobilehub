@@ -11,6 +11,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { OtpSettingsModule } from './otp-settings/otp-settings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { HealthModule } from './health/health.module';
     OtpSettingsModule,
     DashboardModule,
     HealthModule,
+    StorageModule,
   ],
 })
 export class AppModule {}

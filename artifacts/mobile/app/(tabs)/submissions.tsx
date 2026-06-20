@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDrafts } from "@/contexts/DraftContext";
 import type { LocalDraft } from "@/lib/drafts";
+import { submitDraft, type SubmitProgress } from "@/lib/submitDraft";
 
 interface Submission {
   id: string;
@@ -59,7 +60,16 @@ export default function SubmissionsScreen() {
   const [activeTab, setActiveTab] = useState<TabId>(
     tabParam === "drafts" ? "drafts" : tabParam === "completed" ? "completed" : "under_review"
   );
+
+  useEffect(() => {
+    if (tabParam === "drafts") setActiveTab("drafts");
+    else if (tabParam === "completed") setActiveTab("completed");
+    else if (tabParam === "under_review") setActiveTab("under_review");
+  }, [tabParam]);
+
   const [refreshing, setRefreshing] = useState(false);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [submitProgress, setSubmitProgress] = useState<SubmitProgress | null>(null);
 
   const { data, isLoading } = useListSubmissions();
   const submissions: Submission[] =
@@ -92,6 +102,40 @@ export default function SubmissionsScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => void deleteDraft(draft.id),
+        },
+      ]
+    );
+  }
+
+  async function handleSubmitDraft(draft: LocalDraft) {
+    setSubmittingId(draft.id);
+    setSubmitProgress({ phase: "uploading", current: 0, total: draft.mediaUris.length });
+    try {
+      await submitDraft(draft, (progress) => {
+        setSubmitProgress(progress);
+      });
+      await deleteDraft(draft.id);
+      await queryClient.invalidateQueries({ queryKey: getListSubmissionsQueryKey() });
+      setSubmittingId(null);
+      setSubmitProgress(null);
+      setActiveTab("under_review");
+    } catch (err) {
+      setSubmittingId(null);
+      setSubmitProgress(null);
+      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      Alert.alert("Submission Failed", message, [{ text: "OK" }]);
+    }
+  }
+
+  function confirmSubmitDraft(draft: LocalDraft) {
+    Alert.alert(
+      "Submit for Review?",
+      `This will upload your "${draft.taskTitle}" and send it for admin review.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Submit",
+          onPress: () => void handleSubmitDraft(draft),
         },
       ]
     );
@@ -154,16 +198,19 @@ export default function SubmissionsScreen() {
               day: "numeric",
               month: "short",
             });
+            const isSubmitting = submittingId === item.id;
             return (
               <TouchableOpacity
                 style={styles.card}
                 activeOpacity={0.75}
                 onPress={() =>
+                  !isSubmitting &&
                   router.push(
                     `/capture/review?taskId=${item.taskId}&draftId=${item.id}`
                   )
                 }
-                onLongPress={() => confirmDeleteDraft(item)}
+                onLongPress={() => !isSubmitting && confirmDeleteDraft(item)}
+                disabled={isSubmitting}
               >
                 <View style={styles.cardTop}>
                   <Text style={styles.taskTitle} numberOfLines={1}>
@@ -174,6 +221,35 @@ export default function SubmissionsScreen() {
                     <Text style={styles.readyBadgeText}>Ready to Upload</Text>
                   </View>
                 </View>
+
+                {/* Upload progress bar */}
+                {isSubmitting && submitProgress && (
+                  <View style={styles.uploadProgress}>
+                    <ActivityIndicator color="#8b5cf6" size="small" />
+                    <View style={styles.uploadProgressText}>
+                      <Text style={styles.uploadProgressLabel}>
+                        {submitProgress.phase === "uploading"
+                          ? `Uploading ${submitProgress.current} of ${submitProgress.total}…`
+                          : "Submitting…"}
+                      </Text>
+                      <View style={styles.progressBar}>
+                        <View
+                          style={[
+                            styles.progressFill,
+                            {
+                              width: `${Math.round(
+                                (submitProgress.current /
+                                  Math.max(submitProgress.total, 1)) *
+                                  100
+                              )}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 <View style={styles.cardBottom}>
                   <View style={styles.dateRow}>
                     <Feather name="calendar" size={12} color={colors.mutedForeground} />
@@ -186,13 +262,25 @@ export default function SubmissionsScreen() {
                     <Feather name="trending-up" size={12} color={colors.primary} />
                     <Text style={styles.payoutText}>₹{item.paymentAmount}</Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => confirmDeleteDraft(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Feather name="trash-2" size={14} color="#6b7280" />
-                  </TouchableOpacity>
+                  {!isSubmitting && (
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity
+                        style={styles.submitCardBtn}
+                        onPress={() => confirmSubmitDraft(item)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="send" size={14} color="#fff" />
+                        <Text style={styles.submitCardBtnText}>Submit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => confirmDeleteDraft(item)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="trash-2" size={14} color="#6b7280" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -441,10 +529,38 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: "#06b6d4",
     },
 
+    uploadProgress: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: "#0e0826",
+      borderRadius: 10,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: "#4c1d95",
+    },
+    uploadProgressText: { flex: 1, gap: 6 },
+    uploadProgressLabel: {
+      fontSize: 12,
+      fontFamily: "Inter_500Medium",
+      color: "#a78bfa",
+    },
+    progressBar: {
+      height: 3,
+      backgroundColor: "#1e1b4b",
+      borderRadius: 2,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: "#8b5cf6",
+      borderRadius: 2,
+    },
+
     cardBottom: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
+      gap: 10,
     },
     dateRow: { flexDirection: "row", alignItems: "center", gap: 4 },
     dateText: {
@@ -467,6 +583,25 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 12,
       color: colors.primary,
       fontFamily: "Inter_500Medium",
+    },
+    cardActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    submitCardBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      backgroundColor: "#7c3aed",
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    submitCardBtnText: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: "#fff",
     },
     deleteBtn: { padding: 4 },
 

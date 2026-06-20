@@ -8,7 +8,19 @@ interface ListParams { page?: number; limit?: number; taskId?: string; userId?: 
 export class SubmissionsService {
   constructor(private prisma: PrismaService) {}
 
-  private toResponse(s: { id: string; taskId: string; userId: string; status: SubmissionStatus; reviewNote: string | null; rewardAmount: { toNumber(): number }; createdAt: Date; updatedAt: Date; task?: object | null; user?: object | null }) {
+  private toResponse(s: {
+    id: string;
+    taskId: string;
+    userId: string;
+    status: SubmissionStatus;
+    reviewNote: string | null;
+    rewardAmount: { toNumber(): number };
+    mediaUrls: string[];
+    createdAt: Date;
+    updatedAt: Date;
+    task?: object | null;
+    user?: object | null;
+  }) {
     return { ...s, rewardAmount: s.rewardAmount.toNumber() };
   }
 
@@ -27,7 +39,7 @@ export class SubmissionsService {
         where, skip, take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          task: { select: { id: true, title: true, paymentAmount: true, status: true } },
+          task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
           user: { select: { id: true, phoneNumber: true, name: true, status: true } },
         },
       }),
@@ -35,11 +47,30 @@ export class SubmissionsService {
     return { data: data.map(s => this.toResponse(s)), meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
+  async create(userId: string, taskId: string, mediaUrls: string[]) {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) throw new NotFoundException('Task not found');
+    const s = await this.prisma.submission.create({
+      data: {
+        taskId,
+        userId,
+        status: 'pending',
+        rewardAmount: task.paymentAmount,
+        mediaUrls,
+      },
+      include: {
+        task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
+        user: { select: { id: true, phoneNumber: true, name: true, status: true } },
+      },
+    });
+    return this.toResponse(s);
+  }
+
   async findOne(id: string) {
     const s = await this.prisma.submission.findUnique({
       where: { id },
       include: {
-        task: { select: { id: true, title: true, paymentAmount: true, status: true } },
+        task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
         user: { select: { id: true, phoneNumber: true, name: true, status: true } },
       },
     });
@@ -53,7 +84,7 @@ export class SubmissionsService {
       where: { id },
       data: { status, reviewNote },
       include: {
-        task: { select: { id: true, title: true, paymentAmount: true, status: true } },
+        task: { select: { id: true, title: true, collectionType: true, paymentAmount: true, status: true } },
         user: { select: { id: true, phoneNumber: true, name: true, status: true } },
       },
     });

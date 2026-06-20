@@ -16,6 +16,7 @@ tags:
   - name: subcategories
   - name: tasks
   - name: submissions
+  - name: storage
   - name: wallet
   - name: wallet-transactions
   - name: otp-settings
@@ -589,7 +590,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/Task"
 
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+
   /submissions:
+    post:
+      operationId: createSubmission
+      tags: [submissions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubmissionRequest"
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
     get:
       operationId: listSubmissions
       tags: [submissions]
@@ -1440,6 +1479,37 @@ components:
           $ref: "#/components/schemas/PaginationMeta"
       required: [data, meta]
 
+    UploadUrlRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required: [name, size, contentType]
+
+    UploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+      required: [uploadURL, objectPath]
+
+    CreateSubmissionRequest:
+      type: object
+      properties:
+        taskId:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+      required: [taskId, mediaUrls]
+
     Submission:
       type: object
       properties:
@@ -1460,13 +1530,17 @@ components:
           type: string
         rewardAmount:
           type: number
+        mediaUrls:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, taskId, userId, status, rewardAmount, createdAt, updatedAt]
+      required: [id, taskId, userId, status, rewardAmount, mediaUrls, createdAt, updatedAt]
 
     UpdateSubmissionStatusRequest:
       type: object

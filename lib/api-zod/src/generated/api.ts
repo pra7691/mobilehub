@@ -696,6 +696,24 @@ export const DuplicateTaskParams = zod.object({
 })
 
 
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string(),
+  "size": zod.number(),
+  "contentType": zod.string()
+})
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string(),
+  "objectPath": zod.string()
+})
+
+
+export const CreateSubmissionBody = zod.object({
+  "taskId": zod.string(),
+  "mediaUrls": zod.array(zod.string())
+})
+
+
 export const listSubmissionsQueryPageDefault = 1;
 
 export const listSubmissionsQueryLimitDefault = 20;
@@ -774,6 +792,7 @@ export const ListSubmissionsResponse = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected', 'under_review']),
   "reviewNote": zod.string().optional(),
   "rewardAmount": zod.number(),
+  "mediaUrls": zod.array(zod.string()),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
@@ -852,6 +871,7 @@ export const GetSubmissionResponse = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected', 'under_review']),
   "reviewNote": zod.string().optional(),
   "rewardAmount": zod.number(),
+  "mediaUrls": zod.array(zod.string()),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -928,6 +948,7 @@ export const UpdateSubmissionStatusResponse = zod.object({
   "status": zod.enum(['pending', 'approved', 'rejected', 'under_review']),
   "reviewNote": zod.string().optional(),
   "rewardAmount": zod.number(),
+  "mediaUrls": zod.array(zod.string()),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

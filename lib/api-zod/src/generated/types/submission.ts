@@ -18,6 +18,7 @@ export interface Submission {
   status: SubmissionStatus;
   reviewNote?: string;
   rewardAmount: number;
+  mediaUrls: string[];
   createdAt: Date;
   updatedAt: Date;
 }
