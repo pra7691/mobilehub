@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { generateUploadUrl } from '../lib/objectStorage';
+import { generateUploadUrl, generateReadUrl } from '../lib/objectStorage';
 
 interface GetUploadUrlParams {
   submissionId?: string;
@@ -16,5 +16,9 @@ export class StorageService {
     objectKey: string;
   }> {
     return generateUploadUrl(params);
+  }
+
+  async getReadUrl(objectKey: string): Promise<string> {
+    return generateReadUrl(objectKey);
   }
 }

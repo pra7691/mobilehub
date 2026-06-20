@@ -598,16 +598,35 @@ export default function Submissions() {
                             {m.uploadStatus}
                           </Badge>
                         </div>
-                        {m.uploadStatus === "UPLOADED" && m.mediaUrl && (
-                          <a
-                            href={m.mediaUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-foreground flex-shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
+                        {m.uploadStatus === "UPLOADED" && m.readUrl && (
+                          <>
+                            {m.mediaType === "IMAGE" && (
+                              <a
+                                href={m.readUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <img
+                                  src={m.readUrl}
+                                  alt={`Media ${i + 1}`}
+                                  className="w-14 h-14 object-cover rounded border border-border"
+                                />
+                              </a>
+                            )}
+                            {(m.mediaType === "VIDEO" || m.mediaType === "AUDIO") && (
+                              <a
+                                href={m.readUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                          </>
                         )}
                       </div>
                     ))}

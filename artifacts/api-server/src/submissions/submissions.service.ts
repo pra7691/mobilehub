@@ -232,6 +232,33 @@ export class SubmissionsService {
     // Validate collection type matches
     const expectedMediaType = getMediaTypeForCollection(task.collectionType);
 
+    // MIME type validation (skip generic application/octet-stream — mobile may not resolve it)
+    const ALLOWED_MIMES: Record<string, string[]> = {
+      VIDEO: ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/mpeg'],
+      AUDIO: ['audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/x-m4a'],
+      IMAGE: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif'],
+    };
+    const allowedMimes = ALLOWED_MIMES[expectedMediaType] ?? [];
+    for (const file of body.mediaFiles) {
+      const mime = file.contentType?.toLowerCase();
+      if (!mime || mime === 'application/octet-stream') continue;
+      if (!allowedMimes.includes(mime)) {
+        throw new BadRequestException(
+          `"${file.filename}" has unsupported type "${file.contentType}" for ${task.collectionType} tasks`,
+        );
+      }
+    }
+
+    // Idempotency: clean up any stale DRAFT / UPLOADING / UPLOAD_FAILED records
+    // for this user+task so callers can safely retry without accumulating orphans
+    await this.prisma.submission.deleteMany({
+      where: {
+        userId,
+        taskId: body.taskId,
+        status: { in: ['DRAFT', 'UPLOADING', 'UPLOAD_FAILED'] },
+      },
+    });
+
     // Per-user submission limit
     if (task.maxSubmissionsPerUser) {
       const userCount = await this.prisma.submission.count({
@@ -604,6 +631,22 @@ export class SubmissionsService {
       include: SUBMISSION_INCLUDE,
     });
     if (!submission) throw new NotFoundException('Submission not found');
-    return formatSubmission(submission);
+
+    const formatted = formatSubmission(submission);
+
+    // Attach short-lived presigned read URLs for each uploaded media item
+    const mediaWithUrls = await Promise.all(
+      formatted.media.map(async (m) => {
+        if (m.uploadStatus !== 'UPLOADED') return m;
+        try {
+          const readUrl = await this.storage.getReadUrl(m.storageKey);
+          return { ...m, readUrl };
+        } catch {
+          return m;
+        }
+      }),
+    );
+
+    return { ...formatted, media: mediaWithUrls };
   }
 }

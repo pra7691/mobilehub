@@ -556,6 +556,8 @@ export interface SubmissionMedia {
   mediaType: SubmissionMediaMediaType;
   storageKey: string;
   mediaUrl: string;
+  /** Short-lived presigned GET URL for direct access (admin only, ~1h TTL) */
+  readUrl?: string;
   thumbnailUrl?: string;
   fileSize?: number;
   durationSeconds?: number;

@@ -489,6 +489,12 @@ function SubmissionCard({
             </Text>
           </View>
         )}
+        {item.status === "UPLOAD_FAILED" && (
+          <View style={styles.retryHint}>
+            <Feather name="refresh-cw" size={11} color="#f87171" />
+            <Text style={styles.retryHintText}>Go to Drafts to retry</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -664,6 +670,17 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     payoutText: {
       fontSize: 12,
       color: colors.primary,
+      fontFamily: "Inter_500Medium",
+    },
+    retryHint: {
+      flex: 1,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 4,
+    },
+    retryHintText: {
+      fontSize: 11,
+      color: "#f87171",
       fontFamily: "Inter_500Medium",
     },
     cardActions: {

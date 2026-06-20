@@ -1707,6 +1707,9 @@ components:
           type: string
         mediaUrl:
           type: string
+        readUrl:
+          type: string
+          description: Short-lived presigned GET URL for direct access (admin only, ~1h TTL)
         thumbnailUrl:
           type: string
         fileSize:
