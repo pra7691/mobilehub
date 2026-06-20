@@ -66,6 +66,9 @@ function RootLayoutNav() {
         name="capture/review"
         options={{ presentation: "fullScreenModal", headerShown: false }}
       />
+      <Stack.Screen name="support" options={{ presentation: "card", headerShown: false }} />
+      <Stack.Screen name="faq" options={{ presentation: "card", headerShown: false }} />
+      <Stack.Screen name="static-page" options={{ presentation: "card", headerShown: false }} />
     </Stack>
   );
 }

@@ -12,6 +12,10 @@ import { OtpSettingsModule } from './otp-settings/otp-settings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './storage/storage.module';
+import { FaqModule } from './faq/faq.module';
+import { SupportModule } from './support/support.module';
+import { PagesModule } from './pages/pages.module';
+import { NoticesModule } from './notices/notices.module';
 
 @Module({
   imports: [
@@ -28,6 +32,10 @@ import { StorageModule } from './storage/storage.module';
     DashboardModule,
     HealthModule,
     StorageModule,
+    FaqModule,
+    SupportModule,
+    PagesModule,
+    NoticesModule,
   ],
 })
 export class AppModule {}

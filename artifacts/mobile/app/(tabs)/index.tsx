@@ -2,7 +2,8 @@ import React, { useState, useCallback } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useListCategories, type Category } from "@workspace/api-client-react";
+import { useListCategories, useGetPublicNotices, type Category, type Notice } from "@workspace/api-client-react";
+import { Feather } from "@expo/vector-icons";
 
 function CategoryCard({ category, onPress }: { category: Category; onPress: () => void }) {
   return (
@@ -29,18 +30,40 @@ function CategoryCard({ category, onPress }: { category: Category; onPress: () =
   );
 }
 
+function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: (id: string) => void }) {
+  return (
+    <View style={styles.noticeBanner}>
+      <Feather name="bell" size={14} color="#f59e0b" style={{ marginTop: 1 }} />
+      <View style={styles.noticeTextBlock}>
+        <Text style={styles.noticeTitle}>{notice.title}</Text>
+        <Text style={styles.noticeContent}>{notice.content}</Text>
+      </View>
+      <TouchableOpacity onPress={() => onDismiss(notice.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Feather name="x" size={15} color="#92400e" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function CategoriesScreen() {
   const router = useRouter();
-  const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
+  const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(new Set());
 
   const { data, isLoading, refetch } = useListCategories({ isActive: true, limit: 50 });
+  const { data: notices = [] } = useGetPublicNotices() as { data: Notice[] };
+
+  const visibleNotices = notices.filter(n => n.isActive && !dismissedNotices.has(n.id));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
   }, [refetch]);
+
+  function dismissNotice(id: string) {
+    setDismissedNotices(prev => new Set([...prev, id]));
+  }
 
   const categories = (data?.data ?? []).filter(c => c.isActive);
 
@@ -64,6 +87,15 @@ export default function CategoriesScreen() {
         <Text style={styles.headerTitle}>Capto</Text>
         <Text style={styles.headerSubtitle}>Choose a task category</Text>
       </View>
+
+      {visibleNotices.length > 0 && (
+        <View style={styles.noticesList}>
+          {visibleNotices.map(n => (
+            <NoticeBanner key={n.id} notice={n} onDismiss={dismissNotice} />
+          ))}
+        </View>
+      )}
+
       <FlatList
         data={categories}
         keyExtractor={item => item.id}
@@ -93,6 +125,22 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#ffffff" },
   headerSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", marginTop: 2 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  noticesList: { paddingHorizontal: 16, paddingBottom: 8, gap: 6 },
+  noticeBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#422006",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#92400e",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  noticeTextBlock: { flex: 1 },
+  noticeTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fbbf24" },
+  noticeContent: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#d97706", marginTop: 2, lineHeight: 17 },
   list: { paddingHorizontal: 16, paddingBottom: 24, gap: 10 },
   card: { backgroundColor: "#141414", borderRadius: 14, flexDirection: "row", alignItems: "center", padding: 14, borderWidth: 1, borderColor: "#1f1f1f" },
   cardIconContainer: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#1a1a1a", justifyContent: "center", alignItems: "center", marginRight: 14, borderWidth: 1, borderColor: "#2a2a2a" },

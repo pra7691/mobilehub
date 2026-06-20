@@ -2027,3 +2027,338 @@ export const GetSubmissionTrendsResponse = zod.object({
 })
 
 
+export const AdminListFaqQueryParams = zod.object({
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional(),
+  "search": zod.coerce.string().optional(),
+  "isActive": zod.coerce.boolean().optional()
+})
+
+export const AdminListFaqResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})),
+  "meta": zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+export const AdminCreateFaqBody = zod.object({
+  "question": zod.string(),
+  "answer": zod.string(),
+  "displayOrder": zod.number().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+
+export const AdminReorderFaqBody = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "displayOrder": zod.number()
+}))
+})
+
+
+export const AdminGetFaqParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminGetFaqResponse = zod.object({
+  "id": zod.string(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+export const AdminUpdateFaqParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminUpdateFaqBody = zod.object({
+  "question": zod.string().optional(),
+  "answer": zod.string().optional(),
+  "displayOrder": zod.number().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const AdminUpdateFaqResponse = zod.object({
+  "id": zod.string(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+export const AdminDeleteFaqParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const AdminGetSupportSettingsResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "whatsappNumber": zod.string(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminUpdateSupportSettingsBody = zod.object({
+  "email": zod.string().optional(),
+  "whatsappNumber": zod.string().optional(),
+  "phoneNumber": zod.string().optional(),
+  "workingHours": zod.string().optional(),
+  "message": zod.string().optional()
+})
+
+export const AdminUpdateSupportSettingsResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "whatsappNumber": zod.string(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminListPagesQueryParams = zod.object({
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional()
+})
+
+export const AdminListPagesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "meta": zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+export const AdminCreatePageBody = zod.object({
+  "title": zod.string(),
+  "slug": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean().optional()
+})
+
+
+export const AdminGetPageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminGetPageResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminUpdatePageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminUpdatePageBody = zod.object({
+  "title": zod.string().optional(),
+  "slug": zod.string().optional(),
+  "content": zod.string().optional(),
+  "isPublished": zod.boolean().optional()
+})
+
+export const AdminUpdatePageResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminDeletePageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const AdminListNoticesQueryParams = zod.object({
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional(),
+  "isActive": zod.coerce.boolean().optional()
+})
+
+export const AdminListNoticesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "endsAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})),
+  "meta": zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+export const AdminCreateNoticeBody = zod.object({
+  "title": zod.string(),
+  "content": zod.string(),
+  "isActive": zod.boolean().optional(),
+  "startsAt": zod.coerce.date().optional(),
+  "endsAt": zod.coerce.date().optional()
+})
+
+
+export const AdminGetNoticeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminGetNoticeResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "endsAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+export const AdminUpdateNoticeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminUpdateNoticeBody = zod.object({
+  "title": zod.string().optional(),
+  "content": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
+  "startsAt": zod.coerce.date().nullish(),
+  "endsAt": zod.coerce.date().nullish()
+})
+
+export const AdminUpdateNoticeResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "endsAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+export const AdminDeleteNoticeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const GetPublicFaqQueryParams = zod.object({
+  "search": zod.coerce.string().optional()
+})
+
+export const GetPublicFaqResponseItem = zod.object({
+  "id": zod.string(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+export const GetPublicFaqResponse = zod.array(GetPublicFaqResponseItem)
+
+
+export const GetPublicSupportResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "whatsappNumber": zod.string(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const GetPublicPageParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetPublicPageResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "slug": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const GetPublicNoticesResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "isActive": zod.boolean(),
+  "startsAt": zod.coerce.date().nullish(),
+  "endsAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+export const GetPublicNoticesResponse = zod.array(GetPublicNoticesResponseItem)
+
+

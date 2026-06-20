@@ -329,3 +329,55 @@ model WalletTransaction {
 
   @@map("wallet_transactions")
 }
+
+model Faq {
+  id           String    @id @default(cuid())
+  question     String
+  answer       String
+  displayOrder Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@map("faqs")
+}
+
+model StaticPage {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  isPublished Boolean  @default(false)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("static_pages")
+}
+
+model SupportSettings {
+  id             String   @id @default(cuid())
+  email          String
+  whatsappNumber String
+  phoneNumber    String?
+  workingHours   String?
+  message        String?
+  updatedAt      DateTime @updatedAt
+
+  @@map("support_settings")
+}
+
+model Notice {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  isActive  Boolean   @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("notices")
+}

@@ -756,6 +756,126 @@ export interface SubmissionTrendsResponse {
   data: SubmissionTrendPoint[];
 }
 
+export interface Faq {
+  id: string;
+  question: string;
+  answer: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface FaqListResponse {
+  data: Faq[];
+  meta: PaginationMeta;
+}
+
+export interface CreateFaqRequest {
+  question: string;
+  answer: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateFaqRequest {
+  question?: string;
+  answer?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface ReorderFaqItem {
+  id: string;
+  displayOrder: number;
+}
+
+export interface ReorderFaqRequest {
+  items: ReorderFaqItem[];
+}
+
+export interface SupportSettings {
+  id: string;
+  email: string;
+  whatsappNumber: string;
+  phoneNumber?: string | null;
+  workingHours?: string | null;
+  message?: string | null;
+  updatedAt: string;
+}
+
+export interface UpdateSupportSettingsRequest {
+  email?: string;
+  whatsappNumber?: string;
+  phoneNumber?: string;
+  workingHours?: string;
+  message?: string;
+}
+
+export interface StaticPage {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  isPublished: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaticPageListResponse {
+  data: StaticPage[];
+  meta: PaginationMeta;
+}
+
+export interface CreateStaticPageRequest {
+  title: string;
+  slug: string;
+  content: string;
+  isPublished?: boolean;
+}
+
+export interface UpdateStaticPageRequest {
+  title?: string;
+  slug?: string;
+  content?: string;
+  isPublished?: boolean;
+}
+
+export interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  isActive: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface NoticeListResponse {
+  data: Notice[];
+  meta: PaginationMeta;
+}
+
+export interface CreateNoticeRequest {
+  title: string;
+  content: string;
+  isActive?: boolean;
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export interface UpdateNoticeRequest {
+  title?: string;
+  content?: string;
+  isActive?: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -1003,4 +1123,26 @@ export const ListWalletTransactionsSourceType = {
   SUBMISSION: 'SUBMISSION',
   ADMIN_ADJUSTMENT: 'ADMIN_ADJUSTMENT',
 } as const;
+
+export type AdminListFaqParams = {
+page?: number;
+limit?: number;
+search?: string;
+isActive?: boolean;
+};
+
+export type AdminListPagesParams = {
+page?: number;
+limit?: number;
+};
+
+export type AdminListNoticesParams = {
+page?: number;
+limit?: number;
+isActive?: boolean;
+};
+
+export type GetPublicFaqParams = {
+search?: string;
+};
 

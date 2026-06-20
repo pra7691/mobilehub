@@ -22,6 +22,14 @@ tags:
   - name: wallet-transactions
   - name: otp-settings
   - name: dashboard
+  - name: faq
+  - name: support
+  - name: pages
+  - name: notices
+  - name: public-faq
+  - name: public-support
+  - name: public-pages
+  - name: public-notices
 
 paths:
   /healthz:
@@ -1064,6 +1072,411 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SubmissionTrendsResponse"
+
+  # ─── Admin FAQ ────────────────────────────────────────────────────
+  /admin/faq:
+    get:
+      operationId: adminListFaq
+      tags: [faq]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: isActive
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaqListResponse"
+    post:
+      operationId: adminCreateFaq
+      tags: [faq]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFaqRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Faq"
+
+  /admin/faq/reorder:
+    post:
+      operationId: adminReorderFaq
+      tags: [faq]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderFaqRequest"
+      responses:
+        "200":
+          description: OK
+
+  /admin/faq/{id}:
+    get:
+      operationId: adminGetFaq
+      tags: [faq]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Faq"
+    patch:
+      operationId: adminUpdateFaq
+      tags: [faq]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFaqRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Faq"
+    delete:
+      operationId: adminDeleteFaq
+      tags: [faq]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: No Content
+
+  # ─── Admin Support Settings ───────────────────────────────────────
+  /admin/support-settings:
+    get:
+      operationId: adminGetSupportSettings
+      tags: [support]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportSettings"
+    patch:
+      operationId: adminUpdateSupportSettings
+      tags: [support]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupportSettingsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportSettings"
+
+  # ─── Admin Static Pages ───────────────────────────────────────────
+  /admin/pages:
+    get:
+      operationId: adminListPages
+      tags: [pages]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaticPageListResponse"
+    post:
+      operationId: adminCreatePage
+      tags: [pages]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStaticPageRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaticPage"
+
+  /admin/pages/{id}:
+    get:
+      operationId: adminGetPage
+      tags: [pages]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaticPage"
+    patch:
+      operationId: adminUpdatePage
+      tags: [pages]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStaticPageRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaticPage"
+    delete:
+      operationId: adminDeletePage
+      tags: [pages]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: No Content
+
+  # ─── Admin Notices ────────────────────────────────────────────────
+  /admin/notices:
+    get:
+      operationId: adminListNotices
+      tags: [notices]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+        - in: query
+          name: isActive
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoticeListResponse"
+    post:
+      operationId: adminCreateNotice
+      tags: [notices]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNoticeRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+
+  /admin/notices/{id}:
+    get:
+      operationId: adminGetNotice
+      tags: [notices]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+    patch:
+      operationId: adminUpdateNotice
+      tags: [notices]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNoticeRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+    delete:
+      operationId: adminDeleteNotice
+      tags: [notices]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: No Content
+
+  # ─── Public Endpoints ─────────────────────────────────────────────
+  /public/faq:
+    get:
+      operationId: getPublicFaq
+      tags: [public-faq]
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Faq"
+
+  /public/support:
+    get:
+      operationId: getPublicSupport
+      tags: [public-support]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportSettings"
+
+  /public/pages/{slug}:
+    get:
+      operationId: getPublicPage
+      tags: [public-pages]
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaticPage"
+
+  /public/notices:
+    get:
+      operationId: getPublicNotices
+      tags: [public-notices]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notice"
 
 components:
   securitySchemes:
@@ -2132,3 +2545,255 @@ components:
           items:
             $ref: "#/components/schemas/SubmissionTrendPoint"
       required: [data]
+
+    Faq:
+      type: object
+      properties:
+        id:
+          type: string
+        question:
+          type: string
+        answer:
+          type: string
+        displayOrder:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, question, answer, displayOrder, isActive, createdAt, updatedAt]
+
+    FaqListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Faq"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+
+    CreateFaqRequest:
+      type: object
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        displayOrder:
+          type: integer
+        isActive:
+          type: boolean
+      required: [question, answer]
+
+    UpdateFaqRequest:
+      type: object
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        displayOrder:
+          type: integer
+        isActive:
+          type: boolean
+
+    ReorderFaqItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayOrder:
+          type: integer
+      required: [id, displayOrder]
+
+    ReorderFaqRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReorderFaqItem"
+      required: [items]
+
+    SupportSettings:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        whatsappNumber:
+          type: string
+        phoneNumber:
+          type: string
+          nullable: true
+        workingHours:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, email, whatsappNumber, updatedAt]
+
+    UpdateSupportSettingsRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        whatsappNumber:
+          type: string
+        phoneNumber:
+          type: string
+        workingHours:
+          type: string
+        message:
+          type: string
+
+    StaticPage:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+        version:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, slug, content, isPublished, version, createdAt, updatedAt]
+
+    StaticPageListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaticPage"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+
+    CreateStaticPageRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+      required: [title, slug, content]
+
+    UpdateStaticPageRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+
+    Notice:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        isActive:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, title, content, isActive, createdAt, updatedAt]
+
+    NoticeListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notice"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+
+    CreateNoticeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isActive:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+      required: [title, content]
+
+    UpdateNoticeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isActive:
+          type: boolean
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
