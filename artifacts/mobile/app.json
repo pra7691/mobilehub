@@ -14,9 +14,21 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Capto needs camera access to capture photo and video evidence for tasks.",
+        "NSMicrophoneUsageDescription": "Capto needs microphone access to record audio evidence and video with sound for tasks."
+      }
     },
-    "android": {},
+    "android": {
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -28,7 +40,21 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Capto needs camera access to capture photo and video evidence for tasks.",
+          "microphonePermission": "Capto needs microphone access to record video with sound for tasks.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Capto needs microphone access to record audio evidence for tasks."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

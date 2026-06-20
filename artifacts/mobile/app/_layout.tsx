@@ -16,6 +16,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { DraftProvider } from "@/contexts/DraftContext";
 
 // Set API base URL from env at module load time
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -48,6 +49,22 @@ function RootLayoutNav() {
       <Stack.Screen name="category/[id]" options={{ presentation: "card" }} />
       <Stack.Screen name="subcategory/[id]" options={{ presentation: "card" }} />
       <Stack.Screen name="task/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen
+        name="capture/video"
+        options={{ presentation: "fullScreenModal", headerShown: false }}
+      />
+      <Stack.Screen
+        name="capture/image"
+        options={{ presentation: "fullScreenModal", headerShown: false }}
+      />
+      <Stack.Screen
+        name="capture/audio"
+        options={{ presentation: "fullScreenModal", headerShown: false }}
+      />
+      <Stack.Screen
+        name="capture/review"
+        options={{ presentation: "fullScreenModal", headerShown: false }}
+      />
     </Stack>
   );
 }
@@ -75,7 +92,9 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AuthProvider>
-                <RootLayoutNav />
+                <DraftProvider>
+                  <RootLayoutNav />
+                </DraftProvider>
               </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
