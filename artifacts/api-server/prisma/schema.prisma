@@ -91,15 +91,18 @@ enum TransactionStatus {
 }
 
 model AdminUser {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String
-  password  String
-  role      AdminRole @default(admin)
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  password     String
+  role         AdminRole @default(admin)
+  isActive     Boolean   @default(true)
+  tokenVersion Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  auditLogs AdminAuditLog[]
 
   @@map("admin_users")
 }
@@ -119,6 +122,7 @@ model User {
   walletTransactions WalletTransaction[]
   deviceTokens       DeviceToken[]
   notifications      Notification[]
+  refreshTokens      RefreshToken[]
 
   @@map("users")
 }
@@ -148,6 +152,7 @@ model OtpSession {
 
   user User? @relation(fields: [userId], references: [id])
 
+  @@index([phoneNumber, expiresAt])
   @@map("otp_sessions")
 }
 
@@ -271,6 +276,9 @@ model Submission {
   subcategory Subcategory?      @relation(fields: [subcategoryId], references: [id])
   media       SubmissionMedia[]
 
+  @@index([userId, status])
+  @@index([taskId, status])
+  @@index([createdAt])
   @@map("submissions")
 }
 
@@ -329,7 +337,42 @@ model WalletTransaction {
   wallet Wallet @relation(fields: [walletId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
 
+  @@index([userId, createdAt])
   @@map("wallet_transactions")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String?
+  adminEmail String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  admin AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }
 
 model Faq {

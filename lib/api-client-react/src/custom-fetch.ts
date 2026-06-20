@@ -360,7 +360,33 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // Default 30-second request timeout — overridable via init.signal
+  const timeoutMs = 30_000;
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+
+  // Merge caller signal with our timeout signal
+  const callerSignal = init.signal as AbortSignal | undefined;
+  if (callerSignal) {
+    callerSignal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      method,
+      headers,
+      signal: timeoutController.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (timeoutController.signal.aborted && !callerSignal?.aborted) {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s: ${method} ${requestInfo.url}`);
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

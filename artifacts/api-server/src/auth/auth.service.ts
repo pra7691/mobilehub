@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -14,16 +16,49 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'capto-jwt-secret-change-in-production';
 const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY_SEC = 7 * 24 * 60 * 60;
 const REFRESH_TOKEN_EXPIRY = '7d';
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+export interface AuthContext {
+  ipAddress?: string;
+  requestId?: string;
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private audit: AuditService,
   ) {}
 
-  private issueTokens(payload: object) {
+  private async issueUserTokens(payload: object, userId: string) {
+    const accessToken = this.jwtService.sign(payload, {
+      secret: JWT_SECRET,
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: JWT_SECRET,
+      expiresIn: REFRESH_TOKEN_EXPIRY,
+    });
+
+    const tokenHash = hashToken(refreshToken);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SEC * 1000);
+    await this.prisma.refreshToken.create({ data: { userId, tokenHash, expiresAt } });
+
+    // Clean up expired tokens (best-effort, non-blocking)
+    this.prisma.refreshToken
+      .deleteMany({ where: { userId, expiresAt: { lt: new Date() } } })
+      .catch(() => {});
+
+    return { accessToken, refreshToken, expiresIn: 900 };
+  }
+
+  private issueAdminTokens(payload: Record<string, unknown>) {
     const accessToken = this.jwtService.sign(payload, {
       secret: JWT_SECRET,
       expiresIn: ACCESS_TOKEN_EXPIRY,
@@ -35,45 +70,91 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn: 900 };
   }
 
-  async adminLogin(dto: AdminLoginDto) {
-    const admin = await this.prisma.adminUser.findUnique({
-      where: { email: dto.email },
-    });
+  async adminLogin(dto: AdminLoginDto, ctx?: AuthContext) {
+    const admin = await this.prisma.adminUser.findUnique({ where: { email: dto.email } });
 
-    if (!admin || !admin.isActive) {
+    if (!admin || !admin.isActive || admin.deletedAt) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const valid = await bcrypt.compare(dto.password, admin.password);
-    if (!valid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    return this.issueTokens({
+    void this.audit.log('admin.login', {
+      adminId: admin.id,
+      adminEmail: admin.email,
+      ipAddress: ctx?.ipAddress,
+      requestId: ctx?.requestId,
+    });
+
+    return this.issueAdminTokens({
       sub: admin.id,
       email: admin.email,
       role: admin.role,
       type: 'admin',
+      tv: admin.tokenVersion,
     });
   }
 
-  async requestOtp(dto: RequestOtpDto) {
-    // Find or create user by phone number
-    let user = await this.prisma.user.findUnique({
-      where: { phoneNumber: dto.phoneNumber },
+  async adminLogout(adminId: string, ctx?: AuthContext) {
+    const admin = await this.prisma.adminUser.findUnique({ where: { id: adminId } });
+    void this.audit.log('admin.logout', {
+      adminId,
+      adminEmail: admin?.email,
+      ipAddress: ctx?.ipAddress,
+      requestId: ctx?.requestId,
+    });
+    return { message: 'Logged out' };
+  }
+
+  async adminLogoutAll(adminId: string, ctx?: AuthContext) {
+    const admin = await this.prisma.adminUser.findUnique({ where: { id: adminId } });
+    if (!admin) throw new NotFoundException('Admin not found');
+
+    await this.prisma.adminUser.update({
+      where: { id: adminId },
+      data: { tokenVersion: { increment: 1 } },
     });
 
+    void this.audit.log('admin.logout_all', {
+      adminId,
+      adminEmail: admin.email,
+      ipAddress: ctx?.ipAddress,
+      requestId: ctx?.requestId,
+    });
+
+    return { message: 'All sessions invalidated' };
+  }
+
+  async requestOtp(dto: RequestOtpDto) {
+    let user = await this.prisma.user.findUnique({ where: { phoneNumber: dto.phoneNumber } });
+
     if (!user) {
-      user = await this.prisma.user.create({
-        data: { phoneNumber: dto.phoneNumber },
-      });
+      user = await this.prisma.user.create({ data: { phoneNumber: dto.phoneNumber } });
     }
 
-    // Check OTP settings for test mode
+    if (user.status === 'suspended') throw new BadRequestException('Account suspended');
+
     const settings = await this.prisma.otpSetting.findFirst();
-    const otp = settings?.isTestMode && settings.testOtp
-      ? settings.testOtp
-      : Math.random().toString().slice(2, 8);
+
+    // Cooldown: prevent rapid OTP requests
+    const cooldown = settings?.cooldownSeconds ?? 60;
+    const recent = await this.prisma.otpSession.findFirst({
+      where: {
+        phoneNumber: dto.phoneNumber,
+        createdAt: { gte: new Date(Date.now() - cooldown * 1000) },
+        verified: false,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recent) {
+      throw new BadRequestException('Please wait before requesting another OTP');
+    }
+
+    const otp =
+      settings?.isTestMode && settings.testOtp
+        ? settings.testOtp
+        : Math.floor(100000 + Math.random() * 900000).toString();
     const expirySeconds = settings?.otpExpirySeconds ?? 300;
 
     const session = await this.prisma.otpSession.create({
@@ -85,8 +166,10 @@ export class AuthService {
       },
     });
 
-    // In production: send SMS here
-    console.log(`[DEV] OTP for ${dto.phoneNumber}: ${otp}`);
+    // In production: send SMS via your gateway
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] OTP for ${dto.phoneNumber}: ${otp}`);
+    }
 
     return { message: 'OTP sent successfully', sessionId: session.id };
   }
@@ -97,15 +180,16 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!session) {
-      throw new BadRequestException('Invalid session');
+    if (!session) throw new BadRequestException('Invalid session');
+    if (session.verified) throw new BadRequestException('OTP already used');
+    if (new Date() > session.expiresAt) throw new BadRequestException('OTP expired');
+
+    const settings = await this.prisma.otpSetting.findFirst();
+    const maxAttempts = settings?.maxAttempts ?? 3;
+    if (session.attempts >= maxAttempts) {
+      throw new BadRequestException('Too many attempts — request a new OTP');
     }
-    if (session.verified) {
-      throw new BadRequestException('OTP already used');
-    }
-    if (new Date() > session.expiresAt) {
-      throw new BadRequestException('OTP expired');
-    }
+
     if (session.otp !== dto.otp) {
       await this.prisma.otpSession.update({
         where: { id: session.id },
@@ -121,24 +205,62 @@ export class AuthService {
 
     const user = session.user;
     if (!user) throw new NotFoundException('User not found');
+    if (user.status === 'suspended') throw new UnauthorizedException('Account suspended');
 
-    return this.issueTokens({
-      sub: user.id,
-      phoneNumber: user.phoneNumber,
-      type: 'user',
-    });
+    return this.issueUserTokens(
+      { sub: user.id, phoneNumber: user.phoneNumber, type: 'user' },
+      user.id,
+    );
   }
 
   async refreshTokens(dto: RefreshTokenDto) {
+    let payload: Record<string, unknown>;
     try {
-      const payload = this.jwtService.verify(dto.refreshToken, {
-        secret: JWT_SECRET,
-      });
-      const { iat, exp, ...rest } = payload as Record<string, unknown>;
-      void iat; void exp;
-      return this.issueTokens(rest);
+      payload = this.jwtService.verify(dto.refreshToken, { secret: JWT_SECRET }) as Record<string, unknown>;
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
+
+    const type = payload['type'];
+
+    if (type === 'user') {
+      const tokenHash = hashToken(dto.refreshToken);
+      const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
+
+      if (!stored || stored.isRevoked || stored.expiresAt < new Date()) {
+        throw new UnauthorizedException('Refresh token revoked or expired');
+      }
+
+      // Rotate: mark old token revoked, issue new pair
+      await this.prisma.refreshToken.update({ where: { id: stored.id }, data: { isRevoked: true } });
+
+      const { iat: _iat, exp: _exp, ...rest } = payload;
+      void _iat; void _exp;
+      return this.issueUserTokens(rest, stored.userId);
+    }
+
+    if (type === 'admin') {
+      const adminId = payload['sub'] as string;
+      const tv = payload['tv'] as number | undefined;
+      const admin = await this.prisma.adminUser.findUnique({ where: { id: adminId } });
+      if (!admin || !admin.isActive || admin.deletedAt) {
+        throw new UnauthorizedException('Admin account not found or inactive');
+      }
+      if (tv !== admin.tokenVersion) {
+        throw new UnauthorizedException('Session invalidated — please log in again');
+      }
+      const { iat: _iat, exp: _exp, ...rest } = payload;
+      void _iat; void _exp;
+      return this.issueAdminTokens({ ...rest, tv: admin.tokenVersion });
+    }
+
+    throw new UnauthorizedException('Invalid token type');
+  }
+
+  async revokeUserRefreshToken(refreshToken: string) {
+    const tokenHash = hashToken(refreshToken);
+    await this.prisma.refreshToken
+      .update({ where: { tokenHash }, data: { isRevoked: true } })
+      .catch(() => {});
   }
 }
