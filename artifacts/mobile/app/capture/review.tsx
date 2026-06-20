@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
+import * as FileSystem from "expo-file-system";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Video, ResizeMode } from "expo-av";
@@ -13,6 +14,7 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGetTask } from "@workspace/api-client-react";
 
@@ -24,6 +26,8 @@ import {
   setPendingCapture,
   type PendingCapture,
 } from "@/lib/captureStore";
+
+const MIN_FREE_BYTES_TO_SAVE = 50 * 1024 * 1024; // 50 MB
 
 const TYPE_ICON: Record<string, string> = {
   VIDEO: "🎥",
@@ -105,6 +109,18 @@ export default function ReviewScreen() {
     }
     setSaving(true);
     try {
+      // Low-storage guard before copying media files
+      const freeDisk = await FileSystem.getFreeDiskStorageAsync();
+      if (freeDisk < MIN_FREE_BYTES_TO_SAVE) {
+        Alert.alert(
+          "Storage Almost Full",
+          "You don't have enough free space to save this draft. Please free up storage on your device and try again.",
+          [{ text: "OK" }]
+        );
+        setSaving(false);
+        return;
+      }
+
       const ext =
         captureData.collectionType === "VIDEO"
           ? "mp4"

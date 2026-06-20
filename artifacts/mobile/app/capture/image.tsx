@@ -1,8 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { CameraView, type FlashMode } from "expo-camera";
+import { CameraView, type CameraType, type FlashMode } from "expo-camera";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -29,9 +29,19 @@ export default function ImageCaptureScreen() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [flash, setFlash] = useState<FlashMode>("off");
   const [capturing, setCapturing] = useState(false);
+  const [facing, setFacing] = useState<CameraType>("back");
 
   const minCount = task?.minimumImageCount ?? 1;
   const maxCount = task?.maximumImageCount ?? 10;
+  const preferredCamera = task?.preferredCamera ?? "ANY";
+  const canToggleCamera = preferredCamera === "ANY";
+
+  // Sync facing with task preferred camera once task data arrives
+  useEffect(() => {
+    if (!task) return;
+    if (task.preferredCamera === "FRONT") setFacing("front");
+    else if (task.preferredCamera === "REAR") setFacing("back");
+  }, [task?.preferredCamera]);
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || capturing) return;
@@ -109,6 +119,7 @@ export default function ImageCaptureScreen() {
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
+        facing={facing}
         flash={flash}
       />
 
@@ -164,7 +175,16 @@ export default function ImageCaptureScreen() {
 
       {/* Bottom controls */}
       <SafeAreaView edges={["bottom"]} style={styles.bottomBar}>
-        <View style={styles.iconBtn} />
+        {canToggleCamera ? (
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}
+          >
+            <Feather name="refresh-cw" size={22} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.iconBtn} />
+        )}
 
         <TouchableOpacity
           style={[styles.shutterBtn, capturing && styles.shutterBtnCapturing]}

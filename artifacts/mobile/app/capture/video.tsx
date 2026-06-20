@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { CameraView, type CameraType, type FlashMode } from "expo-camera";
+import * as FileSystem from "expo-file-system";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -17,6 +18,8 @@ import { useGetTask } from "@workspace/api-client-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
+
+const MIN_FREE_BYTES_TO_RECORD = 100 * 1024 * 1024; // 100 MB
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -160,14 +163,23 @@ export default function VideoCaptureScreen() {
 
   const startRecording = useCallback(() => {
     if (isRecording) return;
-    setError(null);
-    setElapsed(0);
-    elapsedRef.current = 0;
-    segmentsRef.current = [];
-    actionRef.current = "stop";
-    setIsRecording(true);
-    setIsPaused(false);
-    void recordSegment();
+    void (async () => {
+      const freeDisk = await FileSystem.getFreeDiskStorageAsync();
+      if (freeDisk < MIN_FREE_BYTES_TO_RECORD) {
+        setError(
+          "Not enough storage to record. Free up space on your device and try again."
+        );
+        return;
+      }
+      setError(null);
+      setElapsed(0);
+      elapsedRef.current = 0;
+      segmentsRef.current = [];
+      actionRef.current = "stop";
+      setIsRecording(true);
+      setIsPaused(false);
+      void recordSegment();
+    })();
   }, [isRecording, recordSegment]);
 
   const pauseRecording = useCallback(() => {
