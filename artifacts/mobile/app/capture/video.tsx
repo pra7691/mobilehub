@@ -19,7 +19,16 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
 
-const MIN_FREE_BYTES_TO_RECORD = 100 * 1024 * 1024; // 100 MB
+const LOW_STORAGE_BYTES = 200 * 1024 * 1024; // 200 MB
+
+async function hasSufficientStorage(): Promise<boolean> {
+  try {
+    const free = await FileSystem.getFreeDiskStorageAsync();
+    return free >= LOW_STORAGE_BYTES;
+  } catch {
+    return true;
+  }
+}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -49,8 +58,12 @@ export default function VideoCaptureScreen() {
 
   // Segment-based approach for pause/resume support
   const segmentsRef = useRef<string[]>([]);
+  // Durations reported by the camera for each segment (populated when available)
+  const segmentDurationsRef = useRef<number[]>([]);
   // Tracks intent when stopRecording() is called
   const actionRef = useRef<"pause" | "stop">("stop");
+  // Set to true when the app backgrounds mid-recording so we discard rather than navigate
+  const backgroundedRef = useRef(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -78,13 +91,27 @@ export default function VideoCaptureScreen() {
     else if (task.preferredCamera === "REAR") setFacing("back");
   }, [task?.preferredCamera]);
 
-  // Stop recording when app goes to background
+  // Stop recording gracefully when app goes to background
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState !== "active" && isRecording && !isPaused) {
-        actionRef.current = "stop";
-        cameraRef.current?.stopRecording();
+      if (nextState !== "active" && isRecording) {
         if (timerRef.current) clearInterval(timerRef.current);
+        if (!isPaused) {
+          // Active recording segment running — signal a background stop so
+          // recordSegment() discards instead of navigating to review
+          backgroundedRef.current = true;
+          actionRef.current = "stop";
+          cameraRef.current?.stopRecording();
+        } else {
+          // Paused: no active camera segment, reset state directly
+          setIsRecording(false);
+          setIsPaused(false);
+          setElapsed(0);
+          elapsedRef.current = 0;
+          segmentsRef.current = [];
+          segmentDurationsRef.current = [];
+          backgroundedRef.current = false;
+        }
       }
     });
     return () => sub.remove();
@@ -121,9 +148,26 @@ export default function VideoCaptureScreen() {
       });
       if (result?.uri) {
         segmentsRef.current.push(result.uri);
+        // Use camera-reported duration when available to avoid timer drift
+        const nativeResult = result as typeof result & { duration?: number };
+        if (typeof nativeResult.duration === "number" && nativeResult.duration > 0) {
+          segmentDurationsRef.current.push(nativeResult.duration);
+        }
       }
     } catch {
       // Recording cancelled or failed — no-op
+    }
+
+    // Discarded due to app backgrounding — reset cleanly without navigating
+    if (backgroundedRef.current) {
+      backgroundedRef.current = false;
+      setIsRecording(false);
+      setIsPaused(false);
+      setElapsed(0);
+      elapsedRef.current = 0;
+      segmentsRef.current = [];
+      segmentDurationsRef.current = [];
+      return;
     }
 
     // Decide what to do based on intent
@@ -131,13 +175,23 @@ export default function VideoCaptureScreen() {
       setIsPaused(true);
     } else {
       // "stop" — validate and navigate
-      const duration = elapsedRef.current;
+      // Prefer actual camera-reported durations when we have them for all segments
+      const duration =
+        segmentDurationsRef.current.length > 0 &&
+        segmentDurationsRef.current.length === segmentsRef.current.length
+          ? Math.round(
+              segmentDurationsRef.current.reduce((a, b) => a + b, 0)
+            )
+          : elapsedRef.current;
+
       if (minDuration > 0 && duration < minDuration) {
         setError(`Recording too short. Minimum ${minDuration} seconds required.`);
         setIsRecording(false);
         setIsPaused(false);
         setElapsed(0);
+        elapsedRef.current = 0;
         segmentsRef.current = [];
+        segmentDurationsRef.current = [];
         return;
       }
       const uris = segmentsRef.current;
@@ -151,35 +205,58 @@ export default function VideoCaptureScreen() {
         setIsRecording(false);
         setIsPaused(false);
         setElapsed(0);
+        elapsedRef.current = 0;
         segmentsRef.current = [];
+        segmentDurationsRef.current = [];
         router.push(`/capture/review?taskId=${taskId ?? ""}`);
       } else {
         setError("Recording failed. Please try again.");
         setIsRecording(false);
         setElapsed(0);
+        elapsedRef.current = 0;
+        segmentDurationsRef.current = [];
       }
     }
   }, [maxDuration, minDuration, taskId, router]);
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     if (isRecording) return;
-    void (async () => {
-      const freeDisk = await FileSystem.getFreeDiskStorageAsync();
-      if (freeDisk < MIN_FREE_BYTES_TO_RECORD) {
-        setError(
-          "Not enough storage to record. Free up space on your device and try again."
-        );
-        return;
-      }
-      setError(null);
-      setElapsed(0);
-      elapsedRef.current = 0;
-      segmentsRef.current = [];
-      actionRef.current = "stop";
-      setIsRecording(true);
-      setIsPaused(false);
-      void recordSegment();
-    })();
+    const hasSpace = await hasSufficientStorage();
+    if (!hasSpace) {
+      Alert.alert(
+        "Low Storage",
+        "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Record Anyway",
+            onPress: () => {
+              setError(null);
+              setElapsed(0);
+              elapsedRef.current = 0;
+              segmentsRef.current = [];
+              segmentDurationsRef.current = [];
+              actionRef.current = "stop";
+              backgroundedRef.current = false;
+              setIsRecording(true);
+              setIsPaused(false);
+              void recordSegment();
+            },
+          },
+        ]
+      );
+      return;
+    }
+    setError(null);
+    setElapsed(0);
+    elapsedRef.current = 0;
+    segmentsRef.current = [];
+    segmentDurationsRef.current = [];
+    actionRef.current = "stop";
+    backgroundedRef.current = false;
+    setIsRecording(true);
+    setIsPaused(false);
+    void recordSegment();
   }, [isRecording, recordSegment]);
 
   const pauseRecording = useCallback(() => {
@@ -207,7 +284,13 @@ export default function VideoCaptureScreen() {
     actionRef.current = "stop";
     if (isPaused) {
       // No active recording segment, go directly to review
-      const duration = elapsedRef.current;
+      const duration =
+        segmentDurationsRef.current.length > 0 &&
+        segmentDurationsRef.current.length === segmentsRef.current.length
+          ? Math.round(
+              segmentDurationsRef.current.reduce((a, b) => a + b, 0)
+            )
+          : elapsedRef.current;
       const uris = segmentsRef.current;
       if (uris.length > 0) {
         setPendingCapture({
@@ -219,7 +302,9 @@ export default function VideoCaptureScreen() {
         setIsRecording(false);
         setIsPaused(false);
         setElapsed(0);
+        elapsedRef.current = 0;
         segmentsRef.current = [];
+        segmentDurationsRef.current = [];
         router.push(`/capture/review?taskId=${taskId ?? ""}`);
       } else {
         setError("No footage recorded.");
@@ -244,11 +329,14 @@ export default function VideoCaptureScreen() {
             style: "destructive",
             onPress: () => {
               actionRef.current = "stop";
+              backgroundedRef.current = true;
               cameraRef.current?.stopRecording();
               setIsRecording(false);
               setIsPaused(false);
               setElapsed(0);
+              elapsedRef.current = 0;
               segmentsRef.current = [];
+              segmentDurationsRef.current = [];
               router.back();
             },
           },
@@ -264,6 +352,7 @@ export default function VideoCaptureScreen() {
     setElapsed(0);
     elapsedRef.current = 0;
     segmentsRef.current = [];
+    segmentDurationsRef.current = [];
     setIsRecording(false);
     setIsPaused(false);
   }, []);
@@ -373,7 +462,7 @@ export default function VideoCaptureScreen() {
         {/* Center: record → stop button */}
         <TouchableOpacity
           style={[styles.recordBtn, isRecording && styles.recordBtnActive]}
-          onPress={isRecording ? stopRecording : startRecording}
+          onPress={isRecording ? stopRecording : () => void startRecording()}
           activeOpacity={0.8}
         >
           {isRecording ? (

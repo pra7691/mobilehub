@@ -25,7 +25,16 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
 
-const MIN_FREE_BYTES_TO_RECORD = 100 * 1024 * 1024; // 100 MB
+const LOW_STORAGE_BYTES = 200 * 1024 * 1024; // 200 MB
+
+async function hasSufficientStorage(): Promise<boolean> {
+  try {
+    const free = await FileSystem.getFreeDiskStorageAsync();
+    return free >= LOW_STORAGE_BYTES;
+  } catch {
+    return true;
+  }
+}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -66,18 +75,25 @@ export default function AudioCaptureScreen() {
     recordingStateRef.current = recordingState;
   }, [recordingState]);
 
-  // Stop recording when app goes to background
+  // Stop recording gracefully when app goes to background
   useEffect(() => {
-    const sub = AppState.addEventListener("change", async (nextState) => {
+    const sub = AppState.addEventListener("change", (nextState) => {
       if (
         nextState !== "active" &&
         (recordingStateRef.current === "recording" ||
           recordingStateRef.current === "paused")
       ) {
-        await recorder.stop();
-        setRecordingState("idle");
-        recordingStateRef.current = "idle";
-        setElapsed(0);
+        void (async () => {
+          try {
+            await recorder.stop();
+          } catch {
+            // Recorder may already be stopped/released — ignore
+          } finally {
+            setRecordingState("idle");
+            recordingStateRef.current = "idle";
+            setElapsed(0);
+          }
+        })();
       }
     });
     return () => sub.remove();
@@ -138,12 +154,19 @@ export default function AudioCaptureScreen() {
   const startRecording = useCallback(async () => {
     const permResult = await AudioModule.requestRecordingPermissionsAsync();
     if (!permResult.granted) return;
-    const freeDisk = await FileSystem.getFreeDiskStorageAsync();
-    if (freeDisk < MIN_FREE_BYTES_TO_RECORD) {
-      setError(
-        "Not enough storage to record. Free up space on your device and try again."
-      );
-      return;
+    const hasSpace = await hasSufficientStorage();
+    if (!hasSpace) {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          "Low Storage",
+          "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
+          [
+            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+            { text: "Record Anyway", onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!confirmed) return;
     }
     setError(null);
     setElapsed(0);
