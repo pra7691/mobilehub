@@ -1,0 +1,3 @@
+- [NestJS DTO strict TS](nestjs-dto-strict.md) — class-validator DTOs need `!` on all properties when strict TS is on
+- [Metro monorepo config](metro-monorepo.md) — Metro needs watchFolders + nodeModulesPaths + disableHierarchicalLookup for pnpm workspace resolution
+- [NestJS build setup](nestjs-build.md) — build is `tsc -p tsconfig.json` (not esbuild); old Express stubs stay with empty exports; dev = build then start

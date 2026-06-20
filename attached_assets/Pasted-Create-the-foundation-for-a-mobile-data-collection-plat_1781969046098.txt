@@ -1,0 +1,150 @@
+Create the foundation for a mobile data-collection platform called “Capto” (temporary app name).
+
+Technology stack:
+
+* Mobile app: Expo React Native with TypeScript
+* Camera: Expo Camera (`expo-camera`) installed and architecture-ready for future in-app video, image, and audio capture
+* Mobile navigation: Expo Router
+* State management: Zustand or Redux Toolkit; use a clean feature-based architecture
+* Backend: Node.js with NestJS
+* Database: PostgreSQL
+* ORM: Prisma
+* Admin dashboard: React with TypeScript
+* API: REST API
+* Authentication: JWT access token and refresh token
+* File storage: design interfaces for future S3-compatible storage, but do not implement media uploads yet
+
+Create a monorepo/project structure with:
+
+1. `mobile_app`
+
+   * Expo React Native TypeScript app
+   * Expo Router
+   * Feature-based folder structure
+   * API client layer
+   * Secure token storage using Expo SecureStore
+   * Theme system with light and dark mode
+   * Reusable UI components
+   * Form validation
+   * Centralized error handling
+   * Environment configuration
+   * Camera service abstraction using `expo-camera`, but do not implement recording workflow yet
+
+2. `backend`
+
+   * NestJS with TypeScript
+   * Prisma ORM
+   * PostgreSQL database
+   * REST API
+   * Swagger API documentation
+   * JWT authentication foundation
+   * Global validation pipes
+   * Global error handling
+   * API versioning
+   * CORS configuration
+   * Environment configuration with `.env.example`
+
+3. `admin_dashboard`
+
+   * React with TypeScript
+   * Vite preferred
+   * React Router
+   * Modern responsive admin layout
+   * Protected route structure
+   * API client layer
+   * Theme-ready component structure
+
+Backend database models:
+
+* AdminUser
+* User
+* OtpSetting
+* OtpSession
+* Category
+* Subcategory
+* Task
+* Submission
+* Wallet
+* WalletTransaction
+
+Include standard fields where relevant:
+
+* id
+* createdAt
+* updatedAt
+* deletedAt where soft delete is useful
+* active/status fields
+* audit-friendly timestamps
+
+Admin roles:
+
+* AdminUser only for dashboard login
+* User only for mobile app access
+* Do not create password login for mobile users
+* Admin password login structure should be created securely
+
+Mobile app screens — create polished UI placeholders only:
+
+* Splash Screen
+* Mobile Number Login Screen
+* OTP Verification Screen
+* Tasks Home Screen
+* My Uploads Screen
+* Profile Screen
+
+Mobile navigation:
+
+* Bottom tabs:
+
+  1. Tasks
+  2. My Uploads
+  3. Profile
+* Use Expo Router for navigation.
+* Add placeholder routes and basic navigation only.
+
+Admin dashboard placeholder pages:
+
+* Dashboard
+* Users
+* Categories
+* Subcategories
+* Tasks
+* Submissions
+* Wallet Transactions
+* OTP Settings
+* FAQ and Static Pages
+
+Design requirements:
+
+* Modern 2026 mobile and dashboard design
+* Clean typography
+* Minimal but premium visual style
+* Rounded cards
+* Spacious layouts
+* Good empty states, loading states, and error states
+* Responsive admin dashboard
+* Dark and light mode support
+
+Important constraints:
+
+* Do not implement actual OTP verification yet.
+* Do not implement real SMS provider integration.
+* Do not implement task CRUD yet.
+* Do not implement camera recording yet.
+* Do not implement video, image, audio, or file uploads yet.
+* Do not implement wallet calculations yet.
+* Do not implement payments, withdrawals, notifications, referral system, or AI review.
+* Do not add fake API responses that will conflict with real backend integration later.
+
+However, prepare clean interfaces and service layers so the next modules can be added without restructuring.
+
+Include:
+
+* Prisma schema
+* Initial migration
+* Seed script that creates one default admin user from environment variables
+* README with exact setup instructions for PostgreSQL, Prisma migrations, backend, admin dashboard, and Expo mobile app
+* `.env.example` files for all three projects
+* Root-level scripts to run all projects separately
+
+Use clean, modular, production-oriented code. Do not overbuild features beyond this scope.

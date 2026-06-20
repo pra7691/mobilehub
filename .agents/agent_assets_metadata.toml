@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "JxxxxsvI9_e1ypR0s-bmM"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "capto-app-icon"

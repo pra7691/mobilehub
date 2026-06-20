@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdminRole {
+  super_admin
+  admin
+  moderator
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+}
+
+enum TaskStatus {
+  active
+  inactive
+  draft
+}
+
+enum SubmissionStatus {
+  pending
+  approved
+  rejected
+  under_review
+}
+
+enum TransactionType {
+  credit
+  debit
+}
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  password  String
+  role      AdminRole @default(admin)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("admin_users")
+}
+
+model User {
+  id          String     @id @default(cuid())
+  phoneNumber String     @unique
+  name        String?
+  status      UserStatus @default(active)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  otpSessions      OtpSession[]
+  submissions      Submission[]
+  wallet           Wallet?
+  walletTransactions WalletTransaction[]
+
+  @@map("users")
+}
+
+model OtpSetting {
+  id               String   @id @default(cuid())
+  otpLength        Int      @default(6)
+  otpExpirySeconds Int      @default(300)
+  maxAttempts      Int      @default(3)
+  cooldownSeconds  Int      @default(60)
+  isTestMode       Boolean  @default(false)
+  testOtp          String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("otp_settings")
+}
+
+model OtpSession {
+  id         String   @id @default(cuid())
+  userId     String?
+  phoneNumber String
+  otp        String
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  verified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("otp_sessions")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  subcategories Subcategory[]
+  tasks         Task[]
+
+  @@map("categories")
+}
+
+model Subcategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  categoryId  String
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  category Category @relation(fields: [categoryId], references: [id])
+  tasks    Task[]
+
+  @@map("subcategories")
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?
+  instructions  String?
+  categoryId    String
+  subcategoryId String?
+  reward        Decimal    @db.Decimal(10, 2)
+  status        TaskStatus @default(draft)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  category    Category     @relation(fields: [categoryId], references: [id])
+  subcategory Subcategory? @relation(fields: [subcategoryId], references: [id])
+  submissions Submission[]
+
+  @@map("tasks")
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  taskId       String
+  userId       String
+  status       SubmissionStatus @default(pending)
+  reviewNote   String?
+  rewardAmount Decimal          @db.Decimal(10, 2)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("submissions")
+}
+
+model Wallet {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  balance        Decimal  @default(0) @db.Decimal(10, 2)
+  totalEarned    Decimal  @default(0) @db.Decimal(10, 2)
+  totalWithdrawn Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String          @id @default(cuid())
+  walletId    String
+  userId      String
+  type        TransactionType
+  amount      Decimal         @db.Decimal(10, 2)
+  description String?
+  referenceId String?
+  createdAt   DateTime        @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("wallet_transactions")
+}
