@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CollectionType, CameraPreference, LensPreference, OrientationRequirement, TaskStatus } from '@prisma/client';
+import { CollectionType, CameraPreference, LensPreference, OrientationRequirement, TaskStatus, NotificationType, NotificationEntityType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 interface ListParams {
@@ -35,7 +36,10 @@ type TaskRow = {
 
 @Injectable()
 export class TasksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   private async toResponse(task: TaskRow) {
     const [submissionCount, category, subcategory] = await Promise.all([
@@ -120,12 +124,32 @@ export class TasksService {
   }
 
   async update(id: string, dto: TaskDto) {
-    await this.findOne(id);
+    const existing = await this.prisma.task.findFirst({
+      where: { id, deletedAt: null },
+      select: { status: true, title: true },
+    });
+    if (!existing) throw new NotFoundException('Task not found');
+
     const updateData: Record<string, unknown> = { ...dto };
     if (dto.startDate) updateData.startDate = new Date(dto.startDate);
     if (dto.endDate) updateData.endDate = new Date(dto.endDate);
     const task = await this.prisma.task.update({ where: { id }, data: updateData });
-    return this.toResponse(task as TaskRow);
+    const result = await this.toResponse(task as TaskRow);
+
+    if (dto.status === TaskStatus.active && existing.status !== TaskStatus.active) {
+      setImmediate(() => {
+        void this.notificationsService.broadcast({
+          title: '📋 New Task Available',
+          body: `"${existing.title}" is now available. Open the app to start collecting!`,
+          type: NotificationType.NEW_TASK,
+          relatedEntityType: NotificationEntityType.TASK,
+          relatedEntityId: id,
+          preferenceKey: 'notifyNewTasks',
+        });
+      });
+    }
+
+    return result;
   }
 
   async duplicate(id: string) {

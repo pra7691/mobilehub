@@ -23,6 +23,7 @@ import SupportSettings from "@/pages/support-settings";
 import FaqPage from "@/pages/faq";
 import StaticPagesAdmin from "@/pages/static-pages";
 import NoticesPage from "@/pages/notices";
+import NotificationsPage from "@/pages/notifications";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/faq" component={() => <ProtectedRoute component={FaqPage} />} />
       <Route path="/static-pages" component={() => <ProtectedRoute component={StaticPagesAdmin} />} />
       <Route path="/notices" component={() => <ProtectedRoute component={NoticesPage} />} />
+      <Route path="/notifications" component={() => <ProtectedRoute component={NotificationsPage} />} />
       <Route component={NotFound} />
     </Switch>
   );

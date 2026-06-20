@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { WalletService } from '../wallet/wallet.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotificationEntityType } from '@prisma/client';
 import {
   SubmissionStatus,
   MediaType,
@@ -187,6 +189,7 @@ export class SubmissionsService {
     private prisma: PrismaService,
     private storage: StorageService,
     private walletService: WalletService,
+    private notificationsService: NotificationsService,
   ) {}
 
   // ─── POST /submissions/initiate ────────────────────────────────────────────
@@ -702,7 +705,21 @@ export class SubmissionsService {
         include: SUBMISSION_INCLUDE,
       });
 
-      return formatSubmission(updated);
+      const result = formatSubmission(updated);
+
+      setImmediate(() => {
+        void this.notificationsService.dispatch({
+          userId: submission.userId,
+          title: '✅ Submission Approved',
+          body: `Your submission for "${taskTitle}" has been approved. ₦${amount.toFixed(2)} credited to your wallet.`,
+          type: NotificationType.SUBMISSION_APPROVED,
+          relatedEntityType: NotificationEntityType.SUBMISSION,
+          relatedEntityId: submissionId,
+          preferenceKey: 'notifySubmissionUpdates',
+        });
+      });
+
+      return result;
     });
   }
 
@@ -732,6 +749,21 @@ export class SubmissionsService {
       include: SUBMISSION_INCLUDE,
     });
 
+    const taskTitle =
+      (submission.taskSnapshot as Record<string, unknown>)?.title as string ?? submissionId;
+
+    setImmediate(() => {
+      void this.notificationsService.dispatch({
+        userId: submission.userId,
+        title: '❌ Submission Rejected',
+        body: `Your submission for "${taskTitle}" was rejected. ${body.rejectionReason}`,
+        type: NotificationType.SUBMISSION_REJECTED,
+        relatedEntityType: NotificationEntityType.SUBMISSION,
+        relatedEntityId: submissionId,
+        preferenceKey: 'notifySubmissionUpdates',
+      });
+    });
+
     return formatSubmission(updated);
   }
 
@@ -758,6 +790,21 @@ export class SubmissionsService {
         reviewedAt: new Date(),
       },
       include: SUBMISSION_INCLUDE,
+    });
+
+    const taskTitle =
+      (submission.taskSnapshot as Record<string, unknown>)?.title as string ?? submissionId;
+
+    setImmediate(() => {
+      void this.notificationsService.dispatch({
+        userId: submission.userId,
+        title: '🔄 Resubmission Required',
+        body: `Your submission for "${taskTitle}" needs changes. ${body.resubmissionReason}`,
+        type: NotificationType.RESUBMISSION_REQUIRED,
+        relatedEntityType: NotificationEntityType.SUBMISSION,
+        relatedEntityId: submissionId,
+        preferenceKey: 'notifySubmissionUpdates',
+      });
     });
 
     return formatSubmission(updated);

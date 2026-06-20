@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,15 +7,18 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useGetMe, useGetMyWallet, useListMySubmissions } from "@workspace/api-client-react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useGetMe, useGetMyWallet, useListMySubmissions, usePatchNotificationsPreferences } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import Constants from "expo-constants";
+import { TOKEN_STORAGE_KEY, PREF_STORAGE_KEY, DEFAULT_PREFS, type NotificationPreferences } from "@/hooks/useNotifications";
 
 interface User {
   id: string;
@@ -51,6 +54,36 @@ export default function ProfileScreen() {
   const approvedCount = approvedSubs?.meta?.total ?? 0;
   const pendingCount = pendingSubs?.meta?.total ?? 0;
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+
+  const { mutate: updateNotifPrefs } = usePatchNotificationsPreferences();
+  const [notifToken, setNotifToken] = useState<string | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
+
+  useEffect(() => {
+    void (async () => {
+      const [token, savedPrefs] = await Promise.all([
+        AsyncStorage.getItem(TOKEN_STORAGE_KEY),
+        AsyncStorage.getItem(PREF_STORAGE_KEY),
+      ]);
+      if (token) setNotifToken(token);
+      if (savedPrefs) {
+        try { setNotifPrefs(JSON.parse(savedPrefs) as NotificationPreferences); } catch {}
+      }
+    })();
+  }, []);
+
+  async function toggleNotifPref(
+    key: keyof NotificationPreferences,
+    value: boolean,
+  ) {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const updated = { ...notifPrefs, [key]: value };
+    setNotifPrefs(updated);
+    await AsyncStorage.setItem(PREF_STORAGE_KEY, JSON.stringify(updated));
+    if (notifToken) {
+      updateNotifPrefs({ data: { expoPushToken: notifToken, [key]: value } });
+    }
+  }
 
   async function handleLogout() {
     Alert.alert("Log out", "Are you sure you want to log out?", [
@@ -157,6 +190,38 @@ export default function ProfileScreen() {
         />
       </View>
 
+      {/* Notifications */}
+      <Text style={styles.sectionTitle}>Notifications</Text>
+      <View style={styles.card}>
+        <ToggleRow
+          label="Submission Updates"
+          description="Approved, rejected, or changes requested"
+          value={notifPrefs.notifySubmissionUpdates}
+          onChange={(v) => void toggleNotifPref("notifySubmissionUpdates", v)}
+          colors={colors}
+        />
+        <ToggleRow
+          label="New Tasks"
+          description="When new collection tasks go live"
+          value={notifPrefs.notifyNewTasks}
+          onChange={(v) => void toggleNotifPref("notifyNewTasks", v)}
+          colors={colors}
+        />
+        <ToggleRow
+          label="App Notices"
+          description="Announcements and platform updates"
+          value={notifPrefs.notifyAppNotices}
+          onChange={(v) => void toggleNotifPref("notifyAppNotices", v)}
+          colors={colors}
+          last
+        />
+      </View>
+      {!notifToken && (
+        <Text style={styles.notifHint}>
+          Allow notifications from your device settings to enable push alerts.
+        </Text>
+      )}
+
       {/* Help & Legal */}
       <Text style={styles.sectionTitle}>Help & Legal</Text>
       <View style={styles.card}>
@@ -233,6 +298,39 @@ function MenuRow({
   );
 }
 
+function ToggleRow({
+  label, description, value, onChange, colors, last,
+}: {
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (val: boolean) => void;
+  colors: ReturnType<typeof useColors>;
+  last?: boolean;
+}) {
+  const s = StyleSheet.create({
+    row: { flexDirection: "row", alignItems: "center", paddingVertical: 13, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.border },
+    textBlock: { flex: 1, marginRight: 12 },
+    lbl: { fontSize: 14, color: colors.foreground, fontFamily: "Inter_500Medium" },
+    desc: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 2 },
+  });
+  return (
+    <View style={s.row}>
+      <View style={s.textBlock}>
+        <Text style={s.lbl}>{label}</Text>
+        {description && <Text style={s.desc}>{description}</Text>}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor="#ffffff"
+        ios_backgroundColor={colors.border}
+      />
+    </View>
+  );
+}
+
 function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -261,5 +359,6 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     card: { marginHorizontal: 20, backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16 },
     logoutBtn: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 20, marginTop: 24, backgroundColor: "#1a0a0a", borderRadius: 12, paddingVertical: 14, paddingHorizontal: 18, borderWidth: 1, borderColor: "#7f1d1d" },
     logoutText: { fontSize: 15, color: "#ef4444", fontFamily: "Inter_600SemiBold" },
+    notifHint: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginHorizontal: 20, marginTop: 6, textAlign: "center", lineHeight: 16 },
   });
 }

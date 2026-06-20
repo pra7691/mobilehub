@@ -876,6 +876,90 @@ export interface UpdateNoticeRequest {
   endsAt?: string | null;
 }
 
+export type RegisterDeviceRequestPlatform = typeof RegisterDeviceRequestPlatform[keyof typeof RegisterDeviceRequestPlatform];
+
+
+export const RegisterDeviceRequestPlatform = {
+  ios: 'ios',
+  android: 'android',
+} as const;
+
+export interface RegisterDeviceRequest {
+  expoPushToken: string;
+  platform: RegisterDeviceRequestPlatform;
+  deviceId?: string;
+  notifySubmissionUpdates?: boolean;
+  notifyNewTasks?: boolean;
+  notifyAppNotices?: boolean;
+}
+
+export interface UpdatePreferencesRequest {
+  expoPushToken: string;
+  notifySubmissionUpdates?: boolean;
+  notifyNewTasks?: boolean;
+  notifyAppNotices?: boolean;
+}
+
+export interface DeviceToken {
+  id: string;
+  userId: string;
+  expoPushToken: string;
+  platform: string;
+  deviceId?: string | null;
+  isActive: boolean;
+  notifySubmissionUpdates: boolean;
+  notifyNewTasks: boolean;
+  notifyAppNotices: boolean;
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AppNotificationType = typeof AppNotificationType[keyof typeof AppNotificationType];
+
+
+export const AppNotificationType = {
+  SUBMISSION_APPROVED: 'SUBMISSION_APPROVED',
+  SUBMISSION_REJECTED: 'SUBMISSION_REJECTED',
+  RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
+  NEW_TASK: 'NEW_TASK',
+  APP_NOTICE: 'APP_NOTICE',
+} as const;
+
+export type AppNotificationRelatedEntityType = typeof AppNotificationRelatedEntityType[keyof typeof AppNotificationRelatedEntityType] | null;
+
+
+export const AppNotificationRelatedEntityType = {
+  SUBMISSION: 'SUBMISSION',
+  TASK: 'TASK',
+  NOTICE: 'NOTICE',
+} as const;
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: AppNotificationType;
+  relatedEntityType?: AppNotificationRelatedEntityType;
+  relatedEntityId?: string | null;
+  isRead: boolean;
+  sentAt?: string | null;
+  deliveryError?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationListResponse {
+  data: AppNotification[];
+  meta: PaginationMeta;
+}
+
+export interface AdminNotificationListResponse {
+  data: AppNotification[];
+  meta: PaginationMeta;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -1052,20 +1136,6 @@ export const AdminListSubmissionsCollectionType = {
   AUDIO: 'AUDIO',
 } as const;
 
-export type AdminApproveSubmissionBody = {
-  approvedAmount?: number;
-  adminNote?: string;
-};
-
-export type AdminRejectSubmissionBody = {
-  rejectionReason: string;
-  adminNote?: string;
-};
-
-export type AdminRequestResubmissionBody = {
-  resubmissionReason: string;
-};
-
 export type ListMyWalletTransactionsParams = {
 /**
  * @minimum 1
@@ -1145,4 +1215,38 @@ isActive?: boolean;
 export type GetPublicFaqParams = {
 search?: string;
 };
+
+export type DeleteNotificationsUnregisterDeviceParams = {
+token: string;
+};
+
+export type DeleteNotificationsUnregisterDevice200 = {
+  success?: boolean;
+};
+
+export type GetNotificationsMyParams = {
+page?: number;
+limit?: number;
+};
+
+export type GetAdminNotificationsParams = {
+page?: number;
+limit?: number;
+type?: GetAdminNotificationsType;
+userId?: string;
+isRead?: boolean;
+from?: string;
+to?: string;
+};
+
+export type GetAdminNotificationsType = typeof GetAdminNotificationsType[keyof typeof GetAdminNotificationsType];
+
+
+export const GetAdminNotificationsType = {
+  SUBMISSION_APPROVED: 'SUBMISSION_APPROVED',
+  SUBMISSION_REJECTED: 'SUBMISSION_REJECTED',
+  RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
+  NEW_TASK: 'NEW_TASK',
+  APP_NOTICE: 'APP_NOTICE',
+} as const;
 

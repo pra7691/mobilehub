@@ -6,6 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Notifications from "expo-notifications";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -17,6 +18,18 @@ import { setBaseUrl } from "@workspace/api-client-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DraftProvider } from "@/contexts/DraftContext";
+import { useNotifications } from "@/hooks/useNotifications";
+
+// Show notifications in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 // Set API base URL from env at module load time
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -31,6 +44,37 @@ function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+
+  // Register push token after login
+  useNotifications(isAuthenticated);
+
+  // Handle notification tap → deep link
+  const lastResponse = Notifications.useLastNotificationResponse();
+  useEffect(() => {
+    if (!lastResponse) return;
+    const data = lastResponse.notification.request.content.data as {
+      type?: string;
+      relatedEntityType?: string;
+      relatedEntityId?: string;
+    };
+    if (!data?.type) return;
+    switch (data.type) {
+      case "SUBMISSION_APPROVED":
+      case "SUBMISSION_REJECTED":
+      case "RESUBMISSION_REQUIRED":
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.push("/(tabs)/submissions" as any);
+        break;
+      case "NEW_TASK":
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.push("/(tabs)/" as any);
+        break;
+      case "APP_NOTICE":
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.push("/(tabs)/" as any);
+        break;
+    }
+  }, [lastResponse]);
 
   useEffect(() => {
     if (isLoading) return;

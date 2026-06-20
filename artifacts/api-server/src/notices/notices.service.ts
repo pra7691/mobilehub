@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotificationEntityType } from '@prisma/client';
 
 interface ListParams { page?: number; limit?: number; isActive?: boolean }
 interface CreateDto { title: string; content: string; isActive?: boolean; startsAt?: string; endsAt?: string }
@@ -7,7 +9,10 @@ interface UpdateDto { title?: string; content?: string; isActive?: boolean; star
 
 @Injectable()
 export class NoticesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async list(params: ListParams) {
     const page = params.page ?? 1;
@@ -42,20 +47,36 @@ export class NoticesService {
   }
 
   async create(dto: CreateDto) {
-    return this.prisma.notice.create({
+    const now = new Date();
+    const startsAt = dto.startsAt ? new Date(dto.startsAt) : null;
+    const notice = await this.prisma.notice.create({
       data: {
         title: dto.title,
         content: dto.content,
         isActive: dto.isActive ?? true,
-        startsAt: dto.startsAt ? new Date(dto.startsAt) : null,
+        startsAt,
         endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
       },
     });
+    const publishNow = (dto.isActive ?? true) && (!startsAt || startsAt <= now);
+    if (publishNow) {
+      setImmediate(() => {
+        void this.notificationsService.broadcast({
+          title: `📢 ${notice.title}`,
+          body: notice.content.length > 100 ? notice.content.slice(0, 97) + '…' : notice.content,
+          type: NotificationType.APP_NOTICE,
+          relatedEntityType: NotificationEntityType.NOTICE,
+          relatedEntityId: notice.id,
+          preferenceKey: 'notifyAppNotices',
+        });
+      });
+    }
+    return notice;
   }
 
   async update(id: string, dto: UpdateDto) {
-    await this.findOne(id);
-    return this.prisma.notice.update({
+    const existing = await this.findOne(id);
+    const updated = await this.prisma.notice.update({
       where: { id },
       data: {
         ...dto,
@@ -63,6 +84,20 @@ export class NoticesService {
         endsAt: dto.endsAt !== undefined ? (dto.endsAt ? new Date(dto.endsAt) : null) : undefined,
       },
     });
+    const justActivated = dto.isActive === true && !existing.isActive;
+    if (justActivated) {
+      setImmediate(() => {
+        void this.notificationsService.broadcast({
+          title: `📢 ${updated.title}`,
+          body: updated.content.length > 100 ? updated.content.slice(0, 97) + '…' : updated.content,
+          type: NotificationType.APP_NOTICE,
+          relatedEntityType: NotificationEntityType.NOTICE,
+          relatedEntityId: id,
+          preferenceKey: 'notifyAppNotices',
+        });
+      });
+    }
+    return updated;
   }
 
   async remove(id: string) {
