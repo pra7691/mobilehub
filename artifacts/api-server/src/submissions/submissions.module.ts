@@ -4,9 +4,10 @@ import { AdminSubmissionsController } from './admin-submissions.controller';
 import { SubmissionsService } from './submissions.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
-  imports: [PrismaModule, StorageModule],
+  imports: [PrismaModule, StorageModule, WalletModule],
   controllers: [SubmissionsController, AdminSubmissionsController],
   providers: [SubmissionsService],
   exports: [SubmissionsService],

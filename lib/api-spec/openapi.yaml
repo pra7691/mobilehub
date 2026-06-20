@@ -792,6 +792,122 @@ paths:
               schema:
                 $ref: "#/components/schemas/Submission"
 
+  /admin/submissions/{id}/approve:
+    post:
+      operationId: adminApproveSubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approvedAmount:
+                  type: number
+                adminNote:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /admin/submissions/{id}/reject:
+    post:
+      operationId: adminRejectSubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              properties:
+                rejectionReason:
+                  type: string
+                adminNote:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /admin/submissions/{id}/request-resubmission:
+    post:
+      operationId: adminRequestResubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resubmissionReason]
+              properties:
+                resubmissionReason:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /wallet/me:
+    get:
+      operationId: getMyWallet
+      tags: [wallet]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wallet"
+
+  /wallet-transactions/my:
+    get:
+      operationId: listMyWalletTransactions
+      tags: [wallet-transactions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [CREDIT, DEBIT, ADJUSTMENT]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletTransactionListResponse"
+
   /wallets/{userId}:
     get:
       operationId: getUserWallet
@@ -829,7 +945,28 @@ paths:
           in: query
           schema:
             type: string
-            enum: [credit, debit]
+            enum: [CREDIT, DEBIT, ADJUSTMENT]
+        - name: sourceType
+          in: query
+          schema:
+            type: string
+            enum: [SUBMISSION, ADMIN_ADJUSTMENT]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sourceId
+          in: query
+          schema:
+            type: string
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+        - name: toDate
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: OK
@@ -1785,6 +1922,19 @@ components:
           type: string
         failureReason:
           type: string
+        approvedAmount:
+          type: number
+        rejectionReason:
+          type: string
+        resubmissionReason:
+          type: string
+        adminNote:
+          type: string
+        reviewedBy:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
         media:
           type: array
           items:
@@ -1815,9 +1965,11 @@ components:
           type: string
         userId:
           type: string
-        balance:
+        availableBalance:
           type: number
-        totalEarned:
+        pendingBalance:
+          type: number
+        lifetimeEarnings:
           type: number
         totalWithdrawn:
           type: number
@@ -1827,7 +1979,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, balance, totalEarned, totalWithdrawn, createdAt, updatedAt]
+      required: [id, userId, availableBalance, pendingBalance, lifetimeEarnings, totalWithdrawn, createdAt, updatedAt]
 
     WalletTransaction:
       type: object
@@ -1842,17 +1994,27 @@ components:
           $ref: "#/components/schemas/User"
         type:
           type: string
-          enum: [credit, debit]
+          enum: [CREDIT, DEBIT, ADJUSTMENT]
+        sourceType:
+          type: string
+          enum: [SUBMISSION, ADMIN_ADJUSTMENT]
+        sourceId:
+          type: string
         amount:
           type: number
-        description:
+        balanceBefore:
+          type: number
+        balanceAfter:
+          type: number
+        note:
           type: string
-        referenceId:
+        status:
           type: string
+          enum: [COMPLETED, PENDING, REVERSED]
         createdAt:
           type: string
           format: date-time
-      required: [id, walletId, userId, type, amount, createdAt]
+      required: [id, walletId, userId, type, sourceType, amount, balanceBefore, balanceAfter, status, createdAt]
 
     WalletTransactionListResponse:
       type: object

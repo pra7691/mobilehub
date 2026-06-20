@@ -13,17 +13,17 @@ export class DashboardService {
       this.prisma.task.count({ where: { deletedAt: null, status: 'active' } }),
       this.prisma.submission.count(),
       this.prisma.submission.count({ where: { status: 'UNDER_REVIEW' } }),
-      this.prisma.wallet.findMany({ select: { balance: true } }),
+      this.prisma.wallet.findMany({ select: { availableBalance: true } }),
     ]);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayTransactions = await this.prisma.walletTransaction.findMany({
-      where: { createdAt: { gte: today }, type: 'credit' },
+      where: { createdAt: { gte: today }, type: 'CREDIT' },
       select: { amount: true },
     });
 
-    const totalWalletBalance = wallets.reduce((sum, w) => sum + w.balance.toNumber(), 0);
+    const totalWalletBalance = wallets.reduce((sum, w) => sum + w.availableBalance.toNumber(), 0);
     const totalEarnedToday = todayTransactions.reduce((sum, t) => sum + t.amount.toNumber(), 0);
 
     return { totalUsers, activeUsers, totalTasks, activeTasks, totalSubmissions, pendingSubmissions, totalWalletBalance, totalEarnedToday };

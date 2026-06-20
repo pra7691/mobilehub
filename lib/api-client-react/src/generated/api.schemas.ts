@@ -618,6 +618,12 @@ export interface Submission {
   paymentAmountSnapshot: number;
   currencySnapshot: string;
   failureReason?: string;
+  approvedAmount?: number;
+  rejectionReason?: string;
+  resubmissionReason?: string;
+  adminNote?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
   media: SubmissionMedia[];
   createdAt: string;
   updatedAt: string;
@@ -631,8 +637,9 @@ export interface SubmissionListResponse {
 export interface Wallet {
   id: string;
   userId: string;
-  balance: number;
-  totalEarned: number;
+  availableBalance: number;
+  pendingBalance: number;
+  lifetimeEarnings: number;
   totalWithdrawn: number;
   createdAt: string;
   updatedAt: string;
@@ -642,8 +649,26 @@ export type WalletTransactionType = typeof WalletTransactionType[keyof typeof Wa
 
 
 export const WalletTransactionType = {
-  credit: 'credit',
-  debit: 'debit',
+  CREDIT: 'CREDIT',
+  DEBIT: 'DEBIT',
+  ADJUSTMENT: 'ADJUSTMENT',
+} as const;
+
+export type WalletTransactionSourceType = typeof WalletTransactionSourceType[keyof typeof WalletTransactionSourceType];
+
+
+export const WalletTransactionSourceType = {
+  SUBMISSION: 'SUBMISSION',
+  ADMIN_ADJUSTMENT: 'ADMIN_ADJUSTMENT',
+} as const;
+
+export type WalletTransactionStatus = typeof WalletTransactionStatus[keyof typeof WalletTransactionStatus];
+
+
+export const WalletTransactionStatus = {
+  COMPLETED: 'COMPLETED',
+  PENDING: 'PENDING',
+  REVERSED: 'REVERSED',
 } as const;
 
 export interface WalletTransaction {
@@ -652,9 +677,13 @@ export interface WalletTransaction {
   userId: string;
   user?: User;
   type: WalletTransactionType;
+  sourceType: WalletTransactionSourceType;
+  sourceId?: string;
   amount: number;
-  description?: string;
-  referenceId?: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  note?: string;
+  status: WalletTransactionStatus;
   createdAt: string;
 }
 
@@ -903,6 +932,42 @@ export const AdminListSubmissionsCollectionType = {
   AUDIO: 'AUDIO',
 } as const;
 
+export type AdminApproveSubmissionBody = {
+  approvedAmount?: number;
+  adminNote?: string;
+};
+
+export type AdminRejectSubmissionBody = {
+  rejectionReason: string;
+  adminNote?: string;
+};
+
+export type AdminRequestResubmissionBody = {
+  resubmissionReason: string;
+};
+
+export type ListMyWalletTransactionsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+type?: ListMyWalletTransactionsType;
+};
+
+export type ListMyWalletTransactionsType = typeof ListMyWalletTransactionsType[keyof typeof ListMyWalletTransactionsType];
+
+
+export const ListMyWalletTransactionsType = {
+  CREDIT: 'CREDIT',
+  DEBIT: 'DEBIT',
+  ADJUSTMENT: 'ADJUSTMENT',
+} as const;
+
 export type ListWalletTransactionsParams = {
 /**
  * @minimum 1
@@ -915,13 +980,27 @@ page?: PageParamParameter;
 limit?: LimitParamParameter;
 userId?: string;
 type?: ListWalletTransactionsType;
+sourceType?: ListWalletTransactionsSourceType;
+search?: string;
+sourceId?: string;
+fromDate?: string;
+toDate?: string;
 };
 
 export type ListWalletTransactionsType = typeof ListWalletTransactionsType[keyof typeof ListWalletTransactionsType];
 
 
 export const ListWalletTransactionsType = {
-  credit: 'credit',
-  debit: 'debit',
+  CREDIT: 'CREDIT',
+  DEBIT: 'DEBIT',
+  ADJUSTMENT: 'ADJUSTMENT',
+} as const;
+
+export type ListWalletTransactionsSourceType = typeof ListWalletTransactionsSourceType[keyof typeof ListWalletTransactionsSourceType];
+
+
+export const ListWalletTransactionsSourceType = {
+  SUBMISSION: 'SUBMISSION',
+  ADMIN_ADJUSTMENT: 'ADMIN_ADJUSTMENT',
 } as const;
 

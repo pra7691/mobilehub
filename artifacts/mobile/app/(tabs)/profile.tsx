@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useGetMe, useGetUserWallet, getGetUserWalletQueryKey } from "@workspace/api-client-react";
+import { useGetMe, useGetMyWallet } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -25,8 +25,9 @@ interface User {
 }
 
 interface Wallet {
-  balance: number;
-  totalEarned: number;
+  availableBalance: number;
+  pendingBalance: number;
+  lifetimeEarnings: number;
 }
 
 export default function ProfileScreen() {
@@ -35,9 +36,7 @@ export default function ProfileScreen() {
   const { logout } = useAuth();
 
   const { data: user, isLoading: loadingUser } = useGetMe() as { data: User | undefined; isLoading: boolean };
-  const { data: wallet } = useGetUserWallet(user?.id ?? "", {
-    query: { enabled: !!user?.id, queryKey: getGetUserWalletQueryKey(user?.id ?? "") },
-  }) as { data: Wallet | undefined };
+  const { data: wallet } = useGetMyWallet() as { data: Wallet | undefined };
 
   async function handleLogout() {
     Alert.alert("Log out", "Are you sure you want to log out?", [
@@ -64,7 +63,7 @@ export default function ProfileScreen() {
   }
 
   const initials = user?.name
-    ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.phoneNumber?.slice(-2) ?? "??";
 
   return (
@@ -88,17 +87,26 @@ export default function ProfileScreen() {
       {wallet && (
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>₹{wallet.balance.toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Balance</Text>
+            <Text style={styles.statValue}>₹{wallet.availableBalance.toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Available</Text>
           </View>
           <View style={[styles.statBox, styles.statBoxCenter]}>
-            <Text style={styles.statValue}>₹{wallet.totalEarned.toFixed(2)}</Text>
+            <Text style={styles.statValue}>₹{wallet.lifetimeEarnings.toFixed(2)}</Text>
             <Text style={styles.statLabel}>Total Earned</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>{user?.totalSubmissions ?? 0}</Text>
             <Text style={styles.statLabel}>Submissions</Text>
           </View>
+        </View>
+      )}
+
+      {wallet && wallet.pendingBalance > 0 && (
+        <View style={styles.pendingBanner}>
+          <Feather name="clock" size={13} color="#f59e0b" />
+          <Text style={styles.pendingText}>
+            ₹{wallet.pendingBalance.toFixed(2)} pending review
+          </Text>
         </View>
       )}
 
@@ -180,9 +188,23 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       overflow: "hidden",
     },
     statBox: { flex: 1, alignItems: "center", paddingVertical: 16 },
-    statBoxCenter: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: "#e2e8f0" },
+    statBoxCenter: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border },
     statValue: { fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground },
     statLabel: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 2 },
+    pendingBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginHorizontal: 20,
+      marginTop: 10,
+      backgroundColor: "#422006",
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: "#92400e",
+    },
+    pendingText: { fontSize: 12, color: "#f59e0b", fontFamily: "Inter_500Medium" },
     section: { marginHorizontal: 20, marginTop: 28 },
     logoutBtn: {
       flexDirection: "row",

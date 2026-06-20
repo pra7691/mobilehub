@@ -74,8 +74,20 @@ enum MediaUploadStatus {
 }
 
 enum TransactionType {
-  credit
-  debit
+  CREDIT
+  DEBIT
+  ADJUSTMENT
+}
+
+enum TransactionSourceType {
+  SUBMISSION
+  ADMIN_ADJUSTMENT
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  REVERSED
 }
 
 model AdminUser {
@@ -216,60 +228,66 @@ model Task {
 }
 
 model Submission {
-  id                   String           @id @default(cuid())
-  userId               String
-  taskId               String
-  categoryId           String?
-  subcategoryId        String?
-  collectionType       CollectionType
-  status               SubmissionStatus @default(DRAFT)
-  submittedAt          DateTime?
-  uploadStartedAt      DateTime?
-  uploadCompletedAt    DateTime?
-  captureStartedAt     DateTime?
-  captureEndedAt       DateTime?
-  durationSeconds      Int?
-  imageCount           Int?
-  totalFileSize        BigInt?
-  devicePlatform       String?
-  deviceModel          String?
-  osVersion            String?
-  cameraUsed           String?
-  lensRequested        String?
-  orientation          String?
-  captureMetadata      Json?
-  taskSnapshot         Json
-  paymentAmountSnapshot Decimal         @db.Decimal(10, 2)
-  currencySnapshot     String           @default("INR")
-  failureReason        String?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  id                    String           @id @default(cuid())
+  userId                String
+  taskId                String
+  categoryId            String?
+  subcategoryId         String?
+  collectionType        CollectionType
+  status                SubmissionStatus @default(DRAFT)
+  submittedAt           DateTime?
+  uploadStartedAt       DateTime?
+  uploadCompletedAt     DateTime?
+  captureStartedAt      DateTime?
+  captureEndedAt        DateTime?
+  durationSeconds       Int?
+  imageCount            Int?
+  totalFileSize         BigInt?
+  devicePlatform        String?
+  deviceModel           String?
+  osVersion             String?
+  cameraUsed            String?
+  lensRequested         String?
+  orientation           String?
+  captureMetadata       Json?
+  taskSnapshot          Json
+  paymentAmountSnapshot Decimal          @db.Decimal(10, 2)
+  currencySnapshot      String           @default("INR")
+  failureReason         String?
+  approvedAmount        Decimal?         @db.Decimal(10, 2)
+  rejectionReason       String?
+  resubmissionReason    String?
+  adminNote             String?
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  user          User             @relation(fields: [userId], references: [id])
-  task          Task             @relation(fields: [taskId], references: [id])
-  category      Category?        @relation(fields: [categoryId], references: [id])
-  subcategory   Subcategory?     @relation(fields: [subcategoryId], references: [id])
-  media         SubmissionMedia[]
+  user        User              @relation(fields: [userId], references: [id])
+  task        Task              @relation(fields: [taskId], references: [id])
+  category    Category?         @relation(fields: [categoryId], references: [id])
+  subcategory Subcategory?      @relation(fields: [subcategoryId], references: [id])
+  media       SubmissionMedia[]
 
   @@map("submissions")
 }
 
 model SubmissionMedia {
-  id             String            @id @default(cuid())
-  submissionId   String
-  mediaType      MediaType
-  storageKey     String
-  mediaUrl       String
-  thumbnailUrl   String?
-  fileSize       BigInt?
+  id              String            @id @default(cuid())
+  submissionId    String
+  mediaType       MediaType
+  storageKey      String
+  mediaUrl        String
+  thumbnailUrl    String?
+  fileSize        BigInt?
   durationSeconds Int?
-  width          Int?
-  height         Int?
-  mimeType       String
-  sortOrder      Int               @default(0)
-  uploadStatus   MediaUploadStatus @default(PENDING)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  width           Int?
+  height          Int?
+  mimeType        String
+  sortOrder       Int               @default(0)
+  uploadStatus    MediaUploadStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
@@ -277,13 +295,14 @@ model SubmissionMedia {
 }
 
 model Wallet {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  balance        Decimal  @default(0) @db.Decimal(10, 2)
-  totalEarned    Decimal  @default(0) @db.Decimal(10, 2)
-  totalWithdrawn Decimal  @default(0) @db.Decimal(10, 2)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  availableBalance Decimal  @default(0) @db.Decimal(10, 2)
+  pendingBalance   Decimal  @default(0) @db.Decimal(10, 2)
+  lifetimeEarnings Decimal  @default(0) @db.Decimal(10, 2)
+  totalWithdrawn   Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   user         User                @relation(fields: [userId], references: [id])
   transactions WalletTransaction[]
@@ -292,14 +311,18 @@ model Wallet {
 }
 
 model WalletTransaction {
-  id          String          @id @default(cuid())
-  walletId    String
-  userId      String
-  type        TransactionType
-  amount      Decimal         @db.Decimal(10, 2)
-  description String?
-  referenceId String?
-  createdAt   DateTime        @default(now())
+  id            String                @id @default(cuid())
+  walletId      String
+  userId        String
+  type          TransactionType
+  sourceType    TransactionSourceType
+  sourceId      String?
+  amount        Decimal               @db.Decimal(10, 2)
+  balanceBefore Decimal               @db.Decimal(10, 2)
+  balanceAfter  Decimal               @db.Decimal(10, 2)
+  note          String?
+  status        TransactionStatus     @default(COMPLETED)
+  createdAt     DateTime              @default(now())
 
   wallet Wallet @relation(fields: [walletId], references: [id])
   user   User   @relation(fields: [userId], references: [id])

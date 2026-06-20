@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { WalletService } from '../wallet/wallet.service';
 import {
   SubmissionStatus,
   MediaType,
@@ -114,6 +115,12 @@ function formatSubmission(s: {
   paymentAmountSnapshot: Prisma.Decimal;
   currencySnapshot: string;
   failureReason: string | null;
+  approvedAmount: Prisma.Decimal | null;
+  rejectionReason: string | null;
+  resubmissionReason: string | null;
+  adminNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   task?: object | null;
@@ -135,6 +142,7 @@ function formatSubmission(s: {
     ...s,
     totalFileSize: s.totalFileSize != null ? Number(s.totalFileSize) : null,
     paymentAmountSnapshot: s.paymentAmountSnapshot.toNumber(),
+    approvedAmount: s.approvedAmount != null ? s.approvedAmount.toNumber() : null,
     media: s.media?.map(m => ({
       ...m,
       fileSize: m.fileSize != null ? Number(m.fileSize) : null,
@@ -178,6 +186,7 @@ export class SubmissionsService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
+    private walletService: WalletService,
   ) {}
 
   // ─── POST /submissions/initiate ────────────────────────────────────────────
@@ -648,5 +657,109 @@ export class SubmissionsService {
     );
 
     return { ...formatted, media: mediaWithUrls };
+  }
+
+  // ─── Admin: POST /admin/submissions/:id/approve ───────────────────────────
+  async approve(
+    submissionId: string,
+    adminEmail: string,
+    body: { approvedAmount?: number; adminNote?: string },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const submission = await tx.submission.findUnique({ where: { id: submissionId } });
+      if (!submission) throw new NotFoundException('Submission not found');
+      if (submission.status !== 'UNDER_REVIEW') {
+        throw new BadRequestException(
+          `Only UNDER_REVIEW submissions can be approved (current: ${submission.status})`,
+        );
+      }
+
+      const amount =
+        body.approvedAmount != null
+          ? body.approvedAmount
+          : (submission.paymentAmountSnapshot as Prisma.Decimal).toNumber();
+
+      const taskTitle =
+        (submission.taskSnapshot as Record<string, unknown>)?.title as string ?? submissionId;
+
+      await this.walletService.creditSubmissionApproval(
+        tx as Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+        submission.userId,
+        submissionId,
+        amount,
+        taskTitle,
+      );
+
+      const updated = await tx.submission.update({
+        where: { id: submissionId },
+        data: {
+          status: 'APPROVED',
+          approvedAmount: amount,
+          adminNote: body.adminNote ?? null,
+          reviewedBy: adminEmail,
+          reviewedAt: new Date(),
+        },
+        include: SUBMISSION_INCLUDE,
+      });
+
+      return formatSubmission(updated);
+    });
+  }
+
+  // ─── Admin: POST /admin/submissions/:id/reject ────────────────────────────
+  async reject(
+    submissionId: string,
+    adminEmail: string,
+    body: { rejectionReason: string; adminNote?: string },
+  ) {
+    const submission = await this.prisma.submission.findUnique({ where: { id: submissionId } });
+    if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.status !== 'UNDER_REVIEW') {
+      throw new BadRequestException(
+        `Only UNDER_REVIEW submissions can be rejected (current: ${submission.status})`,
+      );
+    }
+
+    const updated = await this.prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: body.rejectionReason,
+        adminNote: body.adminNote ?? null,
+        reviewedBy: adminEmail,
+        reviewedAt: new Date(),
+      },
+      include: SUBMISSION_INCLUDE,
+    });
+
+    return formatSubmission(updated);
+  }
+
+  // ─── Admin: POST /admin/submissions/:id/request-resubmission ─────────────
+  async requestResubmission(
+    submissionId: string,
+    adminEmail: string,
+    body: { resubmissionReason: string },
+  ) {
+    const submission = await this.prisma.submission.findUnique({ where: { id: submissionId } });
+    if (!submission) throw new NotFoundException('Submission not found');
+    if (submission.status !== 'UNDER_REVIEW') {
+      throw new BadRequestException(
+        `Only UNDER_REVIEW submissions can be marked for resubmission (current: ${submission.status})`,
+      );
+    }
+
+    const updated = await this.prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: 'RESUBMISSION_REQUIRED',
+        resubmissionReason: body.resubmissionReason,
+        reviewedBy: adminEmail,
+        reviewedAt: new Date(),
+      },
+      include: SUBMISSION_INCLUDE,
+    });
+
+    return formatSubmission(updated);
   }
 }
