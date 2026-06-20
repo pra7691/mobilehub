@@ -1,6 +1,20 @@
 import { useState } from "react";
-import { useListTasks, useListCategories, useListSubcategories, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey, ListTasksStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListTasks, useCreateTask, useUpdateTask, useDeleteTask, useDuplicateTask,
+  useListCategories, useListSubcategories,
+  getListTasksQueryKey,
+  type Task,
+  type CreateTaskRequest,
+  type UpdateTaskRequest,
+  CreateTaskRequestCollectionType,
+  CreateTaskRequestPreferredCamera,
+  CreateTaskRequestPreferredLens,
+  CreateTaskRequestRequiredOrientation,
+  CreateTaskRequestStatus,
+  ListTasksCollectionType,
+  TaskStatus,
+} from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,365 +22,648 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Search, ChevronLeft, ChevronRight, Filter, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ListTodo, Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Copy, Eye, Video, Image, Mic, X, Plus as PlusIcon, CheckCircle2, XCircle } from "lucide-react";
+import { toast } from "sonner";
+
+const COLLECTION_TYPE_COLORS: Record<string, string> = {
+  VIDEO: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  IMAGE: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  AUDIO: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+};
+const STATUS_COLORS: Record<string, string> = {
+  active: "bg-green-500/10 text-green-400 border-green-500/20",
+  inactive: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+  draft: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+};
+const COLLECTION_ICONS = { VIDEO: Video, IMAGE: Image, AUDIO: Mic };
+
+type FormData = {
+  title: string; description: string; detailedInstructions: string;
+  dos: string[]; donts: string[];
+  categoryId: string; subcategoryId: string;
+  collectionType: string; paymentAmount: string; currency: string;
+  sampleMediaUrl: string;
+  minimumDurationSeconds: string; maximumDurationSeconds: string;
+  minimumImageCount: string; maximumImageCount: string;
+  preferredFps: string; minimumFps: string;
+  preferredCamera: string; preferredLens: string; requiredOrientation: string;
+  audioRequired: boolean; pauseAllowed: boolean;
+  maxSubmissionsPerUser: string; maxTotalSubmissions: string;
+  startDate: string; endDate: string;
+  displayOrder: string; status: string;
+};
+
+const defaultForm = (): FormData => ({
+  title: "", description: "", detailedInstructions: "", dos: [], donts: [],
+  categoryId: "", subcategoryId: "", collectionType: "IMAGE", paymentAmount: "0", currency: "INR",
+  sampleMediaUrl: "", minimumDurationSeconds: "", maximumDurationSeconds: "",
+  minimumImageCount: "", maximumImageCount: "", preferredFps: "", minimumFps: "",
+  preferredCamera: "ANY", preferredLens: "ANY", requiredOrientation: "ANY",
+  audioRequired: false, pauseAllowed: true,
+  maxSubmissionsPerUser: "", maxTotalSubmissions: "", startDate: "", endDate: "",
+  displayOrder: "0", status: "draft",
+});
+
+function taskToForm(t: Task): FormData {
+  return {
+    title: t.title, description: t.description ?? "", detailedInstructions: t.detailedInstructions ?? "",
+    dos: t.dos ?? [], donts: t.donts ?? [],
+    categoryId: t.categoryId, subcategoryId: t.subcategoryId ?? "",
+    collectionType: t.collectionType, paymentAmount: String(t.paymentAmount),
+    currency: t.currency, sampleMediaUrl: t.sampleMediaUrl ?? "",
+    minimumDurationSeconds: t.minimumDurationSeconds != null ? String(t.minimumDurationSeconds) : "",
+    maximumDurationSeconds: t.maximumDurationSeconds != null ? String(t.maximumDurationSeconds) : "",
+    minimumImageCount: t.minimumImageCount != null ? String(t.minimumImageCount) : "",
+    maximumImageCount: t.maximumImageCount != null ? String(t.maximumImageCount) : "",
+    preferredFps: t.preferredFps != null ? String(t.preferredFps) : "",
+    minimumFps: t.minimumFps != null ? String(t.minimumFps) : "",
+    preferredCamera: t.preferredCamera, preferredLens: t.preferredLens, requiredOrientation: t.requiredOrientation,
+    audioRequired: t.audioRequired, pauseAllowed: t.pauseAllowed,
+    maxSubmissionsPerUser: t.maxSubmissionsPerUser != null ? String(t.maxSubmissionsPerUser) : "",
+    maxTotalSubmissions: t.maxTotalSubmissions != null ? String(t.maxTotalSubmissions) : "",
+    startDate: t.startDate ? t.startDate.slice(0, 16) : "",
+    endDate: t.endDate ? t.endDate.slice(0, 16) : "",
+    displayOrder: String(t.displayOrder), status: t.status,
+  };
+}
+
+function formToPayload(f: FormData): CreateTaskRequest {
+  const opt = (v: string) => v !== "" ? v : undefined;
+  const optNum = (v: string) => v !== "" ? Number(v) : undefined;
+  return {
+    title: f.title, description: opt(f.description), detailedInstructions: opt(f.detailedInstructions),
+    dos: f.dos, donts: f.donts,
+    categoryId: f.categoryId, subcategoryId: opt(f.subcategoryId),
+    collectionType: f.collectionType as any,
+    paymentAmount: Number(f.paymentAmount), currency: f.currency,
+    sampleMediaUrl: opt(f.sampleMediaUrl),
+    minimumDurationSeconds: optNum(f.minimumDurationSeconds),
+    maximumDurationSeconds: optNum(f.maximumDurationSeconds),
+    minimumImageCount: optNum(f.minimumImageCount),
+    maximumImageCount: optNum(f.maximumImageCount),
+    preferredFps: optNum(f.preferredFps), minimumFps: optNum(f.minimumFps),
+    preferredCamera: f.preferredCamera as any, preferredLens: f.preferredLens as any,
+    requiredOrientation: f.requiredOrientation as any,
+    audioRequired: f.audioRequired, pauseAllowed: f.pauseAllowed,
+    maxSubmissionsPerUser: optNum(f.maxSubmissionsPerUser),
+    maxTotalSubmissions: optNum(f.maxTotalSubmissions),
+    startDate: opt(f.startDate), endDate: opt(f.endDate),
+    displayOrder: Number(f.displayOrder), status: f.status as any,
+  };
+}
+
+function ListEditor({ label, items, onChange }: { label: string; items: string[]; onChange: (v: string[]) => void }) {
+  const [input, setInput] = useState("");
+  const add = () => { if (input.trim()) { onChange([...items, input.trim()]); setInput(""); } };
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), add())}
+          placeholder={`Add ${label.toLowerCase()} and press Enter`} className="bg-gray-800 border-gray-700 text-white text-sm" />
+        <Button type="button" size="sm" onClick={add} className="bg-gray-700 hover:bg-gray-600 text-white"><PlusIcon size={14} /></Button>
+      </div>
+      <div className="space-y-1">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-center gap-2 bg-gray-800/50 rounded px-2 py-1 text-sm">
+            {label.includes("Dos") ? <CheckCircle2 size={13} className="text-green-400 shrink-0" /> : <XCircle size={13} className="text-red-400 shrink-0" />}
+            <span className="text-gray-200 flex-1">{item}</span>
+            <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-gray-500 hover:text-red-400"><X size={12} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Tasks() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [status, setStatus] = useState<ListTasksStatus | "all">("all");
-  const limit = 15;
-
+  const [filterCategoryId, setFilterCategoryId] = useState("");
+  const [filterSubcategoryId, setFilterSubcategoryId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterType, setFilterType] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormData>(defaultForm());
+  const setField = (k: keyof FormData, v: any) => setForm(f => ({ ...f, [k]: v }));
 
-  // Form State
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [instructions, setInstructions] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [subcategoryId, setSubcategoryId] = useState<string | undefined>(undefined);
-  const [reward, setReward] = useState<number>(0);
-  const [taskStatus, setTaskStatus] = useState<ListTasksStatus>("draft");
-
-  const { data, isLoading } = useListTasks({ 
-    page, 
-    limit, 
-    search: debouncedSearch || undefined,
-    status: status !== "all" ? status : undefined
+  const { data, isLoading } = useListTasks({
+    page, limit: 20,
+    search: search || undefined,
+    categoryId: filterCategoryId || undefined,
+    subcategoryId: filterSubcategoryId || undefined,
+    status: filterStatus as any || undefined,
+    collectionType: filterType as any || undefined,
   });
-
   const { data: categoriesData } = useListCategories({ limit: 100 });
-  const { data: subcategoriesData } = useListSubcategories({ 
-    limit: 100, 
-    categoryId: categoryId || undefined 
-  });
+  const { data: subcategoriesData } = useListSubcategories({ categoryId: form.categoryId || filterCategoryId || undefined, limit: 100 });
 
   const createMutation = useCreateTask();
   const updateMutation = useUpdateTask();
   const deleteMutation = useDeleteTask();
+  const duplicateMutation = useDuplicateTask();
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setDebouncedSearch(search);
-    setPage(1);
-  };
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
 
-  const openCreateDialog = () => {
-    setEditingId(null);
-    setTitle("");
-    setDescription("");
-    setInstructions("");
-    setCategoryId(categoriesData?.data?.[0]?.id || "");
-    setSubcategoryId(undefined);
-    setReward(0);
-    setTaskStatus("draft");
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (task: any) => {
-    setEditingId(task.id);
-    setTitle(task.title);
-    setDescription(task.description || "");
-    setInstructions(task.instructions || "");
-    setCategoryId(task.categoryId);
-    setSubcategoryId(task.subcategoryId || undefined);
-    setReward(task.reward);
-    setTaskStatus(task.status);
-    setDialogOpen(true);
-  };
+  const openCreate = () => { setEditingId(null); setForm(defaultForm()); setDialogOpen(true); };
+  const openEdit = (t: Task) => { setEditingId(t.id); setForm(taskToForm(t)); setDialogOpen(true); };
 
   const handleSave = () => {
-    if (!title || !categoryId) return;
-    
+    if (!form.title.trim()) { toast.error("Title is required"); return; }
+    if (!form.categoryId) { toast.error("Category is required"); return; }
+    const payload = formToPayload(form);
     if (editingId) {
-      updateMutation.mutate(
-        { id: editingId, data: { title, description, instructions, categoryId, subcategoryId, reward, status: taskStatus } },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-            setDialogOpen(false);
-          }
-        }
-      );
+      updateMutation.mutate({ id: editingId, data: payload as UpdateTaskRequest }, {
+        onSuccess: () => { invalidate(); setDialogOpen(false); toast.success("Task updated"); },
+        onError: (e: any) => toast.error(e?.message ?? "Failed to update"),
+      });
     } else {
-      createMutation.mutate(
-        { data: { title, description, instructions, categoryId, subcategoryId, reward, status: taskStatus } },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-            setDialogOpen(false);
-          }
-        }
-      );
+      createMutation.mutate({ data: payload }, {
+        onSuccess: () => { invalidate(); setDialogOpen(false); toast.success("Task created"); },
+        onError: (e: any) => toast.error(e?.message ?? "Failed to create"),
+      });
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this task?")) {
-      deleteMutation.mutate(
-        { id },
-        {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-          }
-        }
-      );
-    }
+  const handleDuplicate = (id: string) => {
+    duplicateMutation.mutate({ id }, {
+      onSuccess: () => { invalidate(); toast.success("Task duplicated as draft"); },
+      onError: (e: any) => toast.error(e?.message ?? "Failed to duplicate"),
+    });
   };
 
-  const getStatusBadge = (s: string) => {
-    switch (s) {
-      case 'active': return <Badge className="bg-primary/15 text-primary hover:bg-primary/25 border-none font-medium">Active</Badge>;
-      case 'draft': return <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-medium">Draft</Badge>;
-      case 'inactive': return <Badge variant="secondary" className="bg-muted text-muted-foreground border-none font-medium">Inactive</Badge>;
-      default: return <Badge variant="outline">{s}</Badge>;
-    }
+  const handleDelete = () => {
+    if (!deleteId) return;
+    deleteMutation.mutate({ id: deleteId }, {
+      onSuccess: () => { invalidate(); setDeleteId(null); toast.success("Task deleted"); },
+      onError: (e: any) => { setDeleteId(null); toast.error(e?.message ?? "Failed to delete"); },
+    });
   };
+
+  const meta = data?.meta;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const categories = categoriesData?.data ?? [];
+  const subcategories = subcategoriesData?.data ?? [];
+
+  const isVideoOrAudio = form.collectionType === "VIDEO" || form.collectionType === "AUDIO";
+  const isImage = form.collectionType === "IMAGE";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-          <p className="text-sm text-muted-foreground">Manage data collection assignments.</p>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ListTodo className="text-cyan-400" size={22} />
+          <div>
+            <h1 className="text-xl font-semibold text-white">Tasks</h1>
+            <p className="text-sm text-gray-400">{meta?.total ?? 0} tasks</p>
+          </div>
         </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <Select value={status} onValueChange={(v: any) => { setStatus(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-[150px] bg-card">
-              <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <form onSubmit={handleSearch} className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              type="search"
-              placeholder="Search tasks..."
-              className="pl-8 bg-card"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </form>
-
-          <Button onClick={openCreateDialog} className="shrink-0 font-medium">
-            <Plus className="h-4 w-4 mr-2" />
-            New Task
-          </Button>
-        </div>
+        <Button onClick={openCreate} className="bg-cyan-500 hover:bg-cyan-400 text-black font-medium gap-2">
+          <Plus size={16} /> New Task
+        </Button>
       </div>
 
-      <div className="border border-border rounded-md bg-card overflow-hidden">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-48">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search tasks..." className="pl-9 bg-gray-800 border-gray-700 text-white" />
+        </div>
+        <Select value={filterCategoryId} onValueChange={v => { setFilterCategoryId(v === "all" ? "" : v); setFilterSubcategoryId(""); setPage(1); }}>
+          <SelectTrigger className="w-44 bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="All categories" /></SelectTrigger>
+          <SelectContent className="bg-gray-800 border-gray-700">
+            <SelectItem value="all" className="text-gray-300">All categories</SelectItem>
+            {categories.map(c => <SelectItem key={c.id} value={c.id} className="text-gray-300">{c.icon} {c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={v => { setFilterStatus(v === "all" ? "" : v); setPage(1); }}>
+          <SelectTrigger className="w-36 bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="All statuses" /></SelectTrigger>
+          <SelectContent className="bg-gray-800 border-gray-700">
+            <SelectItem value="all" className="text-gray-300">All statuses</SelectItem>
+            <SelectItem value="active" className="text-gray-300">Active</SelectItem>
+            <SelectItem value="inactive" className="text-gray-300">Inactive</SelectItem>
+            <SelectItem value="draft" className="text-gray-300">Draft</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterType} onValueChange={v => { setFilterType(v === "all" ? "" : v); setPage(1); }}>
+          <SelectTrigger className="w-36 bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="All types" /></SelectTrigger>
+          <SelectContent className="bg-gray-800 border-gray-700">
+            <SelectItem value="all" className="text-gray-300">All types</SelectItem>
+            <SelectItem value="VIDEO" className="text-gray-300">🎥 Video</SelectItem>
+            <SelectItem value="IMAGE" className="text-gray-300">📷 Image</SelectItem>
+            <SelectItem value="AUDIO" className="text-gray-300">🎙️ Audio</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="rounded-lg border border-gray-800 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
-              <TableHead className="w-[300px]">Task Title</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Reward</TableHead>
-              <TableHead className="text-right">Submissions</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+            <TableRow className="border-gray-800 hover:bg-transparent">
+              <TableHead className="text-gray-400">Title</TableHead>
+              <TableHead className="text-gray-400">Type</TableHead>
+              <TableHead className="text-gray-400">Category / Subcategory</TableHead>
+              <TableHead className="text-gray-400">Payment</TableHead>
+              <TableHead className="text-gray-400">Status</TableHead>
+              <TableHead className="text-gray-400 text-center">Submissions</TableHead>
+              <TableHead className="text-gray-400 w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-5 w-12 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
-                  <TableCell></TableCell>
-                </TableRow>
-              ))
-            ) : data?.data?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  No tasks found matching your criteria.
-                </TableCell>
+            {isLoading ? Array.from({ length: 6 }).map((_, i) => (
+              <TableRow key={i} className="border-gray-800">
+                {Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full bg-gray-700" /></TableCell>)}
               </TableRow>
-            ) : (
-              data?.data?.map((task) => (
-                <TableRow key={task.id} className="group cursor-pointer">
+            )) : !data?.data.length ? (
+              <TableRow className="border-gray-800">
+                <TableCell colSpan={7} className="text-center text-gray-500 py-12">No tasks yet. Create the first one.</TableCell>
+              </TableRow>
+            ) : data.data.map(t => {
+              const Icon = COLLECTION_ICONS[t.collectionType as keyof typeof COLLECTION_ICONS] ?? Image;
+              return (
+                <TableRow key={t.id} className="border-gray-800 hover:bg-gray-800/50">
                   <TableCell>
-                    <div className="font-medium text-foreground">{task.title}</div>
-                    <div className="text-xs text-muted-foreground truncate max-w-[280px]">
-                      {task.description || "No description"}
-                    </div>
+                    <button onClick={() => setDetailTask(t)} className="text-left hover:text-cyan-400 transition-colors">
+                      <div className="font-medium text-white">{t.title}</div>
+                      {t.description && <div className="text-xs text-gray-400 truncate max-w-xs">{t.description}</div>}
+                    </button>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{task.category?.name}</div>
-                    {task.subcategory && <div className="text-xs text-muted-foreground">↳ {task.subcategory.name}</div>}
+                    <Badge className={`gap-1 ${COLLECTION_TYPE_COLORS[t.collectionType] ?? ""}`}>
+                      <Icon size={11} />{t.collectionType}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{getStatusBadge(task.status)}</TableCell>
-                  <TableCell className="text-right font-mono text-sm font-medium text-emerald-500">
-                    ${task.reward.toFixed(2)}
+                  <TableCell className="text-sm">
+                    <div className="text-gray-300">{t.category?.icon} {t.category?.name ?? t.categoryId}</div>
+                    {t.subcategory && <div className="text-gray-500 text-xs">{t.subcategory.name}</div>}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {task.submissionCount}
-                  </TableCell>
+                  <TableCell className="text-cyan-400 font-medium">₹{t.paymentAmount}</TableCell>
+                  <TableCell><Badge className={STATUS_COLORS[t.status] ?? ""}>{t.status}</Badge></TableCell>
+                  <TableCell className="text-center"><Badge variant="outline" className="border-gray-600 text-gray-300">{t.submissionCount}</Badge></TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white"><MoreHorizontal size={16} /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(task)}>
-                          <Pencil className="h-4 w-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive focus:text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" /> Delete
-                        </DropdownMenuItem>
+                      <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                        <DropdownMenuItem onClick={() => setDetailTask(t)} className="text-gray-300 hover:text-white cursor-pointer gap-2"><Eye size={14} /> View</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(t)} className="text-gray-300 hover:text-white cursor-pointer gap-2"><Pencil size={14} /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicate(t.id)} className="text-gray-300 hover:text-white cursor-pointer gap-2"><Copy size={14} /> Duplicate</DropdownMenuItem>
+                        <DropdownMenuSeparator className="bg-gray-700" />
+                        <DropdownMenuItem onClick={() => setDeleteId(t.id)} className="text-red-400 hover:text-red-300 cursor-pointer gap-2"><Trash2 size={14} /> Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
 
-      {data?.meta && data.meta.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing <span className="font-medium">{data.data.length}</span> of <span className="font-medium">{data.meta.total}</span> tasks
-          </p>
+      {meta && meta.totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-400">
+          <span>Page {meta.page} of {meta.totalPages}</span>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setPage(p => p + 1)}
-              disabled={page >= data.meta.totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="border-gray-700 text-gray-300"><ChevronLeft size={14} /></Button>
+            <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(p => p + 1)} className="border-gray-700 text-gray-300"><ChevronRight size={14} /></Button>
           </div>
         </div>
       )}
 
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] border-border bg-card max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Task" : "Create Task"}</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Task" : "New Task"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-background" />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={categoryId} onValueChange={(val) => { setCategoryId(val); setSubcategoryId(undefined); }}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriesData?.data?.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="subcategory">Subcategory (Optional)</Label>
-                <Select value={subcategoryId || "none"} onValueChange={(val) => setSubcategoryId(val === "none" ? undefined : val)}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Select subcategory" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {subcategoriesData?.data?.map(subcat => (
-                      <SelectItem key={subcat.id} value={subcat.id}>{subcat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="bg-gray-800 border border-gray-700 w-full">
+              <TabsTrigger value="basic" className="flex-1 data-[state=active]:bg-gray-700">Basic</TabsTrigger>
+              <TabsTrigger value="collection" className="flex-1 data-[state=active]:bg-gray-700">Collection</TabsTrigger>
+              <TabsTrigger value="content" className="flex-1 data-[state=active]:bg-gray-700">Content</TabsTrigger>
+              <TabsTrigger value="limits" className="flex-1 data-[state=active]:bg-gray-700">Limits</TabsTrigger>
+            </TabsList>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="reward">Reward Amount ($)</Label>
-                <Input 
-                  id="reward" 
-                  type="number" 
-                  step="0.01" 
-                  min="0"
-                  value={reward} 
-                  onChange={(e) => setReward(parseFloat(e.target.value) || 0)} 
-                  className="bg-background" 
-                />
+            <TabsContent value="basic" className="space-y-4 mt-4">
+              <div className="space-y-1.5">
+                <Label>Title <span className="text-red-400">*</span></Label>
+                <Input value={form.title} onChange={e => setField("title", e.target.value)} placeholder="Capture Retail Product Front View" className="bg-gray-800 border-gray-700 text-white" />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={taskStatus} onValueChange={(val: any) => setTaskStatus(val)}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Category <span className="text-red-400">*</span></Label>
+                  <Select value={form.categoryId} onValueChange={v => { setField("categoryId", v); setField("subcategoryId", ""); }}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="Select category..." /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      {categories.map(c => <SelectItem key={c.id} value={c.id} className="text-gray-300">{c.icon} {c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Subcategory</Label>
+                  <Select value={form.subcategoryId} onValueChange={v => setField("subcategoryId", v === "none" ? "" : v)} disabled={!form.categoryId}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="None" /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="none" className="text-gray-300">None</SelectItem>
+                      {subcategories.map(s => <SelectItem key={s.id} value={s.id} className="text-gray-300">{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Payment Amount (₹)</Label>
+                  <Input type="number" value={form.paymentAmount} onChange={e => setField("paymentAmount", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={0} step={0.01} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Currency</Label>
+                  <Select value={form.currency} onValueChange={v => setField("currency", v)}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="INR" className="text-gray-300">INR ₹</SelectItem>
+                      <SelectItem value="USD" className="text-gray-300">USD $</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Status</Label>
+                  <Select value={form.status} onValueChange={v => setField("status", v)}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="draft" className="text-gray-300">Draft</SelectItem>
+                      <SelectItem value="active" className="text-gray-300">Active</SelectItem>
+                      <SelectItem value="inactive" className="text-gray-300">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Display Order</Label>
+                <Input type="number" value={form.displayOrder} onChange={e => setField("displayOrder", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={0} />
+              </div>
+            </TabsContent>
 
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea 
-                id="description" 
-                value={description} 
-                onChange={(e) => setDescription(e.target.value)} 
-                className="bg-background min-h-[80px]" 
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="instructions">Instructions</Label>
-              <Textarea 
-                id="instructions" 
-                value={instructions} 
-                onChange={(e) => setInstructions(e.target.value)} 
-                className="bg-background min-h-[120px]" 
-                placeholder="Detailed steps for the user..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!title || !categoryId || createMutation.isPending || updateMutation.isPending}>
-              {editingId ? "Save Changes" : "Create Task"}
+            <TabsContent value="collection" className="space-y-4 mt-4">
+              <div className="space-y-1.5">
+                <Label>Collection Type</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["IMAGE", "VIDEO", "AUDIO"] as const).map(type => {
+                    const Icon = COLLECTION_ICONS[type];
+                    return (
+                      <button key={type} type="button" onClick={() => setField("collectionType", type)}
+                        className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors ${form.collectionType === type ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-gray-600"}`}>
+                        <Icon size={16} />{type}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {isVideoOrAudio && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Min Duration (seconds)</Label>
+                    <Input type="number" value={form.minimumDurationSeconds} onChange={e => setField("minimumDurationSeconds", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={0} placeholder="e.g. 30" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Max Duration (seconds)</Label>
+                    <Input type="number" value={form.maximumDurationSeconds} onChange={e => setField("maximumDurationSeconds", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={0} placeholder="e.g. 60" />
+                  </div>
+                </div>
+              )}
+              {form.collectionType === "VIDEO" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Min FPS</Label>
+                    <Input type="number" value={form.minimumFps} onChange={e => setField("minimumFps", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={0} placeholder="e.g. 24" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Preferred FPS</Label>
+                    <Input type="number" value={form.preferredFps} onChange={e => setField("preferredFps", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={0} placeholder="e.g. 30" />
+                  </div>
+                </div>
+              )}
+              {isImage && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Min Image Count</Label>
+                    <Input type="number" value={form.minimumImageCount} onChange={e => setField("minimumImageCount", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={1} placeholder="e.g. 1" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Max Image Count</Label>
+                    <Input type="number" value={form.maximumImageCount} onChange={e => setField("maximumImageCount", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={1} placeholder="e.g. 5" />
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Camera</Label>
+                  <Select value={form.preferredCamera} onValueChange={v => setField("preferredCamera", v)}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="ANY" className="text-gray-300">Any</SelectItem>
+                      <SelectItem value="REAR" className="text-gray-300">Rear</SelectItem>
+                      <SelectItem value="FRONT" className="text-gray-300">Front (Selfie)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Lens</Label>
+                  <Select value={form.preferredLens} onValueChange={v => setField("preferredLens", v)}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="ANY" className="text-gray-300">Any</SelectItem>
+                      <SelectItem value="STANDARD" className="text-gray-300">Standard</SelectItem>
+                      <SelectItem value="ULTRA_WIDE" className="text-gray-300">Ultra Wide</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Orientation</Label>
+                  <Select value={form.requiredOrientation} onValueChange={v => setField("requiredOrientation", v)}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="ANY" className="text-gray-300">Any</SelectItem>
+                      <SelectItem value="PORTRAIT" className="text-gray-300">Portrait</SelectItem>
+                      <SelectItem value="LANDSCAPE" className="text-gray-300">Landscape</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Sample Media URL</Label>
+                <Input value={form.sampleMediaUrl} onChange={e => setField("sampleMediaUrl", e.target.value)} placeholder="https://example.com/sample.jpg" className="bg-gray-800 border-gray-700 text-white" />
+              </div>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Switch checked={form.audioRequired} onCheckedChange={v => setField("audioRequired", v)} />
+                  <span className="text-sm text-gray-300">Audio Required</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Switch checked={form.pauseAllowed} onCheckedChange={v => setField("pauseAllowed", v)} />
+                  <span className="text-sm text-gray-300">Pause Allowed</span>
+                </label>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="content" className="space-y-4 mt-4">
+              <div className="space-y-1.5">
+                <Label>Short Description</Label>
+                <Textarea value={form.description} onChange={e => setField("description", e.target.value)} placeholder="Brief overview shown in task listings..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={2} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Detailed Instructions</Label>
+                <Textarea value={form.detailedInstructions} onChange={e => setField("detailedInstructions", e.target.value)} placeholder="Step-by-step instructions for field agents..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={5} />
+              </div>
+              <ListEditor label="Dos ✓" items={form.dos} onChange={v => setField("dos", v)} />
+              <ListEditor label="Don'ts ✗" items={form.donts} onChange={v => setField("donts", v)} />
+            </TabsContent>
+
+            <TabsContent value="limits" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Max Submissions per User</Label>
+                  <Input type="number" value={form.maxSubmissionsPerUser} onChange={e => setField("maxSubmissionsPerUser", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={1} placeholder="Unlimited" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Max Total Submissions</Label>
+                  <Input type="number" value={form.maxTotalSubmissions} onChange={e => setField("maxTotalSubmissions", e.target.value)} className="bg-gray-800 border-gray-700 text-white" min={1} placeholder="Unlimited" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Start Date</Label>
+                  <Input type="datetime-local" value={form.startDate} onChange={e => setField("startDate", e.target.value)} className="bg-gray-800 border-gray-700 text-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>End Date</Label>
+                  <Input type="datetime-local" value={form.endDate} onChange={e => setField("endDate", e.target.value)} className="bg-gray-800 border-gray-700 text-white" />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          <DialogFooter className="pt-2">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-gray-400">Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving} className="bg-cyan-500 hover:bg-cyan-400 text-black">
+              {isSaving ? "Saving..." : editingId ? "Save Changes" : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail Sheet */}
+      <Sheet open={!!detailTask} onOpenChange={open => !open && setDetailTask(null)}>
+        <SheetContent className="bg-gray-900 border-gray-800 text-white w-[500px] overflow-y-auto">
+          {detailTask && (
+            <>
+              <SheetHeader className="pb-4">
+                <div className="flex items-start justify-between gap-2">
+                  <SheetTitle className="text-white text-lg leading-tight">{detailTask.title}</SheetTitle>
+                  <div className="flex gap-2 shrink-0">
+                    <Badge className={COLLECTION_TYPE_COLORS[detailTask.collectionType] ?? ""}>{detailTask.collectionType}</Badge>
+                    <Badge className={STATUS_COLORS[detailTask.status] ?? ""}>{detailTask.status}</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <span>{detailTask.category?.icon}</span>
+                  <span>{detailTask.category?.name}</span>
+                  {detailTask.subcategory && <><span className="text-gray-600">›</span><span>{detailTask.subcategory.name}</span></>}
+                </div>
+              </SheetHeader>
+
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-800 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 mb-1">Payment</div>
+                    <div className="text-xl font-bold text-cyan-400">₹{detailTask.paymentAmount}</div>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 mb-1">Submissions</div>
+                    <div className="text-xl font-bold text-white">{detailTask.submissionCount}</div>
+                  </div>
+                </div>
+
+                {detailTask.description && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Description</div>
+                    <p className="text-sm text-gray-300">{detailTask.description}</p>
+                  </div>
+                )}
+
+                {detailTask.detailedInstructions && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Detailed Instructions</div>
+                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{detailTask.detailedInstructions}</p>
+                  </div>
+                )}
+
+                {detailTask.dos && detailTask.dos.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Dos ✓</div>
+                    <ul className="space-y-1">
+                      {detailTask.dos.map((d, i) => <li key={i} className="flex gap-2 text-sm text-green-300"><CheckCircle2 size={14} className="shrink-0 mt-0.5" />{d}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {detailTask.donts && detailTask.donts.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Don'ts ✗</div>
+                    <ul className="space-y-1">
+                      {detailTask.donts.map((d, i) => <li key={i} className="flex gap-2 text-sm text-red-300"><XCircle size={14} className="shrink-0 mt-0.5" />{d}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Requirements</div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {detailTask.minimumDurationSeconds != null && <div className="text-gray-300">Min duration: <span className="text-white">{detailTask.minimumDurationSeconds}s</span></div>}
+                    {detailTask.maximumDurationSeconds != null && <div className="text-gray-300">Max duration: <span className="text-white">{detailTask.maximumDurationSeconds}s</span></div>}
+                    {detailTask.minimumImageCount != null && <div className="text-gray-300">Min images: <span className="text-white">{detailTask.minimumImageCount}</span></div>}
+                    {detailTask.maximumImageCount != null && <div className="text-gray-300">Max images: <span className="text-white">{detailTask.maximumImageCount}</span></div>}
+                    {detailTask.preferredCamera !== "ANY" && <div className="text-gray-300">Camera: <span className="text-white">{detailTask.preferredCamera}</span></div>}
+                    {detailTask.preferredLens !== "ANY" && <div className="text-gray-300">Lens: <span className="text-white">{detailTask.preferredLens}</span></div>}
+                    {detailTask.requiredOrientation !== "ANY" && <div className="text-gray-300">Orientation: <span className="text-white">{detailTask.requiredOrientation}</span></div>}
+                    {detailTask.minimumFps != null && <div className="text-gray-300">Min FPS: <span className="text-white">{detailTask.minimumFps}</span></div>}
+                    <div className="text-gray-300">Audio req'd: <span className="text-white">{detailTask.audioRequired ? "Yes" : "No"}</span></div>
+                    <div className="text-gray-300">Pause allowed: <span className="text-white">{detailTask.pauseAllowed ? "Yes" : "No"}</span></div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={() => { setDetailTask(null); openEdit(detailTask); }} className="flex-1 bg-gray-700 hover:bg-gray-600"><Pencil size={14} className="mr-2" />Edit</Button>
+                  <Button onClick={() => { setDetailTask(null); handleDuplicate(detailTask.id); }} className="flex-1 bg-gray-700 hover:bg-gray-600"><Copy size={14} className="mr-2" />Duplicate</Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
+        <AlertDialogContent className="bg-gray-900 border-gray-800 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-700 text-gray-300">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-500">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -10,8 +10,8 @@ export interface HealthStatus {
 }
 
 export interface ErrorResponse {
-  statusCode: number;
   message: string;
+  statusCode?: number;
   error?: string;
 }
 
@@ -22,6 +22,11 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+export interface OtpRequestResult {
+  message: string;
+  sessionId: string;
+}
+
 export interface AdminLoginRequest {
   email: string;
   password: string;
@@ -29,11 +34,6 @@ export interface AdminLoginRequest {
 
 export interface RequestOtpRequest {
   phoneNumber: string;
-}
-
-export interface OtpRequestResult {
-  message: string;
-  sessionId: string;
 }
 
 export interface VerifyOtpRequest {
@@ -146,10 +146,20 @@ export interface UserListResponse {
   meta: PaginationMeta;
 }
 
+export interface CategorySummary {
+  id: string;
+  name: string;
+  icon?: string;
+  isActive: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;
   description?: string;
+  icon?: string;
+  coverImageUrl?: string;
+  displayOrder: number;
   isActive: boolean;
   subcategoryCount: number;
   taskCount: number;
@@ -160,12 +170,18 @@ export interface Category {
 export interface CreateCategoryRequest {
   name: string;
   description?: string;
+  icon?: string;
+  coverImageUrl?: string;
+  displayOrder?: number;
   isActive?: boolean;
 }
 
 export interface UpdateCategoryRequest {
   name?: string;
   description?: string;
+  icon?: string;
+  coverImageUrl?: string;
+  displayOrder?: number;
   isActive?: boolean;
 }
 
@@ -174,12 +190,19 @@ export interface CategoryListResponse {
   meta: PaginationMeta;
 }
 
+export interface SubcategorySummary {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 export interface Subcategory {
   id: string;
   name: string;
   description?: string;
   categoryId: string;
-  category?: Category;
+  category?: CategorySummary;
+  displayOrder: number;
   isActive: boolean;
   taskCount: number;
   createdAt: string;
@@ -190,6 +213,7 @@ export interface CreateSubcategoryRequest {
   name: string;
   description?: string;
   categoryId: string;
+  displayOrder?: number;
   isActive?: boolean;
 }
 
@@ -197,6 +221,7 @@ export interface UpdateSubcategoryRequest {
   name?: string;
   description?: string;
   categoryId?: string;
+  displayOrder?: number;
   isActive?: boolean;
 }
 
@@ -204,6 +229,42 @@ export interface SubcategoryListResponse {
   data: Subcategory[];
   meta: PaginationMeta;
 }
+
+export type TaskCollectionType = typeof TaskCollectionType[keyof typeof TaskCollectionType];
+
+
+export const TaskCollectionType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+} as const;
+
+export type TaskPreferredCamera = typeof TaskPreferredCamera[keyof typeof TaskPreferredCamera];
+
+
+export const TaskPreferredCamera = {
+  REAR: 'REAR',
+  FRONT: 'FRONT',
+  ANY: 'ANY',
+} as const;
+
+export type TaskPreferredLens = typeof TaskPreferredLens[keyof typeof TaskPreferredLens];
+
+
+export const TaskPreferredLens = {
+  ULTRA_WIDE: 'ULTRA_WIDE',
+  STANDARD: 'STANDARD',
+  ANY: 'ANY',
+} as const;
+
+export type TaskRequiredOrientation = typeof TaskRequiredOrientation[keyof typeof TaskRequiredOrientation];
+
+
+export const TaskRequiredOrientation = {
+  PORTRAIT: 'PORTRAIT',
+  LANDSCAPE: 'LANDSCAPE',
+  ANY: 'ANY',
+} as const;
 
 export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
@@ -218,17 +279,74 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  instructions?: string;
+  detailedInstructions?: string;
+  dos: string[];
+  donts: string[];
   categoryId: string;
-  category?: Category;
+  category?: CategorySummary;
   subcategoryId?: string;
-  subcategory?: Subcategory;
-  reward: number;
+  subcategory?: SubcategorySummary;
+  collectionType: TaskCollectionType;
+  paymentAmount: number;
+  currency: string;
+  sampleMediaUrl?: string;
+  minimumDurationSeconds?: number;
+  maximumDurationSeconds?: number;
+  minimumImageCount?: number;
+  maximumImageCount?: number;
+  preferredFps?: number;
+  minimumFps?: number;
+  preferredCamera: TaskPreferredCamera;
+  preferredLens: TaskPreferredLens;
+  requiredOrientation: TaskRequiredOrientation;
+  audioRequired: boolean;
+  pauseAllowed: boolean;
+  maxSubmissionsPerUser?: number;
+  maxTotalSubmissions?: number;
+  startDate?: string;
+  endDate?: string;
+  displayOrder: number;
   status: TaskStatus;
   submissionCount: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export type CreateTaskRequestCollectionType = typeof CreateTaskRequestCollectionType[keyof typeof CreateTaskRequestCollectionType];
+
+
+export const CreateTaskRequestCollectionType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+} as const;
+
+export type CreateTaskRequestPreferredCamera = typeof CreateTaskRequestPreferredCamera[keyof typeof CreateTaskRequestPreferredCamera];
+
+
+export const CreateTaskRequestPreferredCamera = {
+  REAR: 'REAR',
+  FRONT: 'FRONT',
+  ANY: 'ANY',
+} as const;
+
+export type CreateTaskRequestPreferredLens = typeof CreateTaskRequestPreferredLens[keyof typeof CreateTaskRequestPreferredLens];
+
+
+export const CreateTaskRequestPreferredLens = {
+  ULTRA_WIDE: 'ULTRA_WIDE',
+  STANDARD: 'STANDARD',
+  ANY: 'ANY',
+} as const;
+
+export type CreateTaskRequestRequiredOrientation = typeof CreateTaskRequestRequiredOrientation[keyof typeof CreateTaskRequestRequiredOrientation];
+
+
+export const CreateTaskRequestRequiredOrientation = {
+  PORTRAIT: 'PORTRAIT',
+  LANDSCAPE: 'LANDSCAPE',
+  ANY: 'ANY',
+} as const;
 
 export type CreateTaskRequestStatus = typeof CreateTaskRequestStatus[keyof typeof CreateTaskRequestStatus];
 
@@ -242,12 +360,69 @@ export const CreateTaskRequestStatus = {
 export interface CreateTaskRequest {
   title: string;
   description?: string;
-  instructions?: string;
+  detailedInstructions?: string;
+  dos?: string[];
+  donts?: string[];
   categoryId: string;
   subcategoryId?: string;
-  reward: number;
+  collectionType?: CreateTaskRequestCollectionType;
+  paymentAmount?: number;
+  currency?: string;
+  sampleMediaUrl?: string;
+  minimumDurationSeconds?: number;
+  maximumDurationSeconds?: number;
+  minimumImageCount?: number;
+  maximumImageCount?: number;
+  preferredFps?: number;
+  minimumFps?: number;
+  preferredCamera?: CreateTaskRequestPreferredCamera;
+  preferredLens?: CreateTaskRequestPreferredLens;
+  requiredOrientation?: CreateTaskRequestRequiredOrientation;
+  audioRequired?: boolean;
+  pauseAllowed?: boolean;
+  maxSubmissionsPerUser?: number;
+  maxTotalSubmissions?: number;
+  startDate?: string;
+  endDate?: string;
+  displayOrder?: number;
   status?: CreateTaskRequestStatus;
 }
+
+export type UpdateTaskRequestCollectionType = typeof UpdateTaskRequestCollectionType[keyof typeof UpdateTaskRequestCollectionType];
+
+
+export const UpdateTaskRequestCollectionType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+} as const;
+
+export type UpdateTaskRequestPreferredCamera = typeof UpdateTaskRequestPreferredCamera[keyof typeof UpdateTaskRequestPreferredCamera];
+
+
+export const UpdateTaskRequestPreferredCamera = {
+  REAR: 'REAR',
+  FRONT: 'FRONT',
+  ANY: 'ANY',
+} as const;
+
+export type UpdateTaskRequestPreferredLens = typeof UpdateTaskRequestPreferredLens[keyof typeof UpdateTaskRequestPreferredLens];
+
+
+export const UpdateTaskRequestPreferredLens = {
+  ULTRA_WIDE: 'ULTRA_WIDE',
+  STANDARD: 'STANDARD',
+  ANY: 'ANY',
+} as const;
+
+export type UpdateTaskRequestRequiredOrientation = typeof UpdateTaskRequestRequiredOrientation[keyof typeof UpdateTaskRequestRequiredOrientation];
+
+
+export const UpdateTaskRequestRequiredOrientation = {
+  PORTRAIT: 'PORTRAIT',
+  LANDSCAPE: 'LANDSCAPE',
+  ANY: 'ANY',
+} as const;
 
 export type UpdateTaskRequestStatus = typeof UpdateTaskRequestStatus[keyof typeof UpdateTaskRequestStatus];
 
@@ -261,10 +436,31 @@ export const UpdateTaskRequestStatus = {
 export interface UpdateTaskRequest {
   title?: string;
   description?: string;
-  instructions?: string;
+  detailedInstructions?: string;
+  dos?: string[];
+  donts?: string[];
   categoryId?: string;
   subcategoryId?: string;
-  reward?: number;
+  collectionType?: UpdateTaskRequestCollectionType;
+  paymentAmount?: number;
+  currency?: string;
+  sampleMediaUrl?: string;
+  minimumDurationSeconds?: number;
+  maximumDurationSeconds?: number;
+  minimumImageCount?: number;
+  maximumImageCount?: number;
+  preferredFps?: number;
+  minimumFps?: number;
+  preferredCamera?: UpdateTaskRequestPreferredCamera;
+  preferredLens?: UpdateTaskRequestPreferredLens;
+  requiredOrientation?: UpdateTaskRequestRequiredOrientation;
+  audioRequired?: boolean;
+  pauseAllowed?: boolean;
+  maxSubmissionsPerUser?: number;
+  maxTotalSubmissions?: number;
+  startDate?: string;
+  endDate?: string;
+  displayOrder?: number;
   status?: UpdateTaskRequestStatus;
 }
 
@@ -421,13 +617,27 @@ export type LimitParamParameter = number;
 export type SearchParamParameter = string;
 
 export type ListAdminUsersParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
 };
 
 export type ListUsersParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
 status?: ListUsersStatus;
@@ -443,25 +653,49 @@ export const ListUsersStatus = {
 } as const;
 
 export type ListCategoriesParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
+isActive?: boolean;
 };
 
 export type ListSubcategoriesParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
 categoryId?: string;
+isActive?: boolean;
 };
 
 export type ListTasksParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
 categoryId?: string;
 subcategoryId?: string;
 status?: ListTasksStatus;
+collectionType?: ListTasksCollectionType;
 };
 
 export type ListTasksStatus = typeof ListTasksStatus[keyof typeof ListTasksStatus];
@@ -473,8 +707,24 @@ export const ListTasksStatus = {
   draft: 'draft',
 } as const;
 
+export type ListTasksCollectionType = typeof ListTasksCollectionType[keyof typeof ListTasksCollectionType];
+
+
+export const ListTasksCollectionType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+} as const;
+
 export type ListSubmissionsParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 taskId?: string;
 userId?: string;
@@ -492,7 +742,14 @@ export const ListSubmissionsStatus = {
 } as const;
 
 export type ListWalletTransactionsParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 userId?: string;
 type?: ListWalletTransactionsType;
@@ -505,8 +762,4 @@ export const ListWalletTransactionsType = {
   credit: 'credit',
   debit: 'debit',
 } as const;
-
-export type GetDashboardRecentActivityParams = {
-limit?: LimitParamParameter;
-};
 

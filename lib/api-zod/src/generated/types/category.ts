@@ -10,6 +10,9 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
+  icon?: string;
+  coverImageUrl?: string;
+  displayOrder: number;
   isActive: boolean;
   subcategoryCount: number;
   taskCount: number;

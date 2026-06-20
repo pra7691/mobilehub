@@ -10,5 +10,6 @@ export interface UpdateSubcategoryRequest {
   name?: string;
   description?: string;
   categoryId?: string;
+  displayOrder?: number;
   isActive?: boolean;
 }

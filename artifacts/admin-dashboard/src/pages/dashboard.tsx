@@ -1,4 +1,4 @@
-import { useGetDashboardStats, useGetSubmissionTrends, useGetDashboardRecentActivity } from "@workspace/api-client-react";
+import { useGetDashboardStats, useGetSubmissionTrends, useGetRecentActivity } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileQuestion, SendToBack, Wallet, ArrowUpRight, Activity } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,7 +7,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
   const { data: trendsData, isLoading: trendsLoading } = useGetSubmissionTrends();
-  const { data: activityData, isLoading: activityLoading } = useGetDashboardRecentActivity({ limit: 5 });
+  const { data: activityData, isLoading: activityLoading } = useGetRecentActivity({ limit: 5 });
 
   const statsItems = [
     { title: "Total Users", value: stats?.totalUsers, icon: Users, subtext: `${stats?.activeUsers || 0} active` },

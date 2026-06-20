@@ -10,5 +10,6 @@ export interface CreateSubcategoryRequest {
   name: string;
   description?: string;
   categoryId: string;
+  displayOrder?: number;
   isActive?: boolean;
 }

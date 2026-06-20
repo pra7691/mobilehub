@@ -5,8 +5,10 @@
  * Capto mobile data-collection platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { LimitParamParameter } from './limitParamParameter';
 
-export type GetDashboardRecentActivityParams = {
-limit?: LimitParamParameter;
-};
+export interface CategorySummary {
+  id: string;
+  name: string;
+  icon?: string;
+  isActive: boolean;
+}

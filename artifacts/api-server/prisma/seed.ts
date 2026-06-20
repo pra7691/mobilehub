@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, CollectionType, CameraPreference, LensPreference, OrientationRequirement, TaskStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -6,43 +6,92 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Create default super admin
-  const existingAdmin = await prisma.adminUser.findUnique({
-    where: { email: 'admin@capto.app' },
-  });
-
+  // Admin user
+  const existingAdmin = await prisma.adminUser.findUnique({ where: { email: 'admin@capto.app' } });
   if (!existingAdmin) {
     const password = await bcrypt.hash('Admin@1234', 10);
-    await prisma.adminUser.create({
-      data: {
-        email: 'admin@capto.app',
-        name: 'Super Admin',
-        password,
-        role: 'super_admin',
-        isActive: true,
-      },
-    });
+    await prisma.adminUser.create({ data: { email: 'admin@capto.app', name: 'Super Admin', password, role: 'super_admin', isActive: true } });
     console.log('Created default admin: admin@capto.app / Admin@1234');
-  } else {
-    console.log('Default admin already exists');
   }
 
-  // Create default OTP settings
+  // OTP settings
   const existingSettings = await prisma.otpSetting.findFirst();
   if (!existingSettings) {
-    await prisma.otpSetting.create({
-      data: {
-        otpLength: 6,
-        otpExpirySeconds: 300,
-        maxAttempts: 3,
-        cooldownSeconds: 60,
-        isTestMode: true,
-        testOtp: '123456',
-      },
-    });
-    console.log('Created default OTP settings (test mode ON, OTP: 123456)');
+    await prisma.otpSetting.create({ data: { otpLength: 6, otpExpirySeconds: 300, maxAttempts: 3, cooldownSeconds: 60, isTestMode: true, testOtp: '123456' } });
+    console.log('Created OTP settings (test mode ON, OTP: 123456)');
   }
 
+  // Skip if categories already exist
+  const existingCats = await prisma.category.count({ where: { deletedAt: null } });
+  if (existingCats > 0) {
+    console.log('Demo data already seeded, skipping.');
+    console.log('Seeding complete.');
+    return;
+  }
+
+  // ── Categories ──────────────────────────────────────────────────────────────
+  const catPhotography = await prisma.category.create({ data: { name: 'Photography', description: 'Capture high-quality images of products, people, and environments for AI training datasets.', icon: '📸', displayOrder: 1, isActive: true } });
+  const catAudio = await prisma.category.create({ data: { name: 'Audio Recording', description: 'Record voice samples, ambient sounds, and speech data for AI voice and speech recognition models.', icon: '🎙️', displayOrder: 2, isActive: true } });
+  const catVideo = await prisma.category.create({ data: { name: 'Video Collection', description: 'Capture video footage of real-world scenes, activities, and environments for computer vision datasets.', icon: '🎥', displayOrder: 3, isActive: true } });
+  const catVerify = await prisma.category.create({ data: { name: 'Data Verification', description: 'Verify and validate existing business listings, map data, and factual information.', icon: '🔍', displayOrder: 4, isActive: true } });
+
+  console.log('Created 4 categories');
+
+  // ── Subcategories ────────────────────────────────────────────────────────────
+  const subProduct = await prisma.subcategory.create({ data: { name: 'Product Photography', description: 'Capture retail product images from multiple angles for e-commerce and AI training.', categoryId: catPhotography.id, displayOrder: 1, isActive: true } });
+  const subPortrait = await prisma.subcategory.create({ data: { name: 'Portrait Photography', description: 'Diverse facial expressions and profile images for facial recognition datasets.', categoryId: catPhotography.id, displayOrder: 2, isActive: true } });
+
+  const subSpeech = await prisma.subcategory.create({ data: { name: 'Speech Recognition', description: 'Record clear voice samples reading text, numbers, and commands.', categoryId: catAudio.id, displayOrder: 1, isActive: true } });
+  const subAmbient = await prisma.subcategory.create({ data: { name: 'Environmental Audio', description: 'Capture ambient soundscapes from various public and indoor environments.', categoryId: catAudio.id, displayOrder: 2, isActive: true } });
+
+  const subStreet = await prisma.subcategory.create({ data: { name: 'Street Scenes', description: 'Record pedestrian and traffic activity in urban environments.', categoryId: catVideo.id, displayOrder: 1, isActive: true } });
+  const subRetail = await prisma.subcategory.create({ data: { name: 'Retail Environments', description: 'Video footage inside shops, supermarkets, and commercial spaces.', categoryId: catVideo.id, displayOrder: 2, isActive: true } });
+
+  const subBusiness = await prisma.subcategory.create({ data: { name: 'Business Listings', description: 'Verify restaurant, shop, and service provider details for map accuracy.', categoryId: catVerify.id, displayOrder: 1, isActive: true } });
+  const subMapData = await prisma.subcategory.create({ data: { name: 'Map Data', description: 'Photograph street signs, building entrances, and navigation landmarks.', categoryId: catVerify.id, displayOrder: 2, isActive: true } });
+
+  console.log('Created 8 subcategories');
+
+  // ── Tasks ────────────────────────────────────────────────────────────────────
+  const tasks = [
+    // Product Photography → IMAGE
+    { title: 'Capture Retail Product Front View', description: 'Photograph a retail product\'s front face on a clean, well-lit surface.', detailedInstructions: 'Find a retail product (packaged food, electronics, cosmetics, etc.). Place it on a flat surface with good natural or artificial lighting. Ensure the product label faces the camera. Take a sharp, focused image with no blur.', dos: ['Use good lighting — natural light near a window works best', 'Keep the background clean and neutral', 'Fill 80% of the frame with the product', 'Ensure all text on the product is legible'], donts: ['Don\'t use flash directly on glossy surfaces', 'Don\'t include your hands or face in the image', 'Don\'t capture blurry or out-of-focus images', 'Don\'t photograph damaged or expired products'], categoryId: catPhotography.id, subcategoryId: subProduct.id, collectionType: CollectionType.IMAGE, paymentAmount: 15, currency: 'INR', minimumImageCount: 1, maximumImageCount: 1, preferredCamera: CameraPreference.REAR, requiredOrientation: OrientationRequirement.PORTRAIT, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Capture Product Label (All Sides)', description: 'Document all sides of a product label for ingredient and label data training.', detailedInstructions: 'Choose a packaged food or beverage product. Photograph each side of the packaging clearly. Ensure the nutrition label, ingredient list, and barcode are all visible in separate shots. Submit images in order: front, back, left side, right side.', dos: ['Capture all 4 sides of the product', 'Ensure text is sharp and readable', 'Keep consistent distance and framing across shots', 'Include barcode if present'], donts: ['Don\'t photograph homemade or unlabeled items', 'Don\'t allow motion blur', 'Don\'t crop out important text'], categoryId: catPhotography.id, subcategoryId: subProduct.id, collectionType: CollectionType.IMAGE, paymentAmount: 25, currency: 'INR', minimumImageCount: 4, maximumImageCount: 6, preferredCamera: CameraPreference.REAR, displayOrder: 2, status: TaskStatus.active },
+
+    // Portrait Photography → IMAGE
+    { title: 'Neutral Facial Expression Portrait', description: 'Photograph your face with a neutral expression in good lighting for facial recognition training.', detailedInstructions: 'Set up your camera at eye level, approximately 50-70cm from your face. Look directly into the camera with a neutral expression (mouth closed, no smile). Ensure your face is fully visible from forehead to chin, and both ears are showing. Take 3 photos with slight variations in angle.', dos: ['Use good, even lighting on your face', 'Keep a neutral, relaxed expression', 'Ensure both eyes are fully open', 'Remove glasses, hats, and hair covering the face'], donts: ['Don\'t wear heavy makeup that alters facial structure', 'Don\'t tilt head significantly', 'Don\'t include other people in the frame', 'Don\'t use heavy filters or beauty modes'], categoryId: catPhotography.id, subcategoryId: subPortrait.id, collectionType: CollectionType.IMAGE, paymentAmount: 20, currency: 'INR', minimumImageCount: 3, maximumImageCount: 5, preferredCamera: CameraPreference.FRONT, requiredOrientation: OrientationRequirement.PORTRAIT, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Varied Emotional Expression Portraits', description: 'Capture 5 different facial expressions for emotion detection model training.', detailedInstructions: 'Capture your face expressing 5 different emotions: happy (genuine smile), sad (downturned mouth, soft eyes), surprised (wide eyes, open mouth slightly), angry (furrowed brow, tight lips), and fearful (wide eyes, tense). Submit exactly one photo per emotion in this order.', dos: ['Make each expression distinct and natural', 'Maintain consistent lighting and camera position across shots', 'Keep face fully centered in frame', 'Submit images in the specified order'], donts: ['Don\'t use the same expression twice', 'Don\'t submit blurry or poorly lit images', 'Don\'t use filters or face-altering apps'], categoryId: catPhotography.id, subcategoryId: subPortrait.id, collectionType: CollectionType.IMAGE, paymentAmount: 40, currency: 'INR', minimumImageCount: 5, maximumImageCount: 5, preferredCamera: CameraPreference.FRONT, displayOrder: 2, status: TaskStatus.active },
+
+    // Speech Recognition → AUDIO
+    { title: 'Read English Sentences Aloud', description: 'Record yourself reading 10 provided English sentences clearly for ASR model training.', detailedInstructions: 'Find a quiet room with minimal background noise. Read each of the following sentences clearly and at a natural pace:\n1. The quick brown fox jumps over the lazy dog.\n2. She sells seashells by the seashore.\n3. How much wood would a woodchuck chuck?\n4. Pack my box with five dozen liquor jugs.\n5. The five boxing wizards jump quickly.\n6. Please call Stella and ask her to bring these things.\n7. I will not allow anyone to get too close.\n8. Look at the sky before you decide to go outside.\n9. The weather today is quite pleasant for a walk.\n10. Technology has changed how we communicate with each other.', dos: ['Speak clearly at a natural, moderate pace', 'Maintain consistent volume throughout', 'Pause briefly between sentences', 'Record in a quiet indoor space'], donts: ['Don\'t rush through sentences', 'Don\'t whisper or shout', 'Don\'t record outdoors or in noisy areas', 'Don\'t cough or clear throat mid-recording'], categoryId: catAudio.id, subcategoryId: subSpeech.id, collectionType: CollectionType.AUDIO, paymentAmount: 30, currency: 'INR', minimumDurationSeconds: 45, maximumDurationSeconds: 120, audioRequired: true, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Count and Spell Numbers 1–20', description: 'Record yourself counting from 1 to 20 and spelling each number for numeric speech data.', detailedInstructions: 'In a quiet room, record a continuous audio where you:\n1. Count from 1 to 20 (say the number name: "one, two, three...")\n2. Then spell each number: "O-N-E, T-W-O..."\nSpeak at a clear, deliberate pace. There should be a 1-second pause between the counting section and the spelling section.', dos: ['Speak each digit clearly', 'Maintain consistent volume', 'Record in quiet environment', 'Pause between counting and spelling sections'], donts: ['Don\'t skip numbers', 'Don\'t mumble or speak too fast', 'Don\'t add extra commentary'], categoryId: catAudio.id, subcategoryId: subSpeech.id, collectionType: CollectionType.AUDIO, paymentAmount: 20, currency: 'INR', minimumDurationSeconds: 60, maximumDurationSeconds: 180, audioRequired: true, displayOrder: 2, status: TaskStatus.active },
+
+    // Environmental Audio → AUDIO
+    { title: 'Capture Outdoor Market Ambience', description: 'Record 60 seconds of authentic outdoor market or bazaar background audio.', detailedInstructions: 'Go to a busy outdoor market, bazaar, or street market. Hold your phone naturally (don\'t point it at any specific person). Record 60-90 seconds of the ambient sound — vendor calls, crowd chatter, and general market activity. Do not narrate or talk yourself.', dos: ['Record in a genuinely busy public market', 'Hold the phone steady at waist or chest level', 'Let the audio capture organically for the full duration', 'Ensure the general crowd sound is present throughout'], donts: ['Don\'t narrate or speak during recording', 'Don\'t record in an empty or quiet market', 'Don\'t point the phone at individuals\' faces while recording', 'Don\'t add background music afterwards'], categoryId: catAudio.id, subcategoryId: subAmbient.id, collectionType: CollectionType.AUDIO, paymentAmount: 25, currency: 'INR', minimumDurationSeconds: 60, maximumDurationSeconds: 90, audioRequired: true, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Record Restaurant Background Noise', description: 'Capture the authentic ambient soundscape of a busy restaurant or food court.', detailedInstructions: 'Visit a restaurant, food court, or canteen during a busy period (lunch or dinner hour). Place your phone on the table with the microphone facing up. Record 60-90 seconds of the ambient environment — cutlery sounds, muffled conversations, kitchen noise, etc.', dos: ['Record during peak hours for authentic activity', 'Keep the phone stable on a surface', 'Capture a mix of conversation, cutlery, and kitchen sounds', 'Stay for the full recording duration without leaving'], donts: ['Don\'t record in an empty restaurant', 'Don\'t speak loudly into the phone', 'Don\'t record private conversations intentionally', 'Don\'t use a restaurant where recording is prohibited'], categoryId: catAudio.id, subcategoryId: subAmbient.id, collectionType: CollectionType.AUDIO, paymentAmount: 25, currency: 'INR', minimumDurationSeconds: 60, maximumDurationSeconds: 90, audioRequired: true, displayOrder: 2, status: TaskStatus.active },
+
+    // Street Scenes → VIDEO
+    { title: 'Busy Intersection Pedestrian Video', description: 'Record 30 seconds of pedestrian activity at a busy road crossing or intersection.', detailedInstructions: 'Stand at a busy pedestrian crossing or city intersection. Hold your phone in landscape mode and record the flow of pedestrians crossing the road. Keep the camera steady — you may use a stable surface or hold it with both hands. Do not follow specific individuals.', dos: ['Record in landscape (horizontal) orientation', 'Capture natural pedestrian flow without staging', 'Keep the camera as steady as possible', 'Ensure adequate lighting (daylight or well-lit night scene)'], donts: ['Don\'t zoom in on individuals\' faces', 'Don\'t record in portrait mode', 'Don\'t add narration or commentary', 'Don\'t record in places where filming is prohibited'], categoryId: catVideo.id, subcategoryId: subStreet.id, collectionType: CollectionType.VIDEO, paymentAmount: 35, currency: 'INR', minimumDurationSeconds: 30, maximumDurationSeconds: 60, requiredOrientation: OrientationRequirement.LANDSCAPE, preferredCamera: CameraPreference.REAR, pauseAllowed: false, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Pedestrian Footpath Activity', description: 'Capture 30 seconds of people walking on a busy sidewalk or footpath.', detailedInstructions: 'Find a busy footpath, sidewalk, or pedestrian walkway. Position yourself at the side and record the flow of people walking past. Keep the camera at approximately waist height pointing toward the path. Record for at least 30 seconds of continuous foot traffic.', dos: ['Capture continuous pedestrian movement', 'Record from a fixed position without moving', 'Use rear camera for better quality', 'Choose a time when there is significant foot traffic'], donts: ['Don\'t pan the camera rapidly', 'Don\'t intentionally focus on any single person', 'Don\'t record private property without permission'], categoryId: catVideo.id, subcategoryId: subStreet.id, collectionType: CollectionType.VIDEO, paymentAmount: 30, currency: 'INR', minimumDurationSeconds: 30, maximumDurationSeconds: 60, preferredCamera: CameraPreference.REAR, requiredOrientation: OrientationRequirement.LANDSCAPE, displayOrder: 2, status: TaskStatus.active },
+
+    // Retail Environments → VIDEO
+    { title: 'Supermarket Aisle Walkthrough Video', description: 'Record a slow walk through a supermarket aisle showing products on shelves.', detailedInstructions: 'Enter a supermarket and navigate to a product aisle (cereal, beverages, snacks, etc.). Hold the phone in landscape mode and slowly walk the length of the aisle, keeping shelves in frame. The video should clearly show products on shelves from both sides. Record at walking pace — not too fast.', dos: ['Walk slowly and steadily through the aisle', 'Capture both sides of the aisle if wide enough', 'Keep shelves in clear focus', 'Record in landscape orientation'], donts: ['Don\'t record customers faces directly', 'Don\'t record in restricted or staff-only areas', 'Don\'t move the camera erratically', 'Don\'t record empty aisles'], categoryId: catVideo.id, subcategoryId: subRetail.id, collectionType: CollectionType.VIDEO, paymentAmount: 40, currency: 'INR', minimumDurationSeconds: 30, maximumDurationSeconds: 90, requiredOrientation: OrientationRequirement.LANDSCAPE, preferredCamera: CameraPreference.REAR, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Food Court Activity Recording', description: 'Capture ambient video of a food court or canteen during meal times.', detailedInstructions: 'Visit a food court, canteen, or cafeteria during a busy mealtime. Find an elevated or wide vantage point. Record a stationary video of the general area showing people moving, sitting, eating, and standing in queues. Do not focus on individuals.', dos: ['Choose a busy mealtime period', 'Record from a wide, elevated angle if possible', 'Capture general crowd activity and movement', 'Keep the camera stable throughout'], donts: ['Don\'t zoom in on people\'s faces', 'Don\'t record conversations', 'Don\'t disturb customers or staff'], categoryId: catVideo.id, subcategoryId: subRetail.id, collectionType: CollectionType.VIDEO, paymentAmount: 35, currency: 'INR', minimumDurationSeconds: 30, maximumDurationSeconds: 90, requiredOrientation: OrientationRequirement.LANDSCAPE, displayOrder: 2, status: TaskStatus.active },
+
+    // Business Listings → IMAGE
+    { title: 'Verify Restaurant Storefront Details', description: 'Photograph a restaurant\'s exterior signage and entrance for business listing verification.', detailedInstructions: 'Visit any restaurant, dhaba, or food establishment. Capture the following in separate images: (1) Full storefront showing the name sign clearly, (2) Close-up of the name/signboard showing the complete business name, (3) Menu board or entrance notice if visible. Ensure the photos are taken during business hours.', dos: ['Capture the complete business name in at least one image', 'Take photos during actual business hours', 'Ensure the establishment is currently operating', 'Include the entrance/door in the storefront shot'], donts: ['Don\'t photograph closed or shuttered establishments as open', 'Don\'t alter or edit the images', 'Don\'t photograph private residences'], categoryId: catVerify.id, subcategoryId: subBusiness.id, collectionType: CollectionType.IMAGE, paymentAmount: 20, currency: 'INR', minimumImageCount: 2, maximumImageCount: 4, preferredCamera: CameraPreference.REAR, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Confirm Shop Operating Hours', description: 'Photograph a shop\'s stated operating hours notice or signboard.', detailedInstructions: 'Find a shop, service center, or business that displays its opening hours. Capture: (1) A clear photo of the operating hours notice or board, (2) The shop name or exterior to confirm location. The timing notice must be legible in the photo.', dos: ['Ensure the timing/hours text is fully readable', 'Capture both the timings and the business name', 'Photograph during the business\'s stated operating hours', 'Include any "open/closed" sign if present'], donts: ['Don\'t photograph handwritten unverified notes', 'Don\'t submit if timings are not legible', 'Don\'t photograph residential premises'], categoryId: catVerify.id, subcategoryId: subBusiness.id, collectionType: CollectionType.IMAGE, paymentAmount: 15, currency: 'INR', minimumImageCount: 1, maximumImageCount: 3, preferredCamera: CameraPreference.REAR, displayOrder: 2, status: TaskStatus.active },
+
+    // Map Data → IMAGE
+    { title: 'Photograph Street Name Sign', description: 'Capture a clear, readable image of an official street name sign or road sign.', detailedInstructions: 'Find an official government-issued street name sign, road sign, or area marker. Photograph it clearly so that the complete text is fully readable. Include a wider shot showing the sign in its environment (attached to a pole, wall, or structure).', dos: ['Capture the complete text of the sign legibly', 'Include the sign\'s mounting structure in frame', 'Take one close-up and one wider context shot', 'Photograph in good lighting conditions'], donts: ['Don\'t photograph private or shop name signs', 'Don\'t submit blurry images where text is unreadable', 'Don\'t capture partially obstructed signs if avoidable'], categoryId: catVerify.id, subcategoryId: subMapData.id, collectionType: CollectionType.IMAGE, paymentAmount: 12, currency: 'INR', minimumImageCount: 2, maximumImageCount: 4, preferredCamera: CameraPreference.REAR, displayOrder: 1, status: TaskStatus.active },
+    { title: 'Capture Building Main Entrance', description: 'Photograph the main entrance of a significant building for map and navigation data.', detailedInstructions: 'Select a notable building: a hospital, school, government office, shopping mall, hotel, or landmark. Photograph: (1) The main entrance showing the entrance doors and any signage above it, (2) A wider shot of the full building facade if accessible. The building name or identification must be visible.', dos: ['Capture the primary entrance (not a side or service entrance)', 'Ensure building identification is visible', 'Take in good lighting with unobstructed view', 'Include a wide establishing shot'], donts: ['Don\'t photograph residential buildings', 'Don\'t photograph in restricted or secure areas', 'Don\'t submit images taken at night unless well-lit'], categoryId: catVerify.id, subcategoryId: subMapData.id, collectionType: CollectionType.IMAGE, paymentAmount: 18, currency: 'INR', minimumImageCount: 2, maximumImageCount: 4, preferredCamera: CameraPreference.REAR, displayOrder: 2, status: TaskStatus.active },
+  ];
+
+  for (const t of tasks) {
+    await prisma.task.create({ data: t });
+  }
+
+  console.log(`Created ${tasks.length} demo tasks across 8 subcategories`);
   console.log('Seeding complete.');
 }
 

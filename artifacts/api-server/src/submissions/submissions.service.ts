@@ -27,7 +27,7 @@ export class SubmissionsService {
         where, skip, take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          task: { select: { id: true, title: true, reward: true, status: true } },
+          task: { select: { id: true, title: true, paymentAmount: true, status: true } },
           user: { select: { id: true, phoneNumber: true, name: true, status: true } },
         },
       }),
@@ -39,7 +39,7 @@ export class SubmissionsService {
     const s = await this.prisma.submission.findUnique({
       where: { id },
       include: {
-        task: { select: { id: true, title: true, reward: true, status: true } },
+        task: { select: { id: true, title: true, paymentAmount: true, status: true } },
         user: { select: { id: true, phoneNumber: true, name: true, status: true } },
       },
     });
@@ -53,7 +53,7 @@ export class SubmissionsService {
       where: { id },
       data: { status, reviewNote },
       include: {
-        task: { select: { id: true, title: true, reward: true, status: true } },
+        task: { select: { id: true, title: true, paymentAmount: true, status: true } },
         user: { select: { id: true, phoneNumber: true, name: true, status: true } },
       },
     });

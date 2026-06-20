@@ -5,20 +5,45 @@
  * Capto mobile data-collection platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { Category } from './category';
-import type { Subcategory } from './subcategory';
+import type { CategorySummary } from './categorySummary';
+import type { SubcategorySummary } from './subcategorySummary';
+import type { TaskCollectionType } from './taskCollectionType';
+import type { TaskPreferredCamera } from './taskPreferredCamera';
+import type { TaskPreferredLens } from './taskPreferredLens';
+import type { TaskRequiredOrientation } from './taskRequiredOrientation';
 import type { TaskStatus } from './taskStatus';
 
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  instructions?: string;
+  detailedInstructions?: string;
+  dos: string[];
+  donts: string[];
   categoryId: string;
-  category?: Category;
+  category?: CategorySummary;
   subcategoryId?: string;
-  subcategory?: Subcategory;
-  reward: number;
+  subcategory?: SubcategorySummary;
+  collectionType: TaskCollectionType;
+  paymentAmount: number;
+  currency: string;
+  sampleMediaUrl?: string;
+  minimumDurationSeconds?: number;
+  maximumDurationSeconds?: number;
+  minimumImageCount?: number;
+  maximumImageCount?: number;
+  preferredFps?: number;
+  minimumFps?: number;
+  preferredCamera: TaskPreferredCamera;
+  preferredLens: TaskPreferredLens;
+  requiredOrientation: TaskRequiredOrientation;
+  audioRequired: boolean;
+  pauseAllowed: boolean;
+  maxSubmissionsPerUser?: number;
+  maxTotalSubmissions?: number;
+  startDate?: Date;
+  endDate?: Date;
+  displayOrder: number;
   status: TaskStatus;
   submissionCount: number;
   createdAt: Date;

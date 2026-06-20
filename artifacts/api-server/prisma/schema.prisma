@@ -25,6 +25,30 @@ enum TaskStatus {
   draft
 }
 
+enum CollectionType {
+  VIDEO
+  IMAGE
+  AUDIO
+}
+
+enum CameraPreference {
+  REAR
+  FRONT
+  ANY
+}
+
+enum LensPreference {
+  ULTRA_WIDE
+  STANDARD
+  ANY
+}
+
+enum OrientationRequirement {
+  PORTRAIT
+  LANDSCAPE
+  ANY
+}
+
 enum SubmissionStatus {
   pending
   approved
@@ -60,9 +84,9 @@ model User {
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
 
-  otpSessions      OtpSession[]
-  submissions      Submission[]
-  wallet           Wallet?
+  otpSessions        OtpSession[]
+  submissions        Submission[]
+  wallet             Wallet?
   walletTransactions WalletTransaction[]
 
   @@map("users")
@@ -82,14 +106,14 @@ model OtpSetting {
 }
 
 model OtpSession {
-  id         String   @id @default(cuid())
-  userId     String?
+  id          String   @id @default(cuid())
+  userId      String?
   phoneNumber String
-  otp        String
-  attempts   Int      @default(0)
-  expiresAt  DateTime
-  verified   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  otp         String
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -97,13 +121,16 @@ model OtpSession {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  icon          String?
+  coverImageUrl String?
+  displayOrder  Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
   subcategories Subcategory[]
   tasks         Task[]
@@ -112,14 +139,15 @@ model Category {
 }
 
 model Subcategory {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  categoryId  String
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  categoryId   String
+  displayOrder Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   category Category @relation(fields: [categoryId], references: [id])
   tasks    Task[]
@@ -128,17 +156,38 @@ model Subcategory {
 }
 
 model Task {
-  id            String     @id @default(cuid())
-  title         String
-  description   String?
-  instructions  String?
-  categoryId    String
-  subcategoryId String?
-  reward        Decimal    @db.Decimal(10, 2)
-  status        TaskStatus @default(draft)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  deletedAt     DateTime?
+  id                     String                 @id @default(cuid())
+  title                  String
+  description            String?
+  detailedInstructions   String?
+  dos                    String[]
+  donts                  String[]
+  categoryId             String
+  subcategoryId          String?
+  collectionType         CollectionType         @default(IMAGE)
+  paymentAmount          Decimal                @default(0) @db.Decimal(10, 2)
+  currency               String                 @default("INR")
+  sampleMediaUrl         String?
+  minimumDurationSeconds Int?
+  maximumDurationSeconds Int?
+  minimumImageCount      Int?
+  maximumImageCount      Int?
+  preferredFps           Float?
+  minimumFps             Float?
+  preferredCamera        CameraPreference       @default(ANY)
+  preferredLens          LensPreference         @default(ANY)
+  requiredOrientation    OrientationRequirement @default(ANY)
+  audioRequired          Boolean                @default(false)
+  pauseAllowed           Boolean                @default(true)
+  maxSubmissionsPerUser  Int?
+  maxTotalSubmissions    Int?
+  startDate              DateTime?
+  endDate                DateTime?
+  displayOrder           Int                    @default(0)
+  status                 TaskStatus             @default(draft)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  deletedAt              DateTime?
 
   category    Category     @relation(fields: [categoryId], references: [id])
   subcategory Subcategory? @relation(fields: [subcategoryId], references: [id])

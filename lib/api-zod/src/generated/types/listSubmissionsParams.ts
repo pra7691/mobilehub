@@ -10,7 +10,14 @@ import type { ListSubmissionsStatus } from './listSubmissionsStatus';
 import type { PageParamParameter } from './pageParamParameter';
 
 export type ListSubmissionsParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 taskId?: string;
 userId?: string;

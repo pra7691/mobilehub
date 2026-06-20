@@ -9,29 +9,17 @@ servers:
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: auth
-    description: Authentication
   - name: admin-users
-    description: Admin user management
   - name: users
-    description: Mobile user management
   - name: categories
-    description: Category management
   - name: subcategories
-    description: Subcategory management
   - name: tasks
-    description: Task management
   - name: submissions
-    description: Submission management
   - name: wallet
-    description: Wallet management
   - name: wallet-transactions
-    description: Wallet transaction management
   - name: otp-settings
-    description: OTP configuration
   - name: dashboard
-    description: Admin dashboard analytics
 
 paths:
   /healthz:
@@ -47,7 +35,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  # ── Auth ──────────────────────────────────────────────────────────────────
   /auth/admin/login:
     post:
       operationId: adminLogin
@@ -121,7 +108,6 @@ paths:
     post:
       operationId: refreshTokens
       tags: [auth]
-      summary: Refresh access token
       requestBody:
         required: true
         content:
@@ -135,30 +121,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthTokens"
-        "401":
-          description: Invalid refresh token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/logout:
     post:
       operationId: logout
       tags: [auth]
-      summary: Invalidate current session
       security:
         - BearerAuth: []
       responses:
         "204":
           description: Logged out successfully
 
-  # ── Admin Users ────────────────────────────────────────────────────────────
   /admin-users:
     get:
       operationId: listAdminUsers
       tags: [admin-users]
-      summary: List all admin users
       security:
         - BearerAuth: []
       parameters:
@@ -167,7 +144,7 @@ paths:
         - $ref: "#/components/parameters/SearchParam"
       responses:
         "200":
-          description: Paginated list of admin users
+          description: OK
           content:
             application/json:
               schema:
@@ -175,7 +152,6 @@ paths:
     post:
       operationId: createAdminUser
       tags: [admin-users]
-      summary: Create a new admin user
       security:
         - BearerAuth: []
       requestBody:
@@ -186,7 +162,7 @@ paths:
               $ref: "#/components/schemas/CreateAdminUserRequest"
       responses:
         "201":
-          description: Admin user created
+          description: Created
           content:
             application/json:
               schema:
@@ -196,28 +172,20 @@ paths:
     get:
       operationId: getAdminUser
       tags: [admin-users]
-      summary: Get an admin user by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: Admin user
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminUser"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     patch:
       operationId: updateAdminUser
       tags: [admin-users]
-      summary: Update an admin user
       security:
         - BearerAuth: []
       parameters:
@@ -230,7 +198,7 @@ paths:
               $ref: "#/components/schemas/UpdateAdminUserRequest"
       responses:
         "200":
-          description: Updated admin user
+          description: OK
           content:
             application/json:
               schema:
@@ -238,7 +206,6 @@ paths:
     delete:
       operationId: deleteAdminUser
       tags: [admin-users]
-      summary: Delete an admin user
       security:
         - BearerAuth: []
       parameters:
@@ -247,12 +214,10 @@ paths:
         "204":
           description: Deleted
 
-  # ── Mobile Users ───────────────────────────────────────────────────────────
   /users:
     get:
       operationId: listUsers
       tags: [users]
-      summary: List all mobile users
       security:
         - BearerAuth: []
       parameters:
@@ -266,7 +231,7 @@ paths:
             enum: [active, inactive, suspended]
       responses:
         "200":
-          description: Paginated list of users
+          description: OK
           content:
             application/json:
               schema:
@@ -276,28 +241,20 @@ paths:
     get:
       operationId: getUser
       tags: [users]
-      summary: Get a mobile user by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: User
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     patch:
       operationId: updateUser
       tags: [users]
-      summary: Update a mobile user
       security:
         - BearerAuth: []
       parameters:
@@ -310,7 +267,7 @@ paths:
               $ref: "#/components/schemas/UpdateUserRequest"
       responses:
         "200":
-          description: Updated user
+          description: OK
           content:
             application/json:
               schema:
@@ -318,7 +275,6 @@ paths:
     delete:
       operationId: deleteUser
       tags: [users]
-      summary: Soft-delete a mobile user
       security:
         - BearerAuth: []
       parameters:
@@ -331,32 +287,33 @@ paths:
     get:
       operationId: getMe
       tags: [users]
-      summary: Get current authenticated mobile user profile
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Current user
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
 
-  # ── Categories ─────────────────────────────────────────────────────────────
   /categories:
     get:
       operationId: listCategories
       tags: [categories]
-      summary: List all categories
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/PageParam"
         - $ref: "#/components/parameters/LimitParam"
         - $ref: "#/components/parameters/SearchParam"
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
-          description: Paginated list of categories
+          description: OK
           content:
             application/json:
               schema:
@@ -364,7 +321,6 @@ paths:
     post:
       operationId: createCategory
       tags: [categories]
-      summary: Create a new category
       security:
         - BearerAuth: []
       requestBody:
@@ -375,7 +331,7 @@ paths:
               $ref: "#/components/schemas/CreateCategoryRequest"
       responses:
         "201":
-          description: Category created
+          description: Created
           content:
             application/json:
               schema:
@@ -385,28 +341,20 @@ paths:
     get:
       operationId: getCategory
       tags: [categories]
-      summary: Get a category by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: Category
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     patch:
       operationId: updateCategory
       tags: [categories]
-      summary: Update a category
       security:
         - BearerAuth: []
       parameters:
@@ -419,7 +367,7 @@ paths:
               $ref: "#/components/schemas/UpdateCategoryRequest"
       responses:
         "200":
-          description: Updated category
+          description: OK
           content:
             application/json:
               schema:
@@ -427,7 +375,6 @@ paths:
     delete:
       operationId: deleteCategory
       tags: [categories]
-      summary: Delete a category
       security:
         - BearerAuth: []
       parameters:
@@ -436,12 +383,10 @@ paths:
         "204":
           description: Deleted
 
-  # ── Subcategories ──────────────────────────────────────────────────────────
   /subcategories:
     get:
       operationId: listSubcategories
       tags: [subcategories]
-      summary: List all subcategories
       security:
         - BearerAuth: []
       parameters:
@@ -452,9 +397,13 @@ paths:
           in: query
           schema:
             type: string
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
       responses:
         "200":
-          description: Paginated list of subcategories
+          description: OK
           content:
             application/json:
               schema:
@@ -462,7 +411,6 @@ paths:
     post:
       operationId: createSubcategory
       tags: [subcategories]
-      summary: Create a new subcategory
       security:
         - BearerAuth: []
       requestBody:
@@ -473,7 +421,7 @@ paths:
               $ref: "#/components/schemas/CreateSubcategoryRequest"
       responses:
         "201":
-          description: Subcategory created
+          description: Created
           content:
             application/json:
               schema:
@@ -483,28 +431,20 @@ paths:
     get:
       operationId: getSubcategory
       tags: [subcategories]
-      summary: Get a subcategory by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: Subcategory
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Subcategory"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     patch:
       operationId: updateSubcategory
       tags: [subcategories]
-      summary: Update a subcategory
       security:
         - BearerAuth: []
       parameters:
@@ -517,7 +457,7 @@ paths:
               $ref: "#/components/schemas/UpdateSubcategoryRequest"
       responses:
         "200":
-          description: Updated subcategory
+          description: OK
           content:
             application/json:
               schema:
@@ -525,7 +465,6 @@ paths:
     delete:
       operationId: deleteSubcategory
       tags: [subcategories]
-      summary: Delete a subcategory
       security:
         - BearerAuth: []
       parameters:
@@ -534,12 +473,10 @@ paths:
         "204":
           description: Deleted
 
-  # ── Tasks ──────────────────────────────────────────────────────────────────
   /tasks:
     get:
       operationId: listTasks
       tags: [tasks]
-      summary: List all tasks
       security:
         - BearerAuth: []
       parameters:
@@ -559,9 +496,14 @@ paths:
           schema:
             type: string
             enum: [active, inactive, draft]
+        - name: collectionType
+          in: query
+          schema:
+            type: string
+            enum: [VIDEO, IMAGE, AUDIO]
       responses:
         "200":
-          description: Paginated list of tasks
+          description: OK
           content:
             application/json:
               schema:
@@ -569,7 +511,6 @@ paths:
     post:
       operationId: createTask
       tags: [tasks]
-      summary: Create a new task
       security:
         - BearerAuth: []
       requestBody:
@@ -580,7 +521,7 @@ paths:
               $ref: "#/components/schemas/CreateTaskRequest"
       responses:
         "201":
-          description: Task created
+          description: Created
           content:
             application/json:
               schema:
@@ -590,28 +531,20 @@ paths:
     get:
       operationId: getTask
       tags: [tasks]
-      summary: Get a task by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: Task
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
     patch:
       operationId: updateTask
       tags: [tasks]
-      summary: Update a task
       security:
         - BearerAuth: []
       parameters:
@@ -624,7 +557,7 @@ paths:
               $ref: "#/components/schemas/UpdateTaskRequest"
       responses:
         "200":
-          description: Updated task
+          description: OK
           content:
             application/json:
               schema:
@@ -632,7 +565,6 @@ paths:
     delete:
       operationId: deleteTask
       tags: [tasks]
-      summary: Delete a task
       security:
         - BearerAuth: []
       parameters:
@@ -641,12 +573,26 @@ paths:
         "204":
           description: Deleted
 
-  # ── Submissions ────────────────────────────────────────────────────────────
+  /tasks/{id}/duplicate:
+    post:
+      operationId: duplicateTask
+      tags: [tasks]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
   /submissions:
     get:
       operationId: listSubmissions
       tags: [submissions]
-      summary: List all submissions
       security:
         - BearerAuth: []
       parameters:
@@ -667,7 +613,7 @@ paths:
             enum: [pending, approved, rejected, under_review]
       responses:
         "200":
-          description: Paginated list of submissions
+          description: OK
           content:
             application/json:
               schema:
@@ -677,30 +623,22 @@ paths:
     get:
       operationId: getSubmission
       tags: [submissions]
-      summary: Get a submission by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: Submission
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Submission"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 
   /submissions/{id}/status:
     patch:
       operationId: updateSubmissionStatus
       tags: [submissions]
-      summary: Update submission review status
       security:
         - BearerAuth: []
       parameters:
@@ -713,18 +651,16 @@ paths:
               $ref: "#/components/schemas/UpdateSubmissionStatusRequest"
       responses:
         "200":
-          description: Updated submission
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Submission"
 
-  # ── Wallet ─────────────────────────────────────────────────────────────────
   /wallets/{userId}:
     get:
       operationId: getUserWallet
       tags: [wallet]
-      summary: Get wallet for a user
       security:
         - BearerAuth: []
       parameters:
@@ -735,24 +671,16 @@ paths:
             type: string
       responses:
         "200":
-          description: Wallet
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Wallet"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 
-  # ── Wallet Transactions ────────────────────────────────────────────────────
   /wallet-transactions:
     get:
       operationId: listWalletTransactions
       tags: [wallet-transactions]
-      summary: List all wallet transactions
       security:
         - BearerAuth: []
       parameters:
@@ -769,7 +697,7 @@ paths:
             enum: [credit, debit]
       responses:
         "200":
-          description: Paginated list of wallet transactions
+          description: OK
           content:
             application/json:
               schema:
@@ -779,36 +707,27 @@ paths:
     get:
       operationId: getWalletTransaction
       tags: [wallet-transactions]
-      summary: Get a wallet transaction by ID
       security:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
         "200":
-          description: Wallet transaction
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/WalletTransaction"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
 
-  # ── OTP Settings ───────────────────────────────────────────────────────────
   /otp-settings:
     get:
       operationId: getOtpSettings
       tags: [otp-settings]
-      summary: Get global OTP settings
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: OTP settings
+          description: OK
           content:
             application/json:
               schema:
@@ -816,7 +735,6 @@ paths:
     patch:
       operationId: updateOtpSettings
       tags: [otp-settings]
-      summary: Update OTP settings
       security:
         - BearerAuth: []
       requestBody:
@@ -827,23 +745,21 @@ paths:
               $ref: "#/components/schemas/UpdateOtpSettingsRequest"
       responses:
         "200":
-          description: Updated OTP settings
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/OtpSettings"
 
-  # ── Dashboard Analytics ────────────────────────────────────────────────────
   /dashboard/stats:
     get:
       operationId: getDashboardStats
       tags: [dashboard]
-      summary: Get admin dashboard overview statistics
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Dashboard statistics
+          description: OK
           content:
             application/json:
               schema:
@@ -851,16 +767,13 @@ paths:
 
   /dashboard/recent-activity:
     get:
-      operationId: getDashboardRecentActivity
+      operationId: getRecentActivity
       tags: [dashboard]
-      summary: Get recent platform activity
       security:
         - BearerAuth: []
-      parameters:
-        - $ref: "#/components/parameters/LimitParam"
       responses:
         "200":
-          description: Recent activity items
+          description: OK
           content:
             application/json:
               schema:
@@ -870,12 +783,11 @@ paths:
     get:
       operationId: getSubmissionTrends
       tags: [dashboard]
-      summary: Get submission counts grouped by day for the past 30 days
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Submission trend data
+          description: OK
           content:
             application/json:
               schema:
@@ -900,12 +812,15 @@ components:
       in: query
       schema:
         type: integer
+        minimum: 1
         default: 1
     LimitParam:
       name: limit
       in: query
       schema:
         type: integer
+        minimum: 1
+        maximum: 100
         default: 20
     SearchParam:
       name: search
@@ -919,21 +834,18 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
     ErrorResponse:
       type: object
       properties:
-        statusCode:
-          type: integer
         message:
           type: string
+        statusCode:
+          type: integer
         error:
           type: string
-      required:
-        - statusCode
-        - message
+      required: [message]
 
     PaginationMeta:
       type: object
@@ -946,32 +858,7 @@ components:
           type: integer
         totalPages:
           type: integer
-      required:
-        - total
-        - page
-        - limit
-        - totalPages
-
-    # ── Auth Schemas ──────────────────────────────────────────────────────────
-    AdminLoginRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-      required:
-        - email
-        - password
-
-    RequestOtpRequest:
-      type: object
-      properties:
-        phoneNumber:
-          type: string
-      required:
-        - phoneNumber
+      required: [total, page, limit, totalPages]
 
     OtpRequestResult:
       type: object
@@ -980,9 +867,24 @@ components:
           type: string
         sessionId:
           type: string
-      required:
-        - message
-        - sessionId
+      required: [message, sessionId]
+
+    AdminLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+
+    RequestOtpRequest:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+      required: [phoneNumber]
 
     VerifyOtpRequest:
       type: object
@@ -991,17 +893,14 @@ components:
           type: string
         otp:
           type: string
-      required:
-        - sessionId
-        - otp
+      required: [sessionId, otp]
 
     RefreshTokenRequest:
       type: object
       properties:
         refreshToken:
           type: string
-      required:
-        - refreshToken
+      required: [refreshToken]
 
     AuthTokens:
       type: object
@@ -1012,12 +911,8 @@ components:
           type: string
         expiresIn:
           type: integer
-      required:
-        - accessToken
-        - refreshToken
-        - expiresIn
+      required: [accessToken, refreshToken, expiresIn]
 
-    # ── Admin User Schemas ────────────────────────────────────────────────────
     AdminUser:
       type: object
       properties:
@@ -1038,14 +933,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - email
-        - name
-        - role
-        - isActive
-        - createdAt
-        - updatedAt
+      required: [id, email, name, role, isActive, createdAt, updatedAt]
 
     CreateAdminUserRequest:
       type: object
@@ -1060,11 +948,7 @@ components:
         role:
           type: string
           enum: [super_admin, admin, moderator]
-      required:
-        - email
-        - name
-        - password
-        - role
+      required: [email, name, password, role]
 
     UpdateAdminUserRequest:
       type: object
@@ -1088,11 +972,8 @@ components:
             $ref: "#/components/schemas/AdminUser"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── User Schemas ──────────────────────────────────────────────────────────
     User:
       type: object
       properties:
@@ -1115,14 +996,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - phoneNumber
-        - status
-        - totalEarnings
-        - totalSubmissions
-        - createdAt
-        - updatedAt
+      required: [id, phoneNumber, status, totalEarnings, totalSubmissions, createdAt, updatedAt]
 
     UpdateUserRequest:
       type: object
@@ -1142,11 +1016,21 @@ components:
             $ref: "#/components/schemas/User"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── Category Schemas ──────────────────────────────────────────────────────
+    CategorySummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        icon:
+          type: string
+        isActive:
+          type: boolean
+      required: [id, name, isActive]
+
     Category:
       type: object
       properties:
@@ -1156,6 +1040,12 @@ components:
           type: string
         description:
           type: string
+        icon:
+          type: string
+        coverImageUrl:
+          type: string
+        displayOrder:
+          type: integer
         isActive:
           type: boolean
         subcategoryCount:
@@ -1168,14 +1058,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - name
-        - isActive
-        - subcategoryCount
-        - taskCount
-        - createdAt
-        - updatedAt
+      required: [id, name, isActive, displayOrder, subcategoryCount, taskCount, createdAt, updatedAt]
 
     CreateCategoryRequest:
       type: object
@@ -1184,10 +1067,15 @@ components:
           type: string
         description:
           type: string
+        icon:
+          type: string
+        coverImageUrl:
+          type: string
+        displayOrder:
+          type: integer
         isActive:
           type: boolean
-      required:
-        - name
+      required: [name]
 
     UpdateCategoryRequest:
       type: object
@@ -1196,6 +1084,12 @@ components:
           type: string
         description:
           type: string
+        icon:
+          type: string
+        coverImageUrl:
+          type: string
+        displayOrder:
+          type: integer
         isActive:
           type: boolean
 
@@ -1208,11 +1102,19 @@ components:
             $ref: "#/components/schemas/Category"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── Subcategory Schemas ───────────────────────────────────────────────────
+    SubcategorySummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
+      required: [id, name, isActive]
+
     Subcategory:
       type: object
       properties:
@@ -1225,7 +1127,9 @@ components:
         categoryId:
           type: string
         category:
-          $ref: "#/components/schemas/Category"
+          $ref: "#/components/schemas/CategorySummary"
+        displayOrder:
+          type: integer
         isActive:
           type: boolean
         taskCount:
@@ -1236,14 +1140,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - name
-        - categoryId
-        - isActive
-        - taskCount
-        - createdAt
-        - updatedAt
+      required: [id, name, categoryId, isActive, displayOrder, taskCount, createdAt, updatedAt]
 
     CreateSubcategoryRequest:
       type: object
@@ -1254,11 +1151,11 @@ components:
           type: string
         categoryId:
           type: string
+        displayOrder:
+          type: integer
         isActive:
           type: boolean
-      required:
-        - name
-        - categoryId
+      required: [name, categoryId]
 
     UpdateSubcategoryRequest:
       type: object
@@ -1269,6 +1166,8 @@ components:
           type: string
         categoryId:
           type: string
+        displayOrder:
+          type: integer
         isActive:
           type: boolean
 
@@ -1281,11 +1180,8 @@ components:
             $ref: "#/components/schemas/Subcategory"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── Task Schemas ──────────────────────────────────────────────────────────
     Task:
       type: object
       properties:
@@ -1295,18 +1191,70 @@ components:
           type: string
         description:
           type: string
-        instructions:
+        detailedInstructions:
           type: string
+        dos:
+          type: array
+          items:
+            type: string
+        donts:
+          type: array
+          items:
+            type: string
         categoryId:
           type: string
         category:
-          $ref: "#/components/schemas/Category"
+          $ref: "#/components/schemas/CategorySummary"
         subcategoryId:
           type: string
         subcategory:
-          $ref: "#/components/schemas/Subcategory"
-        reward:
+          $ref: "#/components/schemas/SubcategorySummary"
+        collectionType:
+          type: string
+          enum: [VIDEO, IMAGE, AUDIO]
+        paymentAmount:
           type: number
+        currency:
+          type: string
+        sampleMediaUrl:
+          type: string
+        minimumDurationSeconds:
+          type: integer
+        maximumDurationSeconds:
+          type: integer
+        minimumImageCount:
+          type: integer
+        maximumImageCount:
+          type: integer
+        preferredFps:
+          type: number
+        minimumFps:
+          type: number
+        preferredCamera:
+          type: string
+          enum: [REAR, FRONT, ANY]
+        preferredLens:
+          type: string
+          enum: [ULTRA_WIDE, STANDARD, ANY]
+        requiredOrientation:
+          type: string
+          enum: [PORTRAIT, LANDSCAPE, ANY]
+        audioRequired:
+          type: boolean
+        pauseAllowed:
+          type: boolean
+        maxSubmissionsPerUser:
+          type: integer
+        maxTotalSubmissions:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        displayOrder:
+          type: integer
         status:
           type: string
           enum: [active, inactive, draft]
@@ -1322,9 +1270,19 @@ components:
         - id
         - title
         - categoryId
-        - reward
+        - collectionType
+        - paymentAmount
+        - currency
+        - preferredCamera
+        - preferredLens
+        - requiredOrientation
+        - audioRequired
+        - pauseAllowed
+        - displayOrder
         - status
         - submissionCount
+        - dos
+        - donts
         - createdAt
         - updatedAt
 
@@ -1335,21 +1293,70 @@ components:
           type: string
         description:
           type: string
-        instructions:
+        detailedInstructions:
           type: string
+        dos:
+          type: array
+          items:
+            type: string
+        donts:
+          type: array
+          items:
+            type: string
         categoryId:
           type: string
         subcategoryId:
           type: string
-        reward:
+        collectionType:
+          type: string
+          enum: [VIDEO, IMAGE, AUDIO]
+        paymentAmount:
           type: number
+        currency:
+          type: string
+        sampleMediaUrl:
+          type: string
+        minimumDurationSeconds:
+          type: integer
+        maximumDurationSeconds:
+          type: integer
+        minimumImageCount:
+          type: integer
+        maximumImageCount:
+          type: integer
+        preferredFps:
+          type: number
+        minimumFps:
+          type: number
+        preferredCamera:
+          type: string
+          enum: [REAR, FRONT, ANY]
+        preferredLens:
+          type: string
+          enum: [ULTRA_WIDE, STANDARD, ANY]
+        requiredOrientation:
+          type: string
+          enum: [PORTRAIT, LANDSCAPE, ANY]
+        audioRequired:
+          type: boolean
+        pauseAllowed:
+          type: boolean
+        maxSubmissionsPerUser:
+          type: integer
+        maxTotalSubmissions:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        displayOrder:
+          type: integer
         status:
           type: string
           enum: [active, inactive, draft]
-      required:
-        - title
-        - categoryId
-        - reward
+      required: [title, categoryId]
 
     UpdateTaskRequest:
       type: object
@@ -1358,14 +1365,66 @@ components:
           type: string
         description:
           type: string
-        instructions:
+        detailedInstructions:
           type: string
+        dos:
+          type: array
+          items:
+            type: string
+        donts:
+          type: array
+          items:
+            type: string
         categoryId:
           type: string
         subcategoryId:
           type: string
-        reward:
+        collectionType:
+          type: string
+          enum: [VIDEO, IMAGE, AUDIO]
+        paymentAmount:
           type: number
+        currency:
+          type: string
+        sampleMediaUrl:
+          type: string
+        minimumDurationSeconds:
+          type: integer
+        maximumDurationSeconds:
+          type: integer
+        minimumImageCount:
+          type: integer
+        maximumImageCount:
+          type: integer
+        preferredFps:
+          type: number
+        minimumFps:
+          type: number
+        preferredCamera:
+          type: string
+          enum: [REAR, FRONT, ANY]
+        preferredLens:
+          type: string
+          enum: [ULTRA_WIDE, STANDARD, ANY]
+        requiredOrientation:
+          type: string
+          enum: [PORTRAIT, LANDSCAPE, ANY]
+        audioRequired:
+          type: boolean
+        pauseAllowed:
+          type: boolean
+        maxSubmissionsPerUser:
+          type: integer
+        maxTotalSubmissions:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        displayOrder:
+          type: integer
         status:
           type: string
           enum: [active, inactive, draft]
@@ -1379,11 +1438,8 @@ components:
             $ref: "#/components/schemas/Task"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── Submission Schemas ────────────────────────────────────────────────────
     Submission:
       type: object
       properties:
@@ -1410,14 +1466,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - taskId
-        - userId
-        - status
-        - rewardAmount
-        - createdAt
-        - updatedAt
+      required: [id, taskId, userId, status, rewardAmount, createdAt, updatedAt]
 
     UpdateSubmissionStatusRequest:
       type: object
@@ -1427,8 +1476,7 @@ components:
           enum: [approved, rejected, under_review]
         reviewNote:
           type: string
-      required:
-        - status
+      required: [status]
 
     SubmissionListResponse:
       type: object
@@ -1439,11 +1487,8 @@ components:
             $ref: "#/components/schemas/Submission"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── Wallet Schemas ────────────────────────────────────────────────────────
     Wallet:
       type: object
       properties:
@@ -1463,14 +1508,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - userId
-        - balance
-        - totalEarned
-        - totalWithdrawn
-        - createdAt
-        - updatedAt
+      required: [id, userId, balance, totalEarned, totalWithdrawn, createdAt, updatedAt]
 
     WalletTransaction:
       type: object
@@ -1495,13 +1533,7 @@ components:
         createdAt:
           type: string
           format: date-time
-      required:
-        - id
-        - walletId
-        - userId
-        - type
-        - amount
-        - createdAt
+      required: [id, walletId, userId, type, amount, createdAt]
 
     WalletTransactionListResponse:
       type: object
@@ -1512,11 +1544,8 @@ components:
             $ref: "#/components/schemas/WalletTransaction"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
-      required:
-        - data
-        - meta
+      required: [data, meta]
 
-    # ── OTP Settings Schemas ──────────────────────────────────────────────────
     OtpSettings:
       type: object
       properties:
@@ -1537,14 +1566,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required:
-        - id
-        - otpLength
-        - otpExpirySeconds
-        - maxAttempts
-        - cooldownSeconds
-        - isTestMode
-        - updatedAt
+      required: [id, otpLength, otpExpirySeconds, maxAttempts, cooldownSeconds, isTestMode, updatedAt]
 
     UpdateOtpSettingsRequest:
       type: object
@@ -1562,7 +1584,6 @@ components:
         testOtp:
           type: string
 
-    # ── Dashboard Schemas ─────────────────────────────────────────────────────
     DashboardStats:
       type: object
       properties:
@@ -1582,15 +1603,7 @@ components:
           type: number
         totalEarnedToday:
           type: number
-      required:
-        - totalUsers
-        - activeUsers
-        - totalTasks
-        - activeTasks
-        - totalSubmissions
-        - pendingSubmissions
-        - totalWalletBalance
-        - totalEarnedToday
+      required: [totalUsers, activeUsers, totalTasks, activeTasks, totalSubmissions, pendingSubmissions, totalWalletBalance, totalEarnedToday]
 
     RecentActivityItem:
       type: object
@@ -1605,11 +1618,7 @@ components:
         createdAt:
           type: string
           format: date-time
-      required:
-        - id
-        - type
-        - description
-        - createdAt
+      required: [id, type, description, createdAt]
 
     RecentActivityResponse:
       type: object
@@ -1618,8 +1627,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RecentActivityItem"
-      required:
-        - data
+      required: [data]
 
     SubmissionTrendPoint:
       type: object
@@ -1633,11 +1641,7 @@ components:
           type: integer
         rejected:
           type: integer
-      required:
-        - date
-        - count
-        - approved
-        - rejected
+      required: [date, count, approved, rejected]
 
     SubmissionTrendsResponse:
       type: object
@@ -1646,5 +1650,4 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SubmissionTrendPoint"
-      required:
-        - data
+      required: [data]

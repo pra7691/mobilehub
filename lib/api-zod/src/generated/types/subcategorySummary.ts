@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ErrorResponse {
-  message: string;
-  statusCode?: number;
-  error?: string;
+export interface SubcategorySummary {
+  id: string;
+  name: string;
+  isActive: boolean;
 }

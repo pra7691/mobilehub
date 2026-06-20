@@ -59,9 +59,6 @@ export const VerifyOtpResponse = zod.object({
 })
 
 
-/**
- * @summary Refresh access token
- */
 export const RefreshTokensBody = zod.object({
   "refreshToken": zod.string()
 })
@@ -73,15 +70,16 @@ export const RefreshTokensResponse = zod.object({
 })
 
 
-/**
- * @summary List all admin users
- */
 export const listAdminUsersQueryPageDefault = 1;
+
 export const listAdminUsersQueryLimitDefault = 20;
+export const listAdminUsersQueryLimitMax = 100;
+
+
 
 export const ListAdminUsersQueryParams = zod.object({
-  "page": zod.coerce.number().default(listAdminUsersQueryPageDefault),
-  "limit": zod.coerce.number().default(listAdminUsersQueryLimitDefault),
+  "page": zod.coerce.number().min(1).default(listAdminUsersQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAdminUsersQueryLimitMax).default(listAdminUsersQueryLimitDefault),
   "search": zod.coerce.string().optional()
 })
 
@@ -104,9 +102,6 @@ export const ListAdminUsersResponse = zod.object({
 })
 
 
-/**
- * @summary Create a new admin user
- */
 export const CreateAdminUserBody = zod.object({
   "email": zod.string().email(),
   "name": zod.string(),
@@ -115,9 +110,6 @@ export const CreateAdminUserBody = zod.object({
 })
 
 
-/**
- * @summary Get an admin user by ID
- */
 export const GetAdminUserParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -133,9 +125,6 @@ export const GetAdminUserResponse = zod.object({
 })
 
 
-/**
- * @summary Update an admin user
- */
 export const UpdateAdminUserParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -158,23 +147,21 @@ export const UpdateAdminUserResponse = zod.object({
 })
 
 
-/**
- * @summary Delete an admin user
- */
 export const DeleteAdminUserParams = zod.object({
   "id": zod.coerce.string()
 })
 
 
-/**
- * @summary List all mobile users
- */
 export const listUsersQueryPageDefault = 1;
+
 export const listUsersQueryLimitDefault = 20;
+export const listUsersQueryLimitMax = 100;
+
+
 
 export const ListUsersQueryParams = zod.object({
-  "page": zod.coerce.number().default(listUsersQueryPageDefault),
-  "limit": zod.coerce.number().default(listUsersQueryLimitDefault),
+  "page": zod.coerce.number().min(1).default(listUsersQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listUsersQueryLimitMax).default(listUsersQueryLimitDefault),
   "search": zod.coerce.string().optional(),
   "status": zod.enum(['active', 'inactive', 'suspended']).optional()
 })
@@ -199,9 +186,6 @@ export const ListUsersResponse = zod.object({
 })
 
 
-/**
- * @summary Get a mobile user by ID
- */
 export const GetUserParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -218,9 +202,6 @@ export const GetUserResponse = zod.object({
 })
 
 
-/**
- * @summary Update a mobile user
- */
 export const UpdateUserParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -242,17 +223,11 @@ export const UpdateUserResponse = zod.object({
 })
 
 
-/**
- * @summary Soft-delete a mobile user
- */
 export const DeleteUserParams = zod.object({
   "id": zod.coerce.string()
 })
 
 
-/**
- * @summary Get current authenticated mobile user profile
- */
 export const GetMeResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
@@ -265,16 +240,18 @@ export const GetMeResponse = zod.object({
 })
 
 
-/**
- * @summary List all categories
- */
 export const listCategoriesQueryPageDefault = 1;
+
 export const listCategoriesQueryLimitDefault = 20;
+export const listCategoriesQueryLimitMax = 100;
+
+
 
 export const ListCategoriesQueryParams = zod.object({
-  "page": zod.coerce.number().default(listCategoriesQueryPageDefault),
-  "limit": zod.coerce.number().default(listCategoriesQueryLimitDefault),
-  "search": zod.coerce.string().optional()
+  "page": zod.coerce.number().min(1).default(listCategoriesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listCategoriesQueryLimitMax).default(listCategoriesQueryLimitDefault),
+  "search": zod.coerce.string().optional(),
+  "isActive": zod.coerce.boolean().optional()
 })
 
 export const ListCategoriesResponse = zod.object({
@@ -282,6 +259,9 @@ export const ListCategoriesResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().optional(),
+  "icon": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "subcategoryCount": zod.number(),
   "taskCount": zod.number(),
@@ -297,19 +277,16 @@ export const ListCategoriesResponse = zod.object({
 })
 
 
-/**
- * @summary Create a new category
- */
 export const CreateCategoryBody = zod.object({
   "name": zod.string(),
   "description": zod.string().optional(),
+  "icon": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "displayOrder": zod.number().optional(),
   "isActive": zod.boolean().optional()
 })
 
 
-/**
- * @summary Get a category by ID
- */
 export const GetCategoryParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -318,6 +295,9 @@ export const GetCategoryResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().optional(),
+  "icon": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "subcategoryCount": zod.number(),
   "taskCount": zod.number(),
@@ -326,9 +306,6 @@ export const GetCategoryResponse = zod.object({
 })
 
 
-/**
- * @summary Update a category
- */
 export const UpdateCategoryParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -336,6 +313,9 @@ export const UpdateCategoryParams = zod.object({
 export const UpdateCategoryBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().optional(),
+  "icon": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "displayOrder": zod.number().optional(),
   "isActive": zod.boolean().optional()
 })
 
@@ -343,6 +323,9 @@ export const UpdateCategoryResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().optional(),
+  "icon": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "subcategoryCount": zod.number(),
   "taskCount": zod.number(),
@@ -351,25 +334,24 @@ export const UpdateCategoryResponse = zod.object({
 })
 
 
-/**
- * @summary Delete a category
- */
 export const DeleteCategoryParams = zod.object({
   "id": zod.coerce.string()
 })
 
 
-/**
- * @summary List all subcategories
- */
 export const listSubcategoriesQueryPageDefault = 1;
+
 export const listSubcategoriesQueryLimitDefault = 20;
+export const listSubcategoriesQueryLimitMax = 100;
+
+
 
 export const ListSubcategoriesQueryParams = zod.object({
-  "page": zod.coerce.number().default(listSubcategoriesQueryPageDefault),
-  "limit": zod.coerce.number().default(listSubcategoriesQueryLimitDefault),
+  "page": zod.coerce.number().min(1).default(listSubcategoriesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listSubcategoriesQueryLimitMax).default(listSubcategoriesQueryLimitDefault),
   "search": zod.coerce.string().optional(),
-  "categoryId": zod.coerce.string().optional()
+  "categoryId": zod.coerce.string().optional(),
+  "isActive": zod.coerce.boolean().optional()
 })
 
 export const ListSubcategoriesResponse = zod.object({
@@ -381,13 +363,10 @@ export const ListSubcategoriesResponse = zod.object({
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
+  "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "taskCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -402,20 +381,15 @@ export const ListSubcategoriesResponse = zod.object({
 })
 
 
-/**
- * @summary Create a new subcategory
- */
 export const CreateSubcategoryBody = zod.object({
   "name": zod.string(),
   "description": zod.string().optional(),
   "categoryId": zod.string(),
+  "displayOrder": zod.number().optional(),
   "isActive": zod.boolean().optional()
 })
 
 
-/**
- * @summary Get a subcategory by ID
- */
 export const GetSubcategoryParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -428,13 +402,10 @@ export const GetSubcategoryResponse = zod.object({
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
+  "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "taskCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -442,9 +413,6 @@ export const GetSubcategoryResponse = zod.object({
 })
 
 
-/**
- * @summary Update a subcategory
- */
 export const UpdateSubcategoryParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -453,6 +421,7 @@ export const UpdateSubcategoryBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().optional(),
   "categoryId": zod.string().optional(),
+  "displayOrder": zod.number().optional(),
   "isActive": zod.boolean().optional()
 })
 
@@ -464,13 +433,10 @@ export const UpdateSubcategoryResponse = zod.object({
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
+  "displayOrder": zod.number(),
   "isActive": zod.boolean(),
   "taskCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -478,27 +444,26 @@ export const UpdateSubcategoryResponse = zod.object({
 })
 
 
-/**
- * @summary Delete a subcategory
- */
 export const DeleteSubcategoryParams = zod.object({
   "id": zod.coerce.string()
 })
 
 
-/**
- * @summary List all tasks
- */
 export const listTasksQueryPageDefault = 1;
+
 export const listTasksQueryLimitDefault = 20;
+export const listTasksQueryLimitMax = 100;
+
+
 
 export const ListTasksQueryParams = zod.object({
-  "page": zod.coerce.number().default(listTasksQueryPageDefault),
-  "limit": zod.coerce.number().default(listTasksQueryLimitDefault),
+  "page": zod.coerce.number().min(1).default(listTasksQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listTasksQueryLimitMax).default(listTasksQueryLimitDefault),
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.string().optional(),
   "subcategoryId": zod.coerce.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'draft']).optional()
+  "status": zod.enum(['active', 'inactive', 'draft']).optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']).optional()
 })
 
 export const ListTasksResponse = zod.object({
@@ -506,40 +471,42 @@ export const ListTasksResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
   "categoryId": zod.string(),
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
   "subcategoryId": zod.string().optional(),
   "subcategory": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "categoryId": zod.string(),
-  "category": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "isActive": zod.boolean()
 }).optional(),
-  "isActive": zod.boolean(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
   "status": zod.enum(['active', 'inactive', 'draft']),
   "submissionCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -554,23 +521,38 @@ export const ListTasksResponse = zod.object({
 })
 
 
-/**
- * @summary Create a new task
- */
 export const CreateTaskBody = zod.object({
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()).optional(),
+  "donts": zod.array(zod.string()).optional(),
   "categoryId": zod.string(),
   "subcategoryId": zod.string().optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']).optional(),
+  "paymentAmount": zod.number().optional(),
+  "currency": zod.string().optional(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']).optional(),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']).optional(),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']).optional(),
+  "audioRequired": zod.boolean().optional(),
+  "pauseAllowed": zod.boolean().optional(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number().optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional()
 })
 
 
-/**
- * @summary Get a task by ID
- */
 export const GetTaskParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -579,40 +561,42 @@ export const GetTaskResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
   "categoryId": zod.string(),
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
   "subcategoryId": zod.string().optional(),
   "subcategory": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "categoryId": zod.string(),
-  "category": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "isActive": zod.boolean()
 }).optional(),
-  "isActive": zod.boolean(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
   "status": zod.enum(['active', 'inactive', 'draft']),
   "submissionCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -620,9 +604,6 @@ export const GetTaskResponse = zod.object({
 })
 
 
-/**
- * @summary Update a task
- */
 export const UpdateTaskParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -630,10 +611,31 @@ export const UpdateTaskParams = zod.object({
 export const UpdateTaskBody = zod.object({
   "title": zod.string().optional(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()).optional(),
+  "donts": zod.array(zod.string()).optional(),
   "categoryId": zod.string().optional(),
   "subcategoryId": zod.string().optional(),
-  "reward": zod.number().optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']).optional(),
+  "paymentAmount": zod.number().optional(),
+  "currency": zod.string().optional(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']).optional(),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']).optional(),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']).optional(),
+  "audioRequired": zod.boolean().optional(),
+  "pauseAllowed": zod.boolean().optional(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number().optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional()
 })
 
@@ -641,40 +643,42 @@ export const UpdateTaskResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
   "categoryId": zod.string(),
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
   "subcategoryId": zod.string().optional(),
   "subcategory": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "categoryId": zod.string(),
-  "category": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "isActive": zod.boolean()
 }).optional(),
-  "isActive": zod.boolean(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
   "status": zod.enum(['active', 'inactive', 'draft']),
   "submissionCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -682,23 +686,26 @@ export const UpdateTaskResponse = zod.object({
 })
 
 
-/**
- * @summary Delete a task
- */
 export const DeleteTaskParams = zod.object({
   "id": zod.coerce.string()
 })
 
 
-/**
- * @summary List all submissions
- */
+export const DuplicateTaskParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
 export const listSubmissionsQueryPageDefault = 1;
+
 export const listSubmissionsQueryLimitDefault = 20;
+export const listSubmissionsQueryLimitMax = 100;
+
+
 
 export const ListSubmissionsQueryParams = zod.object({
-  "page": zod.coerce.number().default(listSubmissionsQueryPageDefault),
-  "limit": zod.coerce.number().default(listSubmissionsQueryLimitDefault),
+  "page": zod.coerce.number().min(1).default(listSubmissionsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listSubmissionsQueryLimitMax).default(listSubmissionsQueryLimitDefault),
   "taskId": zod.coerce.string().optional(),
   "userId": zod.coerce.string().optional(),
   "status": zod.enum(['pending', 'approved', 'rejected', 'under_review']).optional()
@@ -712,40 +719,42 @@ export const ListSubmissionsResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
   "categoryId": zod.string(),
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
   "subcategoryId": zod.string().optional(),
   "subcategory": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "categoryId": zod.string(),
-  "category": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "isActive": zod.boolean()
 }).optional(),
-  "isActive": zod.boolean(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
   "status": zod.enum(['active', 'inactive', 'draft']),
   "submissionCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -777,9 +786,6 @@ export const ListSubmissionsResponse = zod.object({
 })
 
 
-/**
- * @summary Get a submission by ID
- */
 export const GetSubmissionParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -791,40 +797,42 @@ export const GetSubmissionResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
   "categoryId": zod.string(),
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
   "subcategoryId": zod.string().optional(),
   "subcategory": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "categoryId": zod.string(),
-  "category": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "isActive": zod.boolean()
 }).optional(),
-  "isActive": zod.boolean(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
   "status": zod.enum(['active', 'inactive', 'draft']),
   "submissionCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -849,9 +857,6 @@ export const GetSubmissionResponse = zod.object({
 })
 
 
-/**
- * @summary Update submission review status
- */
 export const UpdateSubmissionStatusParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -868,40 +873,42 @@ export const UpdateSubmissionStatusResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "description": zod.string().optional(),
-  "instructions": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
   "categoryId": zod.string(),
   "category": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
 }).optional(),
   "subcategoryId": zod.string().optional(),
   "subcategory": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "description": zod.string().optional(),
-  "categoryId": zod.string(),
-  "category": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "description": zod.string().optional(),
-  "isActive": zod.boolean(),
-  "subcategoryCount": zod.number(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
+  "isActive": zod.boolean()
 }).optional(),
-  "isActive": zod.boolean(),
-  "taskCount": zod.number(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).optional(),
-  "reward": zod.number(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
   "status": zod.enum(['active', 'inactive', 'draft']),
   "submissionCount": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -926,9 +933,6 @@ export const UpdateSubmissionStatusResponse = zod.object({
 })
 
 
-/**
- * @summary Get wallet for a user
- */
 export const GetUserWalletParams = zod.object({
   "userId": zod.coerce.string()
 })
@@ -944,15 +948,16 @@ export const GetUserWalletResponse = zod.object({
 })
 
 
-/**
- * @summary List all wallet transactions
- */
 export const listWalletTransactionsQueryPageDefault = 1;
+
 export const listWalletTransactionsQueryLimitDefault = 20;
+export const listWalletTransactionsQueryLimitMax = 100;
+
+
 
 export const ListWalletTransactionsQueryParams = zod.object({
-  "page": zod.coerce.number().default(listWalletTransactionsQueryPageDefault),
-  "limit": zod.coerce.number().default(listWalletTransactionsQueryLimitDefault),
+  "page": zod.coerce.number().min(1).default(listWalletTransactionsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listWalletTransactionsQueryLimitMax).default(listWalletTransactionsQueryLimitDefault),
   "userId": zod.coerce.string().optional(),
   "type": zod.enum(['credit', 'debit']).optional()
 })
@@ -987,9 +992,6 @@ export const ListWalletTransactionsResponse = zod.object({
 })
 
 
-/**
- * @summary Get a wallet transaction by ID
- */
 export const GetWalletTransactionParams = zod.object({
   "id": zod.coerce.string()
 })
@@ -1016,9 +1018,6 @@ export const GetWalletTransactionResponse = zod.object({
 })
 
 
-/**
- * @summary Get global OTP settings
- */
 export const GetOtpSettingsResponse = zod.object({
   "id": zod.string(),
   "otpLength": zod.number(),
@@ -1031,9 +1030,6 @@ export const GetOtpSettingsResponse = zod.object({
 })
 
 
-/**
- * @summary Update OTP settings
- */
 export const UpdateOtpSettingsBody = zod.object({
   "otpLength": zod.number().optional(),
   "otpExpirySeconds": zod.number().optional(),
@@ -1055,9 +1051,6 @@ export const UpdateOtpSettingsResponse = zod.object({
 })
 
 
-/**
- * @summary Get admin dashboard overview statistics
- */
 export const GetDashboardStatsResponse = zod.object({
   "totalUsers": zod.number(),
   "activeUsers": zod.number(),
@@ -1070,16 +1063,7 @@ export const GetDashboardStatsResponse = zod.object({
 })
 
 
-/**
- * @summary Get recent platform activity
- */
-export const getDashboardRecentActivityQueryLimitDefault = 20;
-
-export const GetDashboardRecentActivityQueryParams = zod.object({
-  "limit": zod.coerce.number().default(getDashboardRecentActivityQueryLimitDefault)
-})
-
-export const GetDashboardRecentActivityResponse = zod.object({
+export const GetRecentActivityResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
   "type": zod.enum(['new_user', 'new_submission', 'submission_approved', 'submission_rejected', 'new_task']),
@@ -1089,9 +1073,6 @@ export const GetDashboardRecentActivityResponse = zod.object({
 })
 
 
-/**
- * @summary Get submission counts grouped by day for the past 30 days
- */
 export const GetSubmissionTrendsResponse = zod.object({
   "data": zod.array(zod.object({
   "date": zod.coerce.date(),

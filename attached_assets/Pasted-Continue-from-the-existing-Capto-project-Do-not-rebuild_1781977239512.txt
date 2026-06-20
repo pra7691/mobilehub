@@ -1,0 +1,143 @@
+Continue from the existing Capto project. Do not rebuild the project structure, authentication, dashboard layout, mobile navigation, API foundation, or database setup.
+
+Build the Task Management module end-to-end across Admin Dashboard, NestJS API, PostgreSQL/Prisma, and Expo mobile app.
+
+Scope:
+
+1. Admin Dashboard — Categories
+
+* Make Categories page fully functional.
+* Admin can create, edit, enable/disable, reorder, and soft-delete categories.
+* Fields:
+
+  * name
+  * description
+  * icon or emoji
+  * coverImageUrl optional
+  * displayOrder
+  * isActive
+* Show category list with task count and subcategory count.
+* Prevent deletion if category has active subcategories or tasks; show a clear warning.
+
+2. Admin Dashboard — Subcategories
+
+* Make Subcategories page fully functional.
+* Admin can create, edit, enable/disable, reorder, and soft-delete subcategories.
+* Fields:
+
+  * categoryId
+  * name
+  * description
+  * displayOrder
+  * isActive
+* Show the parent category in the list.
+* Only active categories should be selectable when creating a subcategory.
+
+3. Admin Dashboard — Tasks
+
+* Make Tasks page fully functional.
+* Admin can create, edit, activate/deactivate, duplicate, and soft-delete tasks.
+* Task fields:
+
+  * title
+  * shortDescription
+  * detailedInstructions
+  * dos
+  * donts
+  * categoryId
+  * subcategoryId
+  * collectionType: VIDEO, IMAGE, AUDIO
+  * paymentAmount
+  * currency, default INR
+  * sampleMediaUrl optional
+  * minimumDurationSeconds optional
+  * maximumDurationSeconds optional
+  * minimumImageCount optional
+  * maximumImageCount optional
+  * preferredFps optional
+  * minimumFps optional
+  * preferredCamera: REAR, FRONT, ANY
+  * preferredLens: ULTRA_WIDE, STANDARD, ANY
+  * requiredOrientation: PORTRAIT, LANDSCAPE, ANY
+  * audioRequired boolean
+  * pauseAllowed boolean
+  * maxSubmissionsPerUser optional
+  * maxTotalSubmissions optional
+  * startDate optional
+  * endDate optional
+  * displayOrder
+  * isActive
+* Add form validation based on collection type:
+
+  * VIDEO: minimumDurationSeconds is required.
+  * IMAGE: minimumImageCount is required.
+  * AUDIO: minimumDurationSeconds is required.
+* Add a polished task detail drawer or page in admin.
+* Show status, category, subcategory, collection type, payout amount, dates, and submission count in the task table.
+
+4. Backend / NestJS
+
+* Add proper CRUD APIs for categories, subcategories, and tasks.
+* Keep all admin write APIs protected by Admin JWT authentication.
+* Mobile user read APIs should return only active categories, active subcategories, and currently available active tasks.
+* Add pagination, search, filtering, and sorting for admin list endpoints.
+* Add filters for task status, category, subcategory, and collection type.
+* Ensure tasks can only be attached to valid active category/subcategory relationships.
+* Add Swagger documentation for all new and updated routes.
+* Add DTO validation and clear error responses.
+* Update Prisma schema and create migrations as required.
+* Maintain soft-delete behavior.
+
+5. Expo Mobile App — Tasks
+
+* Replace placeholder Tasks screen with real API-powered screens.
+* Build these screens:
+
+  * Categories list screen
+  * Subcategories list screen
+  * Task list screen
+  * Task detail screen
+* Home Tasks tab should show active categories in a modern card grid/list.
+* Tapping category opens its active subcategories.
+* Tapping subcategory opens available tasks.
+* Task cards should show:
+
+  * title
+  * collection type
+  * expected duration or image count
+  * payout amount
+  * active/available status
+* Task detail page should show:
+
+  * title
+  * category and subcategory
+  * payout
+  * full instructions
+  * dos and donts
+  * sample media preview if sampleMediaUrl exists
+  * recording/data requirements
+  * a disabled but visible “Start Task” button with label “Recording module coming next”
+* Do not implement camera access, recording, media selection, uploads, submissions, or wallet changes in this task.
+
+6. UI and Quality
+
+* Keep existing dark/cyan Capto design language consistent across admin and mobile.
+* Add proper loading, empty, error, and retry states.
+* Use real API calls, not hard-coded task data.
+* Add seeded demo data:
+
+  * At least 4 categories
+  * At least 2 subcategories per category
+  * At least 2 tasks per subcategory
+  * Include VIDEO, IMAGE, and AUDIO task examples
+* Do not change existing OTP login behavior or admin credentials.
+* Verify that the existing mobile login and admin login continue to work.
+
+At the end, provide:
+
+* List of created/updated API routes
+* Prisma schema changes
+* Seed data summary
+* Admin test flow
+* Mobile test flow
+* Any known limitations

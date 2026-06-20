@@ -11,7 +11,14 @@ import type { PageParamParameter } from './pageParamParameter';
 import type { SearchParamParameter } from './searchParamParameter';
 
 export type ListUsersParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
 status?: ListUsersStatus;

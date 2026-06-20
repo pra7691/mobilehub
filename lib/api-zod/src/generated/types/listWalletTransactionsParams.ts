@@ -10,7 +10,14 @@ import type { ListWalletTransactionsType } from './listWalletTransactionsType';
 import type { PageParamParameter } from './pageParamParameter';
 
 export type ListWalletTransactionsParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 userId?: string;
 type?: ListWalletTransactionsType;

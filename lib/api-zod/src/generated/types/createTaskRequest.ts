@@ -5,14 +5,39 @@
  * Capto mobile data-collection platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateTaskRequestCollectionType } from './createTaskRequestCollectionType';
+import type { CreateTaskRequestPreferredCamera } from './createTaskRequestPreferredCamera';
+import type { CreateTaskRequestPreferredLens } from './createTaskRequestPreferredLens';
+import type { CreateTaskRequestRequiredOrientation } from './createTaskRequestRequiredOrientation';
 import type { CreateTaskRequestStatus } from './createTaskRequestStatus';
 
 export interface CreateTaskRequest {
   title: string;
   description?: string;
-  instructions?: string;
+  detailedInstructions?: string;
+  dos?: string[];
+  donts?: string[];
   categoryId: string;
   subcategoryId?: string;
-  reward: number;
+  collectionType?: CreateTaskRequestCollectionType;
+  paymentAmount?: number;
+  currency?: string;
+  sampleMediaUrl?: string;
+  minimumDurationSeconds?: number;
+  maximumDurationSeconds?: number;
+  minimumImageCount?: number;
+  maximumImageCount?: number;
+  preferredFps?: number;
+  minimumFps?: number;
+  preferredCamera?: CreateTaskRequestPreferredCamera;
+  preferredLens?: CreateTaskRequestPreferredLens;
+  requiredOrientation?: CreateTaskRequestRequiredOrientation;
+  audioRequired?: boolean;
+  pauseAllowed?: boolean;
+  maxSubmissionsPerUser?: number;
+  maxTotalSubmissions?: number;
+  startDate?: Date;
+  endDate?: Date;
+  displayOrder?: number;
   status?: CreateTaskRequestStatus;
 }

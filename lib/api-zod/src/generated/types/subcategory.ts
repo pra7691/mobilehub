@@ -5,14 +5,15 @@
  * Capto mobile data-collection platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { Category } from './category';
+import type { CategorySummary } from './categorySummary';
 
 export interface Subcategory {
   id: string;
   name: string;
   description?: string;
   categoryId: string;
-  category?: Category;
+  category?: CategorySummary;
+  displayOrder: number;
   isActive: boolean;
   taskCount: number;
   createdAt: Date;

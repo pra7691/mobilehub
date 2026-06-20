@@ -10,7 +10,15 @@ import type { PageParamParameter } from './pageParamParameter';
 import type { SearchParamParameter } from './searchParamParameter';
 
 export type ListCategoriesParams = {
+/**
+ * @minimum 1
+ */
 page?: PageParamParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
+isActive?: boolean;
 };

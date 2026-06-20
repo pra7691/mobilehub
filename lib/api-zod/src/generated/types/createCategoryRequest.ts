@@ -9,5 +9,8 @@
 export interface CreateCategoryRequest {
   name: string;
   description?: string;
+  icon?: string;
+  coverImageUrl?: string;
+  displayOrder?: number;
   isActive?: boolean;
 }

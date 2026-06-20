@@ -1,156 +1,113 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
-} from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
-import { useListTasks, getListTasksQueryKey } from "@workspace/api-client-react";
-import { useColors } from "@/hooks/useColors";
-import { useQueryClient } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useListCategories, type Category } from "@workspace/api-client-react";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string | null;
-  reward: number;
-  status: string;
-  category?: { name: string } | null;
+function CategoryCard({ category, onPress }: { category: Category; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.cardIconContainer}>
+        <Text style={styles.cardIcon}>{category.icon || "📁"}</Text>
+      </View>
+      <View style={styles.cardBody}>
+        <Text style={styles.cardName} numberOfLines={1}>{category.name}</Text>
+        {category.description ? (
+          <Text style={styles.cardDesc} numberOfLines={2}>{category.description}</Text>
+        ) : null}
+        <View style={styles.cardMeta}>
+          <View style={styles.metaBadge}>
+            <Text style={styles.metaText}>{category.subcategoryCount} subcategories</Text>
+          </View>
+          <View style={[styles.metaBadge, styles.metaBadgeTasks]}>
+            <Text style={[styles.metaText, styles.metaTextCyan]}>{category.taskCount} tasks</Text>
+          </View>
+        </View>
+      </View>
+      <Text style={styles.cardArrow}>›</Text>
+    </TouchableOpacity>
+  );
 }
 
-export default function TasksScreen() {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
+export default function CategoriesScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data, isLoading } = useListTasks({ status: "active" });
-  const tasks: Task[] = (data as { data?: Task[] } | undefined)?.data ?? [];
+  const { data, isLoading, refetch } = useListCategories({ isActive: true, limit: 50 });
 
-  async function handleRefresh() {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+    await refetch();
     setRefreshing(false);
-  }
+  }, [refetch]);
 
-  function handleTask(task: Task) {
-    Haptics.selectionAsync();
-    router.push({ pathname: "/task/[id]", params: { id: task.id } });
-  }
+  const categories = (data?.data ?? []).filter(c => c.isActive);
 
-  const styles = makeStyles(colors);
-
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Capto</Text>
+          <Text style={styles.headerSubtitle}>Choose a task category</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#06b6d4" size="large" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerLabel}>Available</Text>
-          <Text style={styles.headerTitle}>Tasks</Text>
-        </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{tasks.length}</Text>
-        </View>
+        <Text style={styles.headerTitle}>Capto</Text>
+        <Text style={styles.headerSubtitle}>Choose a task category</Text>
       </View>
-
       <FlatList
-        data={tasks}
-        keyExtractor={(item) => item.id}
+        data={categories}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={!!tasks.length}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#06b6d4" />}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => handleTask(item)}
-            activeOpacity={0.75}
-            testID={`card-task-${item.id}`}
-          >
-            <View style={styles.cardTop}>
-              {item.category && (
-                <View style={styles.categoryTag}>
-                  <Text style={styles.categoryText}>{item.category.name}</Text>
-                </View>
-              )}
-              <View style={styles.rewardChip}>
-                <Feather name="dollar-sign" size={12} color={colors.primary} />
-                <Text style={styles.rewardText}>₹{item.reward}</Text>
-              </View>
-            </View>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            {item.description && (
-              <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-            )}
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardAction}>View details</Text>
-              <Feather name="arrow-right" size={14} color={colors.primary} />
-            </View>
-          </TouchableOpacity>
+          <CategoryCard
+            category={item}
+            onPress={() => router.push({ pathname: "/category/[id]", params: { id: item.id, name: item.name, icon: item.icon ?? "📁" } })}
+          />
         )}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="inbox" size={40} color={colors.mutedForeground} />
-            <Text style={styles.emptyText}>No tasks available right now</Text>
-            <Text style={styles.emptySubtext}>Check back later for new opportunities</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📂</Text>
+            <Text style={styles.emptyText}>No categories available</Text>
+            <Text style={styles.emptySubtext}>Check back soon for new data collection tasks.</Text>
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
-function makeStyles(colors: ReturnType<typeof useColors>) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-      paddingTop: 12,
-    },
-    headerLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium", letterSpacing: 1, textTransform: "uppercase" },
-    headerTitle: { fontSize: 26, fontFamily: "Inter_700Bold", color: colors.foreground, letterSpacing: -0.5, marginTop: 2 },
-    badge: { backgroundColor: colors.primary, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
-    badgeText: { color: colors.primaryForeground, fontSize: 14, fontFamily: "Inter_600SemiBold" },
-    list: { paddingHorizontal: 16, paddingBottom: 100, gap: 12 },
-    card: {
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: colors.border,
-      gap: 8,
-    },
-    cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    categoryTag: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3 },
-    categoryText: { fontSize: 11, color: colors.primary, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
-    rewardChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.muted, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-    rewardText: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    cardTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    cardDesc: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20 },
-    cardFooter: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-    cardAction: { fontSize: 13, color: colors.primary, fontFamily: "Inter_500Medium" },
-    empty: { alignItems: "center", paddingTop: 80, gap: 10 },
-    emptyText: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    emptySubtext: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-  });
-}
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
+  headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#ffffff" },
+  headerSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", marginTop: 2 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  list: { paddingHorizontal: 16, paddingBottom: 24, gap: 10 },
+  card: { backgroundColor: "#141414", borderRadius: 14, flexDirection: "row", alignItems: "center", padding: 14, borderWidth: 1, borderColor: "#1f1f1f" },
+  cardIconContainer: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#1a1a1a", justifyContent: "center", alignItems: "center", marginRight: 14, borderWidth: 1, borderColor: "#2a2a2a" },
+  cardIcon: { fontSize: 28 },
+  cardBody: { flex: 1 },
+  cardName: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#ffffff", marginBottom: 3 },
+  cardDesc: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#6b7280", marginBottom: 8, lineHeight: 17 },
+  cardMeta: { flexDirection: "row", gap: 8 },
+  metaBadge: { backgroundColor: "#1f1f1f", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "#2a2a2a" },
+  metaBadgeTasks: { borderColor: "#164e63" },
+  metaText: { fontSize: 11, fontFamily: "Inter_500Medium", color: "#9ca3af" },
+  metaTextCyan: { color: "#22d3ee" },
+  cardArrow: { fontSize: 22, color: "#374151", marginLeft: 8 },
+  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, paddingHorizontal: 40 },
+  emptyIcon: { fontSize: 52, marginBottom: 16 },
+  emptyText: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#ffffff", marginBottom: 8 },
+  emptySubtext: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", textAlign: "center", lineHeight: 20 },
+});
