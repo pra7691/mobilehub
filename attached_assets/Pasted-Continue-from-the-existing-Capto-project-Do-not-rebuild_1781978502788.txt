@@ -1,0 +1,215 @@
+Continue from the existing Capto project. Do not rebuild authentication, task management, database structure, admin pages, mobile task browsing, OTP flow, or existing navigation.
+
+Build the mobile in-app capture and local draft workflow only.
+
+Important scope boundary:
+
+* Do not upload media to backend or cloud storage yet.
+* Do not create final submissions yet.
+* Do not change wallet logic.
+* Do not build admin review changes.
+* This module should record or capture media locally, validate it against task requirements, save it as a local draft, and allow the user to review/delete/retry it.
+
+Technology:
+
+* Expo React Native with TypeScript
+* Expo Router
+* expo-camera
+* expo-file-system for local media metadata and draft management
+* expo-audio for audio recording if needed
+* Use existing state-management pattern already in the project
+
+1. Permissions and app configuration
+
+* Add runtime permission handling for:
+
+  * camera
+  * microphone where video/audio recording requires it
+* Add proper iOS and Android permission messages/configuration in Expo app config.
+* Show a dedicated permission-required screen with:
+
+  * clear explanation
+  * Retry permission button
+  * Open Settings button where supported
+* Do not request permissions until the user taps Start Task.
+
+2. Start Task behavior
+
+* Replace the placeholder Start Task CTA on task detail screen.
+* When pressed:
+
+  * Check the task collectionType.
+  * Request relevant permissions.
+  * Open the appropriate in-app capture screen.
+* Support:
+
+  * VIDEO
+  * IMAGE
+  * AUDIO
+
+3. Video capture screen
+   Use expo-camera CameraView and create a polished full-screen in-app recording experience.
+
+Requirements:
+
+* Rear camera by default unless task preferredCamera is FRONT.
+* Allow front/rear switch only when preferredCamera is ANY.
+* Respect preferredLens in UI as much as Expo supports:
+
+  * If preferredLens is ULTRA_WIDE, set lowest practical zoom and display “Wide lens requested”.
+  * Do not claim guaranteed physical 0.5x ultra-wide support.
+  * Show fallback message if the device cannot provide wide-angle behavior.
+* Use task preferredFps / minimumFps as requirement labels only for now.
+* Do not falsely report exact FPS if Expo does not expose reliable device FPS metadata.
+* Use device-supported camera settings and gracefully fall back.
+
+Controls:
+
+* Live camera preview
+* Recording timer
+* Recording red indicator
+* Start recording button
+* Stop recording button
+* Pause/resume buttons when supported
+* Flash/torch toggle
+* Optional camera switch button based on task rules
+* Close/cancel button with confirmation if recording has started
+
+Validation:
+
+* On stop, validate duration against:
+
+  * minimumDurationSeconds
+  * maximumDurationSeconds
+* Show a clear error if too short or too long.
+* Allow user to retake immediately.
+
+4. Image capture screen
+
+* Use in-app CameraView.
+* Respect preferredCamera and orientation requirements.
+* Capture one or multiple images based on:
+
+  * minimumImageCount
+  * maximumImageCount
+* Show captured image thumbnails in a strip.
+* Allow remove and retake before saving draft.
+* Enforce minimum and maximum image counts.
+* Do not open the system camera app.
+* Do not open gallery selection.
+
+5. Audio capture screen
+
+* Use expo-audio for recording.
+* Show a focused audio recording UI:
+
+  * waveform-style visual placeholder or animated recording indicator
+  * elapsed duration
+  * start/pause/resume/stop controls
+  * microphone permission handling
+* Validate minimumDurationSeconds and maximumDurationSeconds.
+* Allow playback, delete, and re-record before saving draft.
+
+6. Local Drafts
+   Create local draft storage for unsubmitted captures.
+
+Draft fields:
+
+* localDraftId
+* taskId
+* taskTitle
+* categoryId
+* subcategoryId
+* collectionType
+* localMediaUri or mediaUris
+* thumbnailUri where available
+* durationSeconds where applicable
+* fileSize where available
+* createdAt
+* device platform
+* camera used where applicable
+* orientation
+* capture metadata object
+* validation status
+* draftStatus: READY_TO_UPLOAD, INVALID, ABANDONED
+
+Store draft metadata locally using the existing preferred local-storage approach. Use file-system-safe local paths for media.
+
+7. Capture review screen
+   After capture, show a review screen before saving as a draft.
+
+For video:
+
+* Video preview
+* Duration
+* File size if available
+* Task requirements summary
+* Retake
+* Save Draft
+
+For images:
+
+* Image gallery preview
+* Count
+* Remove image
+* Retake / Add more
+* Save Draft
+
+For audio:
+
+* Playback controls
+* Duration
+* Re-record
+* Save Draft
+
+After Save Draft:
+
+* Show “Saved as draft”
+* Return user to My Uploads
+* Do not show it as approved, uploaded, or under review.
+
+8. My Uploads changes
+   Update My Uploads to include three tabs:
+
+* Drafts
+* Under Review
+* Completed
+
+For now:
+
+* Drafts should show local drafts only.
+* Under Review and Completed should keep their current existing behavior/placeholders.
+* Draft cards should show:
+
+  * task title
+  * collection type
+  * capture date/time
+  * duration or image count
+  * payout amount from task
+  * “Ready to Upload” status
+* Tapping draft opens the review screen.
+* Add delete draft with confirmation.
+
+9. Quality and safeguards
+
+* Handle app backgrounding while recording:
+
+  * stop safely or warn user that recording may be interrupted.
+* Prevent duplicate recording session creation.
+* Handle low storage errors.
+* Handle camera/mic permission denial.
+* Handle capture failure cleanly.
+* Ensure temporary files are removed when a draft is deleted.
+* Keep UI consistent with existing Capto dark/cyan style.
+* Add loading, empty, error, and retry states.
+* Do not introduce mock upload completion flows.
+
+10. Deliverable summary
+    At the end, provide:
+
+* Files/packages added or updated
+* Permission configuration changes
+* Supported capture behavior for video, image, and audio
+* Known Expo limitations around exact FPS and physical ultra-wide 0.5x lens selection
+* Test steps for Android Expo Go and iOS Expo Go
+* Confirm that existing task browsing, OTP login, admin dashboard, and APIs still work unchanged
