@@ -159,8 +159,7 @@ export default function ProfileScreen() {
       <Text style={styles.sectionTitle}>Settings</Text>
       <View style={styles.card}>
         <MenuRow icon="user" label="Account Info" onPress={() => router.push("/account-info" as never)} colors={colors} />
-        <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} />
-        <MenuRow icon="trash-2" label="Delete Account" onPress={() => router.push("/support" as never)} colors={colors} muted last />
+        <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} last />
       </View>
 
       {/* Help & Legal */}

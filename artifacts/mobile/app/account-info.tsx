@@ -1,9 +1,10 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useGetMe } from "@workspace/api-client-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 interface User {
@@ -18,9 +19,26 @@ export default function AccountInfoScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { logout } = useAuth();
   const { data: user, isLoading } = useGetMe() as { data: User | undefined; isLoading: boolean };
+  const [deleting, setDeleting] = useState(false);
 
   const styles = makeStyles(colors);
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete Account",
+      "To delete your account, please contact our support team. They will process your request and permanently remove your data.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Contact Support",
+          style: "destructive",
+          onPress: () => router.push("/support" as never),
+        },
+      ],
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -47,6 +65,16 @@ export default function AccountInfoScreen() {
             />
           </View>
         )}
+
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.7}
+          disabled={deleting}
+        >
+          <Feather name="trash-2" size={16} color="#ef4444" />
+          <Text style={styles.deleteBtnText}>Delete Account</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -78,5 +106,22 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     content: { paddingHorizontal: 20, paddingBottom: 40 },
     title: { fontSize: 24, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 20 },
     card: { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16 },
+    deleteBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginTop: 32,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#3f1515",
+      backgroundColor: "#1a0a0a",
+    },
+    deleteBtnText: {
+      fontSize: 15,
+      fontFamily: "Inter_500Medium",
+      color: "#ef4444",
+    },
   });
 }
