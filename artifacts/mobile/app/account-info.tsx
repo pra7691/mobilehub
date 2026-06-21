@@ -37,7 +37,6 @@ export default function AccountInfoScreen() {
           <View style={styles.card}>
             <InfoRow icon="phone" label="Mobile Number" value={user?.phoneNumber ?? "—"} colors={colors} />
             <InfoRow icon="hash" label="User ID" value={user?.id ? `#${user.id.slice(-8).toUpperCase()}` : "—"} colors={colors} />
-            <InfoRow icon="user" label="Name" value={user?.name ?? "Not set"} colors={colors} />
             <InfoRow icon="activity" label="Status" value={user?.status ?? "—"} colors={colors} />
             <InfoRow
               icon="calendar"

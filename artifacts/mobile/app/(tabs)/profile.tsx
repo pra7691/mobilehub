@@ -96,7 +96,6 @@ export default function ProfileScreen() {
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
-      <Text style={styles.name}>{user?.name ?? "Anonymous"}</Text>
       <Text style={styles.phone}>{user?.phoneNumber}</Text>
 
       {/* Balance row */}
@@ -222,7 +221,6 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     headerTitle: { fontSize: 26, fontFamily: "Inter_700Bold", color: colors.foreground, letterSpacing: -0.5, marginTop: 2, textAlign: "center" as const },
     avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 10 },
     avatarText: { fontSize: 22, fontFamily: "Inter_700Bold", color: colors.primaryForeground },
-    name: { textAlign: "center", fontSize: 18, fontFamily: "Inter_700Bold", color: colors.foreground },
     phone: { textAlign: "center", fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 3 },
     statsRow: { flexDirection: "row", marginHorizontal: 20, marginTop: 20, backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
     statBox: { flex: 1, alignItems: "center", paddingVertical: 14 },
