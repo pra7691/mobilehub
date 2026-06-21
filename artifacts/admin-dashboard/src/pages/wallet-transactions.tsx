@@ -201,7 +201,7 @@ export default function WalletTransactions() {
                         : "text-amber-400"
                     }`}>
                       {tx.type === "CREDIT" ? "+" : tx.type === "DEBIT" ? "−" : "±"}
-                      {tx.amount.toFixed(2)}
+                      ₹{tx.amount.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 );

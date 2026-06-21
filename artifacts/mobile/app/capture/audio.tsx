@@ -4,8 +4,9 @@ import {
   RecordingPresets,
   AudioModule,
   useAudioPlayer,
+  setIsAudioActiveAsync,
 } from "expo-audio";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -326,6 +327,7 @@ export default function AudioCaptureScreen() {
       setRecordingState("preparing");
       recordingStateRef.current = "preparing";
 
+      await setIsAudioActiveAsync(true);
       await recorder.prepareToRecordAsync();
       recorder.record();
       setRecordingState("recording");
@@ -418,6 +420,7 @@ export default function AudioCaptureScreen() {
         setError("Recording failed. Please try again.");
         setRecordingState("error");
         recordingStateRef.current = "error";
+        void setIsAudioActiveAsync(false).catch(() => {});
         reportAudioError("stop", new Error("No URI returned after stop"), {
           screen: "audio",
           audioState: prevState,
@@ -428,6 +431,7 @@ export default function AudioCaptureScreen() {
       setError("Audio recording failed. Please try again.");
       setRecordingState("error");
       recordingStateRef.current = "error";
+      void setIsAudioActiveAsync(false).catch(() => {});
       reportAudioError("stop", err, {
         screen: "audio",
         audioState: prevState,

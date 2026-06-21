@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Video, ResizeMode } from "expo-av";

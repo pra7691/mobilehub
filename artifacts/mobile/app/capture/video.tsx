@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { CameraView, type CameraType, type FlashMode } from "expo-camera";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {

@@ -409,13 +409,9 @@ export default function Tasks() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Currency</Label>
-                  <Select value={form.currency} onValueChange={v => setField("currency", v)}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
-                      <SelectItem value="INR" className="text-gray-300">INR ₹</SelectItem>
-                      <SelectItem value="USD" className="text-gray-300">USD $</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex h-10 items-center rounded-md border border-gray-700 bg-gray-800 px-3 text-sm text-white">
+                    INR ₹
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Status</Label>

@@ -37,13 +37,13 @@ export default function LoginScreen() {
       return;
     }
     const digits = formatPhone(phone);
-    if (digits.length < 10) {
-      Alert.alert("Invalid number", "Please enter a valid phone number.");
+    if (digits.length !== 10 || !/^[6-9]/.test(digits)) {
+      Alert.alert("Invalid number", "Enter a valid 10-digit Indian mobile number starting with 6–9.");
       return;
     }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     requestOtp.mutate(
-      { data: { phoneNumber: digits } },
+      { data: { phoneNumber: "+91" + digits } },
       {
         onSuccess: (result) => {
           router.push({ pathname: "/(auth)/otp", params: { sessionId: result.sessionId, phone: digits } });
@@ -98,7 +98,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[styles.btn, (requestOtp.isPending || isOffline) && styles.btnDisabled]}
             onPress={handleContinue}
-            disabled={requestOtp.isPending || isOffline || phone.replace(/\D/g, "").length < 10}
+            disabled={requestOtp.isPending || isOffline || !/^[6-9]\d{9}$/.test(phone.replace(/\D/g, ""))}
             testID="button-continue"
           >
             {requestOtp.isPending ? (
