@@ -128,6 +128,14 @@ function RootLayoutNav({ onReady }: { onReady: () => void }) {
     }
   }, [isAuthenticated, isLoading, isDisabled, isLanguageLoading, hasSelectedLanguage, segments, accessToken]);
 
+  // While auth or language is still hydrating, don't render the Stack at all.
+  // The native splash screen is still visible (SplashScreen.preventAutoHideAsync),
+  // so the user sees nothing. This prevents any tab screen from mounting before
+  // tokens are ready, which avoids 401s on first-load API calls.
+  if (isLoading || isLanguageLoading) {
+    return null;
+  }
+
   // Full-screen disabled gate — replaces all navigation
   if (isDisabled) {
     return <DisabledAccountView onLogout={logout} />;

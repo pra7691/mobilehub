@@ -210,41 +210,28 @@ export default function CategoriesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(new Set());
 
-  // Don't fire queries until auth hydration is done to prevent
-  // race conditions where requests go out without a valid token.
-  const queriesEnabled = !authLoading;
-
+  // Categories, banners, and notices are all public endpoints — no auth token
+  // required. Queries fire immediately; isInitialLoad gates the UI on auth
+  // hydration to avoid a flash of skeleton before the auth state resolves.
   const {
     data,
     isLoading: categoriesLoading,
     isFetching: categoriesFetching,
     isError: categoriesError,
     refetch,
-  } = useListCategories(
-    { isActive: true, limit: 50, language: language as any },
-    { query: { enabled: queriesEnabled } }
-  );
+  } = useListCategories({ isActive: true, limit: 50, language: language as any });
 
-  const { data: notices = [] } = useGetPublicNotices(
-    { language: language as any },
-    { query: { enabled: queriesEnabled } }
-  ) as { data: Notice[] };
+  const { data: notices = [] } = useGetPublicNotices({ language: language as any }) as { data: Notice[] };
 
   const {
     data: bannerData,
     isLoading: bannersLoading,
     refetch: refetchBanners,
     isError: bannersError,
-  } = useGetBanners(
-    { language: language as any },
-    { query: { enabled: queriesEnabled } }
-  );
+  } = useGetBanners({ language: language as any });
   const banners: PublicBanner[] = bannersError ? [] : ((bannerData as PublicBanner[]) ?? []);
 
-  const { data: bannerSettingsData } = useGetAppSettingsBanner(
-    {},
-    { query: { enabled: queriesEnabled } }
-  );
+  const { data: bannerSettingsData } = useGetAppSettingsBanner();
   const autoSlideSeconds: number = (bannerSettingsData as any)?.autoSlideSeconds ?? 5;
 
   const visibleNotices = (notices as Notice[]).filter((n) => n.isActive && !dismissedNotices.has(n.id));
