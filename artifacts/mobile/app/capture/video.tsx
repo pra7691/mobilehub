@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { CameraView, type CameraType, type FlashMode } from "expo-camera";
 import * as FileSystem from "expo-file-system";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetTask } from "@workspace/api-client-react";
 
 import { PermissionGate } from "@/components/PermissionGate";
@@ -49,6 +49,7 @@ function formatTime(seconds: number): string {
  */
 export default function VideoCaptureScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const { data: task } = useGetTask(taskId ?? "");
   const { granted, request } = useTaskPermissions("VIDEO");
@@ -72,6 +73,16 @@ export default function VideoCaptureScreen() {
   const [flash, setFlash] = useState<FlashMode>("off");
   const [facing, setFacing] = useState<CameraType>("back");
   const [error, setError] = useState<string | null>(null);
+
+  // Gate CameraView on focus so camera hardware releases whenever
+  // the route leaves the stack (belt-and-suspenders beyond the push→replace fix).
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, [])
+  );
 
   const preferredCamera = task?.preferredCamera ?? "ANY";
   const canToggleCamera = preferredCamera === "ANY";
@@ -208,7 +219,9 @@ export default function VideoCaptureScreen() {
         elapsedRef.current = 0;
         segmentsRef.current = [];
         segmentDurationsRef.current = [];
-        router.push(`/capture/review?taskId=${taskId ?? ""}`);
+        // replace (not push) so the camera screen unmounts — prevents the camera
+        // preview from staying active behind the review screen.
+        router.replace(`/capture/review?taskId=${taskId ?? ""}`);
       } else {
         setError("Recording failed. Please try again.");
         setIsRecording(false);
@@ -305,7 +318,8 @@ export default function VideoCaptureScreen() {
         elapsedRef.current = 0;
         segmentsRef.current = [];
         segmentDurationsRef.current = [];
-        router.push(`/capture/review?taskId=${taskId ?? ""}`);
+        // replace (not push) so the camera screen unmounts
+        router.replace(`/capture/review?taskId=${taskId ?? ""}`);
       } else {
         setError("No footage recorded.");
         setIsRecording(false);
@@ -381,17 +395,22 @@ export default function VideoCaptureScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        facing={facing}
-        flash={flash}
-        mode="video"
-        zoom={isUltraWide ? 0 : undefined}
-      />
+      {/* CameraView only mounts while this route is focused so the camera
+          hardware releases if the route is ever left in the stack. */}
+      {isFocused && (
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          flash={flash}
+          mode="video"
+          zoom={isUltraWide ? 0 : undefined}
+        />
+      )}
 
-      {/* Top bar */}
-      <SafeAreaView style={styles.topBar}>
+      {/* Top bar — uses explicit insets so close/flash buttons are always
+          below the Dynamic Island / notch / status bar on all devices. */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleClose}>
           <Feather name="x" size={24} color="#fff" />
         </TouchableOpacity>
@@ -419,7 +438,7 @@ export default function VideoCaptureScreen() {
             color="#fff"
           />
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
 
       {/* Timer */}
       {isRecording && (
@@ -445,8 +464,9 @@ export default function VideoCaptureScreen() {
         </View>
       )}
 
-      {/* Bottom controls */}
-      <SafeAreaView edges={["bottom"]} style={styles.bottomBar}>
+      {/* Bottom controls — paddingBottom uses insets.bottom so record button
+          sits above the home indicator on all devices. */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
         {/* Left: camera flip (before recording starts) */}
         {canToggleCamera && !isRecording ? (
           <TouchableOpacity
@@ -487,7 +507,7 @@ export default function VideoCaptureScreen() {
         ) : (
           <View style={styles.iconBtn} />
         )}
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -499,7 +519,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   topCenter: { flex: 1, alignItems: "center", gap: 4 },
   iconBtn: {
@@ -570,7 +589,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 40,
-    paddingBottom: 40,
     paddingTop: 20,
   },
   recordBtn: {

@@ -15,6 +15,7 @@ export type ErrorType =
   | "RENDER_ERROR"
   | "NETWORK_ERROR"
   | "DRAFT_SAVE_FAILED"
+  | "AUDIO_ERROR"
   | "UNKNOWN";
 
 export interface ErrorReport {
@@ -93,6 +94,7 @@ async function sendReport(report: QueuedReport): Promise<void> {
 /**
  * Report an error. If online and authenticated, sends immediately.
  * Falls back to an AsyncStorage offline queue that is drained on startup.
+ * Unauthenticated errors also fall into the queue and are drained on next login.
  */
 export async function reportError(report: ErrorReport): Promise<void> {
   const networkState = report.networkState ?? (await getNetworkState());

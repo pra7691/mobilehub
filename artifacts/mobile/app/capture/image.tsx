@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { CameraView, type CameraType, type FlashMode } from "expo-camera";
 import { Image } from "expo-image";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetTask } from "@workspace/api-client-react";
 
 import { PermissionGate } from "@/components/PermissionGate";
@@ -21,6 +21,7 @@ import { setPendingCapture } from "@/lib/captureStore";
 
 export default function ImageCaptureScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const { data: task } = useGetTask(taskId ?? "");
   const { granted, request } = useTaskPermissions("IMAGE");
@@ -31,12 +32,21 @@ export default function ImageCaptureScreen() {
   const [capturing, setCapturing] = useState(false);
   const [facing, setFacing] = useState<CameraType>("back");
 
+  // Gate CameraView on focus so camera hardware releases whenever
+  // the route leaves the stack (belt-and-suspenders beyond the push→replace fix).
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, [])
+  );
+
   const minCount = task?.minimumImageCount ?? 1;
   const maxCount = task?.maximumImageCount ?? 10;
   const preferredCamera = task?.preferredCamera ?? "ANY";
   const canToggleCamera = preferredCamera === "ANY";
 
-  // Sync facing with task preferred camera once task data arrives
   useEffect(() => {
     if (!task) return;
     if (task.preferredCamera === "FRONT") setFacing("front");
@@ -78,7 +88,9 @@ export default function ImageCaptureScreen() {
       collectionType: "IMAGE",
       mediaUris: photos,
     });
-    router.push(`/capture/review?taskId=${taskId ?? ""}`);
+    // replace (not push) so the camera screen is removed from the stack —
+    // prevents the camera preview from staying alive behind the review screen.
+    router.replace(`/capture/review?taskId=${taskId ?? ""}`);
   }, [photos, minCount, taskId, router]);
 
   const handleClose = useCallback(() => {
@@ -116,15 +128,20 @@ export default function ImageCaptureScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        facing={facing}
-        flash={flash}
-      />
+      {/* CameraView only mounts while this route is focused so the camera
+          hardware releases if the route is ever left in the stack. */}
+      {isFocused && (
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          flash={flash}
+        />
+      )}
 
-      {/* Top bar */}
-      <SafeAreaView style={styles.topBar}>
+      {/* Top bar — uses explicit insets so close/flash buttons are always
+          below the Dynamic Island / notch / status bar on all devices. */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleClose}>
           <Feather name="x" size={24} color="#fff" />
         </TouchableOpacity>
@@ -148,7 +165,7 @@ export default function ImageCaptureScreen() {
             color="#fff"
           />
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
 
       {/* Thumbnail strip */}
       {photos.length > 0 && (
@@ -173,8 +190,9 @@ export default function ImageCaptureScreen() {
         </View>
       )}
 
-      {/* Bottom controls */}
-      <SafeAreaView edges={["bottom"]} style={styles.bottomBar}>
+      {/* Bottom controls — paddingBottom uses insets.bottom so shutter sits
+          above the home indicator on all devices. */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
         {canToggleCamera ? (
           <TouchableOpacity
             style={styles.iconBtn}
@@ -209,7 +227,7 @@ export default function ImageCaptureScreen() {
             color={photos.length >= minCount ? "#06b6d4" : "#4b5563"}
           />
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -221,7 +239,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   iconBtn: {
     width: 44,
@@ -285,7 +302,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 40,
-    paddingBottom: 40,
     paddingTop: 20,
   },
   shutterBtn: {
