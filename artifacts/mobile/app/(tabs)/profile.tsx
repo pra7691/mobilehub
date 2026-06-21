@@ -349,7 +349,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     container: { flex: 1, backgroundColor: colors.background },
     scrollContent: { paddingBottom: 120 },
     centered: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background },
-    header: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 12, alignItems: "center" as const },
+    header: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 20, alignItems: "center" as const },
     headerLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium", letterSpacing: 1, textTransform: "uppercase" as const, textAlign: "center" as const },
     headerTitle: { fontSize: 26, fontFamily: "Inter_700Bold", color: colors.foreground, letterSpacing: -0.5, marginTop: 2, textAlign: "center" as const },
     avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 10 },

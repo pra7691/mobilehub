@@ -521,7 +521,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     header: {
       paddingHorizontal: 20,
       paddingBottom: 12,
-      paddingTop: 12,
+      paddingTop: 20,
       alignItems: "center" as const,
     },
     headerLabel: {
