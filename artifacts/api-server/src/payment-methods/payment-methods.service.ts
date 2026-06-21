@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { PaymentMethodVerificationStatus } from '@prisma/client';
 
 function maskUpiId(upiId: string): string {
   const atIdx = upiId.indexOf('@');
@@ -32,8 +31,6 @@ function formatPaymentMethod(
     type: string;
     upiId: string;
     upiIdMasked: string;
-    verificationStatus: PaymentMethodVerificationStatus;
-    rejectionReason: string | null;
     isDefault: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -46,8 +43,6 @@ function formatPaymentMethod(
     type: pm.type,
     upiIdMasked: pm.upiIdMasked,
     ...(includeFullUpi ? { upiId: pm.upiId } : {}),
-    verificationStatus: pm.verificationStatus,
-    rejectionReason: pm.rejectionReason,
     isDefault: pm.isDefault,
     createdAt: pm.createdAt,
     updatedAt: pm.updatedAt,
@@ -103,8 +98,6 @@ export class PaymentMethodsService {
         data: {
           upiId: trimmed,
           upiIdMasked: masked,
-          verificationStatus: 'PENDING_VERIFICATION',
-          rejectionReason: null,
         },
       });
       await this.audit.log('payment_method.upi_updated', {}, {
@@ -133,46 +126,5 @@ export class PaymentMethodsService {
     });
     if (!method) throw new NotFoundException('Payment method not found');
     return { ...formatPaymentMethod(method, true), user: method.user };
-  }
-
-  async adminVerifyUpi(methodId: string, adminId: string, adminEmail: string) {
-    const method = await this.prisma.userPaymentMethod.findUnique({ where: { id: methodId } });
-    if (!method) throw new NotFoundException('Payment method not found');
-
-    const updated = await this.prisma.userPaymentMethod.update({
-      where: { id: methodId },
-      data: { verificationStatus: 'VERIFIED', rejectionReason: null },
-    });
-
-    await this.audit.log('payment_method.upi_verified', { adminId, adminEmail }, {
-      entityType: 'UserPaymentMethod',
-      entityId: methodId,
-      metadata: { userId: method.userId, upiIdMasked: method.upiIdMasked },
-    });
-
-    return formatPaymentMethod(updated, false);
-  }
-
-  async adminRejectUpi(
-    methodId: string,
-    rejectionReason: string,
-    adminId: string,
-    adminEmail: string,
-  ) {
-    const method = await this.prisma.userPaymentMethod.findUnique({ where: { id: methodId } });
-    if (!method) throw new NotFoundException('Payment method not found');
-
-    const updated = await this.prisma.userPaymentMethod.update({
-      where: { id: methodId },
-      data: { verificationStatus: 'REJECTED', rejectionReason },
-    });
-
-    await this.audit.log('payment_method.upi_rejected', { adminId, adminEmail }, {
-      entityType: 'UserPaymentMethod',
-      entityId: methodId,
-      metadata: { userId: method.userId, upiIdMasked: method.upiIdMasked, rejectionReason },
-    });
-
-    return formatPaymentMethod(updated, false);
   }
 }

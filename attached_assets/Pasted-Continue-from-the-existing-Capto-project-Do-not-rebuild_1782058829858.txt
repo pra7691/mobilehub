@@ -1,0 +1,308 @@
+Continue from the existing Capto project. Do not rebuild authentication, tasks, uploads, submissions, wallet, payouts, referral, language, or existing admin layout.
+
+Fix country-code, phone-number storage, currency display, and UPI payout flow.
+
+There are two main requirements:
+
+1. India is currently the only supported country, with country code +91.
+2. UPI ID verification must be removed completely.
+
+## A. Phone Number and Country Code
+
+Current behavior:
+
+* Login screen visually has +91 hard-coded.
+* But the stored user phone number may not include the country code consistently.
+* The system must always store the complete normalized phone number.
+
+Required behavior:
+
+* India only for now.
+* Country code is fixed to `+91`.
+* User should enter only a 10-digit Indian mobile number.
+* On login/request OTP/account creation:
+
+  * Normalize number to E.164 format: `+91XXXXXXXXXX`
+  * Store full number in database.
+  * Use the same full number for OTP sessions, user uniqueness checks, login, referrals, admin users table, submissions, payouts, and audit logs.
+* Do not let user manually edit/select country code in this version.
+* Show +91 as fixed prefix in login UI.
+* Validate:
+
+  * exactly 10 digits after +91
+  * no spaces, dashes, or duplicate +91
+  * reject invalid Indian number format
+* Existing users stored with only 10 digits must be migrated/backfilled safely to `+91XXXXXXXXXX`.
+* Existing users already stored with +91 must not become `+91+91...`.
+* Masked mobile display should use normalized number, for example:
+
+  * `+91 98****4321`
+
+Update:
+
+* OTP request flow
+* OTP verification flow
+* user creation
+* user lookup
+* admin user lists/details
+* referral flow
+* payout flow
+* mobile profile
+* error logs
+* any phone-number search/filter logic
+
+## B. Currency and Amount Formatting
+
+Current issue:
+
+* Some screens show `$`.
+* Some screens show ₹.
+* Currency must be consistent.
+
+Required behavior:
+
+* Since only India / +91 is supported right now, the application currency must be INR everywhere.
+* Display all user-facing monetary amounts using:
+
+  * Symbol: `₹`
+  * Currency: INR
+  * Indian number formatting where practical, for example:
+
+    * ₹40
+    * ₹1,250
+    * ₹12,500.50
+
+Do not dynamically derive different currencies yet because country selection is not supported.
+
+Create one centralized money-formatting utility used everywhere:
+
+* Mobile app
+* Admin dashboard
+* Backend response formatting only where necessary
+
+Never hard-code `$` in individual components.
+
+Update all monetary areas:
+
+* Task payout amount
+* Task cards
+* Task detail
+* Submission expected payment
+* Approved payment
+* Wallet available balance
+* Wallet pending earnings
+* Wallet lifetime earnings
+* Wallet statement
+* Referral reward
+* Payout request amount
+* Payout history
+* Admin task payment fields
+* Admin submission approved amount
+* Admin wallet transactions
+* Admin payout screens
+* Dashboard charts/cards
+* Any notification or message mentioning money
+
+Database rules:
+
+* Existing currency fields should default to `INR`.
+* Migrate incorrect default `USD` values to `INR` where they are Capto internal task/payment/payout records.
+* Preserve numeric amounts correctly.
+* Ensure all new tasks default to INR.
+* Remove any UI currency selector for users.
+* Admin task/payment forms should default to INR and not show USD unless multi-country support is intentionally added later.
+
+Use a central formatter, for example:
+
+* `Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })`
+* For Hindi UI, still use ₹ and INR values, with Hindi labels around it.
+
+## C. Remove UPI ID Verification Completely
+
+Current issue:
+
+* App shows “UPI ID verification pending.”
+* User is blocked from requesting payout until admin verifies UPI ID.
+* This is not required.
+
+Required behavior:
+
+* Remove UPI verification status from the user experience and payout workflow.
+* When user adds a valid UPI ID, it becomes usable immediately.
+* User can request payout immediately after saving UPI ID, provided they have sufficient available balance.
+* Admin does not need to verify or approve UPI ID.
+* Admin can still see the saved UPI ID in payout request details to pay manually.
+
+Remove:
+
+* Pending Verification status
+* Verified status
+* Rejected status
+* Verify UPI button
+* Reject UPI button
+* UPI verification filters
+* UPI verification APIs
+* UPI verification-related admin actions
+* User-facing message about verification pending
+* Any payout blocking based on UPI verification
+
+Simplify payment method model:
+
+* Keep one active UPI ID per user.
+* Fields:
+
+  * id
+  * userId
+  * type: UPI
+  * upiIdEncrypted or securely stored value
+  * upiIdMasked
+  * isDefault
+  * createdAt
+  * updatedAt
+
+Migration:
+
+* Existing UPI IDs with PENDING_VERIFICATION, VERIFIED, or REJECTED should become usable payment methods.
+* Preserve the UPI ID itself.
+* Remove old verification dependency safely.
+* Do not delete payout requests that already exist.
+
+## D. Simplified Manual Payout Flow
+
+User:
+
+1. Add UPI ID.
+2. Open Wallet.
+3. Tap Withdraw.
+4. Enter amount.
+5. Submit payout request.
+
+Admin:
+
+1. Open Payouts.
+2. View payout request.
+3. Reveal full UPI ID only through deliberate action.
+4. Manually pay from external UPI/banking app.
+5. Enter UTR/transaction/reference ID.
+6. Mark payout as Paid.
+
+Payout statuses remain:
+
+* PENDING
+* PROCESSING
+* PAID
+* REJECTED
+* CANCELLED
+
+Do not add automatic payout provider integration.
+
+## E. API and Backend Changes
+
+Update APIs as needed.
+
+Mobile:
+
+* POST /auth/user/request-otp must accept 10-digit local Indian number or normalized input and always process/store normalized `+91` value.
+* POST /auth/user/verify-otp must use normalized phone number.
+* GET /users/me must return normalized phone and `currency: INR`.
+* GET /payment-methods/me
+* POST /payment-methods/upi
+* PATCH /payment-methods/upi/:id
+* POST /payouts/request
+
+Admin:
+
+* GET /admin/users should display normalized/masked mobile number.
+* GET /admin/payouts should not include UPI verification status.
+* Remove/deprecate UPI verification endpoints safely.
+* Update Swagger documentation.
+
+Add DTO validation for:
+
+* Indian 10-digit mobile number
+* normalized phone input
+* UPI ID basic validation
+* INR payout amounts
+
+## F. Mobile UI Changes
+
+Login:
+
+* Fixed +91 prefix.
+* 10-digit mobile input only.
+* Clear validation message for invalid number.
+
+Profile:
+
+* Show mobile number in normalized/masked format.
+* Payment Details should show saved UPI ID.
+* Remove verification label entirely.
+
+Wallet:
+
+* Use ₹ everywhere.
+* Withdraw available immediately after valid UPI ID is saved.
+* No verification-pending warning.
+
+Payout request:
+
+* Show masked UPI ID.
+* No verification status.
+* Use INR/₹ consistently.
+
+## G. Admin UI Changes
+
+Users:
+
+* Show full normalized number internally where permitted.
+* Show masked number in normal lists.
+* Show user country as India / +91 if needed.
+* Show referral code fields unchanged.
+
+Tasks:
+
+* Payment amount defaults to INR.
+* Remove visible USD defaults.
+
+Payouts:
+
+* Remove UPI verification column/action.
+* Keep masked UPI ID.
+* Keep explicit Reveal UPI ID action.
+* Keep manual Start Processing / Mark Paid / Reject workflow.
+
+## H. Testing
+
+Test phone normalization:
+
+1. Login using `9876543210`.
+2. Confirm database stores `+919876543210`.
+3. Confirm OTP session uses `+919876543210`.
+4. Confirm admin user list shows correctly masked number.
+5. Confirm duplicate account cannot be created using both `9876543210` and `+919876543210`.
+
+Test currency:
+
+1. Check task cards, task detail, wallet, statement, payouts, referral rewards, admin dashboard, and submission approval.
+2. Confirm no `$` symbol is visible anywhere.
+3. Confirm all amounts display as ₹ and use INR.
+
+Test UPI:
+
+1. Add valid UPI ID.
+2. Confirm no verification pending status appears.
+3. Confirm Withdraw is available immediately if wallet balance is sufficient.
+4. Create payout request.
+5. Confirm it appears in admin Payouts without UPI verification workflow.
+6. Admin manually marks it paid with UTR/reference ID.
+
+At the end provide:
+
+* Files changed
+* Prisma migration summary
+* Phone normalization rules implemented
+* Currency formatting utility location
+* APIs updated/removed
+* UPI verification components/actions removed
+* Exact mobile and admin test flow
+* Confirmation that all money displays in INR/₹ and valid saved UPI IDs are immediately usable

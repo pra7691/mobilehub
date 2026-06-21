@@ -7,17 +7,17 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { PayoutStatus, PaymentMethodVerificationStatus } from '@prisma/client';
+import { PayoutStatus } from '@prisma/client';
 
 const PAYOUT_INCLUDE = {
   paymentMethod: {
-    select: { upiId: true, upiIdMasked: true, verificationStatus: true },
+    select: { upiId: true, upiIdMasked: true },
   },
 };
 
 const ADMIN_PAYOUT_INCLUDE = {
   paymentMethod: {
-    select: { upiId: true, upiIdMasked: true, verificationStatus: true },
+    select: { upiId: true, upiIdMasked: true },
   },
   user: { select: { id: true, phoneNumber: true, name: true } },
 };
@@ -43,7 +43,7 @@ type PayoutWithMethod = {
   walletCompletionTransactionId: string | null;
   createdAt: Date;
   updatedAt: Date;
-  paymentMethod: { upiId: string; upiIdMasked: string; verificationStatus: string } | null;
+  paymentMethod: { upiId: string; upiIdMasked: string } | null;
   user?: { id: string; phoneNumber: string; name: string | null } | null;
 };
 
@@ -57,7 +57,6 @@ function formatPayout(p: PayoutWithMethod, revealUpi = false) {
     status: p.status,
     upiIdMasked: p.paymentMethod?.upiIdMasked ?? '',
     ...(revealUpi && p.paymentMethod ? { upiId: p.paymentMethod.upiId } : {}),
-    upiVerificationStatus: p.paymentMethod?.verificationStatus ?? null,
     requestedAt: p.requestedAt,
     processingStartedAt: p.processingStartedAt,
     processedAt: p.processedAt,
@@ -156,13 +155,6 @@ export class PayoutsService {
       where: { id: paymentMethodId, userId },
     });
     if (!paymentMethod) throw new NotFoundException('Payment method not found');
-    if (paymentMethod.verificationStatus !== PaymentMethodVerificationStatus.VERIFIED) {
-      const msg =
-        paymentMethod.verificationStatus === PaymentMethodVerificationStatus.PENDING_VERIFICATION
-          ? 'Your UPI ID is pending verification. Please wait for admin approval.'
-          : 'Your UPI ID has been rejected. Please update your UPI ID.';
-      throw new BadRequestException(msg);
-    }
 
     // Idempotency: only one active payout allowed
     const existingActive = await this.prisma.payoutRequest.findFirst({
@@ -316,7 +308,6 @@ export class PayoutsService {
     page?: number;
     limit?: number;
     status?: PayoutStatus;
-    upiVerificationStatus?: string;
     search?: string;
     fromDate?: string;
     toDate?: string;
@@ -329,9 +320,6 @@ export class PayoutsService {
     const where: Record<string, unknown> = {};
 
     if (params.status) where.status = params.status;
-    if (params.upiVerificationStatus) {
-      where.paymentMethod = { verificationStatus: params.upiVerificationStatus };
-    }
     if (params.minAmount !== undefined || params.maxAmount !== undefined) {
       const amtFilter: Record<string, number> = {};
       if (params.minAmount !== undefined) amtFilter.gte = params.minAmount;

@@ -46,7 +46,6 @@ export default function WithdrawScreen() {
   const [amount, setAmount] = useState("");
   const [amountError, setAmountError] = useState("");
 
-  const verifiedMethod = methods?.find((m) => m.verificationStatus === "VERIFIED");
   const firstMethod = methods?.[0];
   const availableBalance = wallet ? Number(wallet.availableBalance) : 0;
   const pendingWithdrawal = wallet ? Number(wallet.pendingWithdrawalBalance ?? 0) : 0;
@@ -71,22 +70,22 @@ export default function WithdrawScreen() {
 
   async function handleRequest() {
     if (!validateAmount()) return;
-    if (!verifiedMethod) {
-      Alert.alert("Verified UPI required", "Please add and get your UPI ID verified before withdrawing.");
+    if (!firstMethod) {
+      Alert.alert("No UPI ID", "Please add your UPI ID before withdrawing.");
       return;
     }
 
     const num = parseFloat(amount);
     Alert.alert(
       "Confirm withdrawal",
-      `Send ₹${num.toFixed(2)} to ${verifiedMethod.upiIdMasked}?`,
+      `Send ₹${num.toFixed(2)} to ${firstMethod.upiIdMasked}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Confirm",
           onPress: async () => {
             try {
-              await requestMutation.mutateAsync({ data: { amount: num, paymentMethodId: verifiedMethod.id } });
+              await requestMutation.mutateAsync({ data: { amount: num, paymentMethodId: firstMethod.id } });
               await Promise.all([
                 qc.invalidateQueries({ queryKey: getGetPayoutsMyQueryKey({}) }),
                 qc.invalidateQueries({ queryKey: getGetMyWalletQueryKey() }),
@@ -151,30 +150,20 @@ export default function WithdrawScreen() {
             <Text style={styles.methodText}>Add UPI ID to withdraw</Text>
             <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
-        ) : !verifiedMethod ? (
-          <TouchableOpacity style={styles.methodCard} onPress={() => router.push("/payment-details" as never)} activeOpacity={0.7}>
-            <View style={[styles.methodIcon, { backgroundColor: "#422006" }]}><Feather name="credit-card" size={16} color="#f59e0b" /></View>
+        ) : (
+          <TouchableOpacity style={[styles.methodCard, { borderColor: colors.border }]} onPress={() => router.push("/payment-details" as never)} activeOpacity={0.7}>
+            <View style={[styles.methodIcon, { backgroundColor: colors.muted }]}><Feather name="credit-card" size={16} color={colors.primary} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.methodUpiText}>{firstMethod.upiIdMasked}</Text>
-              <Text style={styles.methodStatusText}>
-                {firstMethod.verificationStatus === "PENDING_VERIFICATION" ? "Awaiting verification" : "Rejected — tap to update"}
-              </Text>
+              <Text style={styles.methodStatusText}>Tap to update</Text>
             </View>
             <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
-        ) : (
-          <View style={[styles.methodCard, { borderColor: "#166534" }]}>
-            <View style={[styles.methodIcon, { backgroundColor: "#052e16" }]}><Feather name="credit-card" size={16} color="#22c55e" /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.methodUpiText}>{verifiedMethod.upiIdMasked}</Text>
-              <Text style={[styles.methodStatusText, { color: "#22c55e" }]}>Verified</Text>
-            </View>
-          </View>
         )}
       </View>
 
       {/* Amount input */}
-      {payoutsEnabled && verifiedMethod && !hasActivePayout && (
+      {payoutsEnabled && firstMethod && !hasActivePayout && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Amount</Text>
           <View style={[styles.amountRow, amountError ? styles.amountRowError : null]}>
@@ -218,7 +207,7 @@ export default function WithdrawScreen() {
         </View>
       )}
 
-      {payoutsEnabled && verifiedMethod && !hasActivePayout && (
+      {payoutsEnabled && firstMethod && !hasActivePayout && (
         <TouchableOpacity
           style={[styles.submitBtn, requestMutation.isPending && { opacity: 0.6 }]}
           onPress={handleRequest}

@@ -2955,8 +2955,6 @@ export const GetPaymentMethodsMeResponseItem = zod.object({
   "userId": zod.string(),
   "type": zod.string(),
   "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
   "isDefault": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2977,8 +2975,6 @@ export const GetPaymentMethodsMeFullIdResponse = zod.object({
   "type": zod.string(),
   "upiId": zod.string(),
   "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
   "isDefault": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2998,8 +2994,6 @@ export const PostPaymentMethodsUpiResponse = zod.object({
   "type": zod.string(),
   "upiId": zod.string(),
   "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
   "isDefault": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -3023,8 +3017,6 @@ export const PatchPaymentMethodsUpiIdResponse = zod.object({
   "type": zod.string(),
   "upiId": zod.string(),
   "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
   "isDefault": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -3044,58 +3036,12 @@ export const GetAdminPaymentMethodsIdResponse = zod.object({
   "type": zod.string(),
   "upiId": zod.string(),
   "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
   "isDefault": zod.boolean(),
   "user": zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().nullish()
 }),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-
-
-/**
- * @summary Admin verify UPI ID
- */
-export const PostAdminPaymentMethodsIdVerifyUpiParams = zod.object({
-  "id": zod.coerce.string()
-})
-
-export const PostAdminPaymentMethodsIdVerifyUpiResponse = zod.object({
-  "id": zod.string(),
-  "userId": zod.string(),
-  "type": zod.string(),
-  "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
-  "isDefault": zod.boolean(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-
-
-/**
- * @summary Admin reject UPI ID
- */
-export const PostAdminPaymentMethodsIdRejectUpiParams = zod.object({
-  "id": zod.coerce.string()
-})
-
-export const PostAdminPaymentMethodsIdRejectUpiBody = zod.object({
-  "rejectionReason": zod.string()
-})
-
-export const PostAdminPaymentMethodsIdRejectUpiResponse = zod.object({
-  "id": zod.string(),
-  "userId": zod.string(),
-  "type": zod.string(),
-  "upiIdMasked": zod.string(),
-  "verificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
-  "rejectionReason": zod.string().nullish(),
-  "isDefault": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -3119,7 +3065,6 @@ export const GetPayoutsMyResponse = zod.object({
   "currency": zod.string(),
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']).nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),
   "paidAt": zod.coerce.date().nullish(),
@@ -3158,7 +3103,6 @@ export const GetPayoutsMyIdResponse = zod.object({
   "currency": zod.string(),
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']).nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),
   "paidAt": zod.coerce.date().nullish(),
@@ -3199,7 +3143,6 @@ export const PostPayoutsIdCancelResponse = zod.object({
   "currency": zod.string(),
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']).nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),
   "paidAt": zod.coerce.date().nullish(),
@@ -3223,7 +3166,6 @@ export const GetAdminPayoutsQueryParams = zod.object({
   "page": zod.coerce.number().optional(),
   "limit": zod.coerce.number().optional(),
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']).optional(),
-  "upiVerificationStatus": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
   "fromDate": zod.coerce.string().optional(),
   "toDate": zod.coerce.string().optional(),
@@ -3239,7 +3181,6 @@ export const GetAdminPayoutsResponse = zod.object({
   "currency": zod.string(),
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
   "requestedAt": zod.coerce.date(),
   "paidAt": zod.coerce.date().nullish(),
   "payoutReferenceId": zod.string().nullish(),
@@ -3282,7 +3223,6 @@ export const GetAdminPayoutsIdResponse = zod.object({
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
   "upiId": zod.string().nullish().describe('Full UPI ID — only returned when revealUpi=true'),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
   "adminNote": zod.string().nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),
@@ -3321,7 +3261,6 @@ export const PostAdminPayoutsIdStartProcessingResponse = zod.object({
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
   "upiId": zod.string().nullish().describe('Full UPI ID — only returned when revealUpi=true'),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
   "adminNote": zod.string().nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),
@@ -3365,7 +3304,6 @@ export const PostAdminPayoutsIdMarkPaidResponse = zod.object({
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
   "upiId": zod.string().nullish().describe('Full UPI ID — only returned when revealUpi=true'),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
   "adminNote": zod.string().nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),
@@ -3409,7 +3347,6 @@ export const PostAdminPayoutsIdRejectResponse = zod.object({
   "status": zod.enum(['PENDING', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED']),
   "upiIdMasked": zod.string(),
   "upiId": zod.string().nullish().describe('Full UPI ID — only returned when revealUpi=true'),
-  "upiVerificationStatus": zod.enum(['PENDING_VERIFICATION', 'VERIFIED', 'REJECTED']),
   "adminNote": zod.string().nullish(),
   "requestedAt": zod.coerce.date(),
   "processingStartedAt": zod.coerce.date().nullish(),

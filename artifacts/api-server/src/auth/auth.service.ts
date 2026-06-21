@@ -16,6 +16,7 @@ import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { generateUniqueReferralCode } from '../referrals/referrals.service';
+import { normalizeIndianPhone } from '../common/phone.util';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'capto-jwt-secret-change-in-production';
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -130,12 +131,13 @@ export class AuthService {
   }
 
   async requestOtp(dto: RequestOtpDto) {
-    let user = await this.prisma.user.findUnique({ where: { phoneNumber: dto.phoneNumber } });
+    const phoneNumber = normalizeIndianPhone(dto.phoneNumber);
+    let user = await this.prisma.user.findUnique({ where: { phoneNumber } });
 
     if (!user) {
       const referralCode = await generateUniqueReferralCode(this.prisma);
       user = await this.prisma.user.create({
-        data: { phoneNumber: dto.phoneNumber, referralCode },
+        data: { phoneNumber, referralCode },
       });
     } else if (!user.referralCode) {
       // Backfill missing referral code for existing users
@@ -160,7 +162,7 @@ export class AuthService {
     const cooldown = settings?.cooldownSeconds ?? 60;
     const recent = await this.prisma.otpSession.findFirst({
       where: {
-        phoneNumber: dto.phoneNumber,
+        phoneNumber,
         createdAt: { gte: new Date(Date.now() - cooldown * 1000) },
         verified: false,
       },
@@ -179,7 +181,7 @@ export class AuthService {
     const session = await this.prisma.otpSession.create({
       data: {
         userId: user.id,
-        phoneNumber: dto.phoneNumber,
+        phoneNumber,
         otp,
         expiresAt: new Date(Date.now() + expirySeconds * 1000),
       },
@@ -187,7 +189,7 @@ export class AuthService {
 
     // In production: send SMS via your gateway
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] OTP for ${dto.phoneNumber}: ${otp}`);
+      console.log(`[DEV] OTP for ${phoneNumber}: ${otp}`);
     }
 
     return { message: 'OTP sent successfully', sessionId: session.id };

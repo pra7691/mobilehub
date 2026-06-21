@@ -21,12 +21,6 @@ import {
 import { useColors } from "@/hooks/useColors";
 import { useQueryClient } from "@tanstack/react-query";
 
-const STATUS_CFG = {
-  PENDING_VERIFICATION: { bg: "#422006", text: "#f59e0b", label: "Pending Verification" },
-  VERIFIED: { bg: "#052e16", text: "#22c55e", label: "Verified" },
-  REJECTED: { bg: "#450a0a", text: "#ef4444", label: "Rejected" },
-};
-
 function validateUpiId(upiId: string): string | null {
   const trimmed = upiId.trim();
   const at = trimmed.indexOf("@");
@@ -54,7 +48,6 @@ export default function PaymentDetailsScreen() {
   const [upiError, setUpiError] = useState("");
 
   const isPending = addMutation.isPending || updateMutation.isPending;
-  const statusCfg = method ? STATUS_CFG[method.verificationStatus as keyof typeof STATUS_CFG] : null;
 
   async function handleSave() {
     const trimmed = upiId.trim();
@@ -105,27 +98,7 @@ export default function PaymentDetailsScreen() {
                   <Text style={styles.cardLabel}>UPI ID</Text>
                   <Text style={styles.cardValue}>{method.upiIdMasked}</Text>
                 </View>
-                {statusCfg && (
-                  <View style={[styles.badge, { backgroundColor: statusCfg.bg }]}>
-                    <Text style={[styles.badgeText, { color: statusCfg.text }]}>{statusCfg.label}</Text>
-                  </View>
-                )}
               </View>
-
-              {method.verificationStatus === "REJECTED" && method.rejectionReason && (
-                <View style={styles.alertBox}>
-                  <Feather name="alert-circle" size={13} color="#ef4444" />
-                  <Text style={[styles.alertText, { color: "#ef4444" }]}>{method.rejectionReason}</Text>
-                </View>
-              )}
-              {method.verificationStatus === "PENDING_VERIFICATION" && (
-                <View style={[styles.alertBox, { backgroundColor: "#422006", borderColor: "#92400e" }]}>
-                  <Feather name="info" size={13} color="#f59e0b" />
-                  <Text style={[styles.alertText, { color: "#f59e0b" }]}>
-                    Your UPI ID is being reviewed by the admin. This typically takes 1–2 business days.
-                  </Text>
-                </View>
-              )}
 
               {!editing && (
                 <TouchableOpacity
@@ -232,19 +205,6 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     cardInfo: { flex: 1, gap: 2 },
     cardLabel: { fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground },
     cardValue: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-    badgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-    alertBox: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 6,
-      backgroundColor: "#450a0a",
-      borderRadius: 8,
-      padding: 10,
-      borderWidth: 1,
-      borderColor: "#7f1d1d",
-    },
-    alertText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
     editBtn: {
       flexDirection: "row",
       alignItems: "center",

@@ -5,8 +5,6 @@ import {
   usePostAdminPayoutsIdStartProcessing,
   usePostAdminPayoutsIdMarkPaid,
   usePostAdminPayoutsIdReject,
-  usePostAdminPaymentMethodsIdVerifyUpi,
-  usePostAdminPaymentMethodsIdRejectUpi,
   getGetAdminPayoutsQueryKey,
   getGetAdminPayoutsIdQueryKey,
 } from "@workspace/api-client-react";
@@ -37,7 +35,6 @@ import {
 import { format, formatDistanceToNow } from "date-fns";
 
 type PayoutStatus = "PENDING" | "PROCESSING" | "PAID" | "REJECTED" | "CANCELLED";
-type UpiStatus = "PENDING_VERIFICATION" | "VERIFIED" | "REJECTED";
 
 const STATUS_BADGE: Record<PayoutStatus, { label: string; className: string }> = {
   PENDING: { label: "Pending", className: "bg-amber-500/15 text-amber-400 border-none" },
@@ -47,19 +44,8 @@ const STATUS_BADGE: Record<PayoutStatus, { label: string; className: string }> =
   CANCELLED: { label: "Cancelled", className: "bg-slate-500/15 text-slate-400 border-none" },
 };
 
-const UPI_BADGE: Record<UpiStatus, { label: string; className: string }> = {
-  PENDING_VERIFICATION: { label: "UPI Pending", className: "bg-amber-500/15 text-amber-400 border-none" },
-  VERIFIED: { label: "UPI Verified", className: "bg-emerald-500/15 text-emerald-400 border-none" },
-  REJECTED: { label: "UPI Rejected", className: "bg-red-500/15 text-red-400 border-none" },
-};
-
 function statusBadge(status: string) {
   const cfg = STATUS_BADGE[status as PayoutStatus] ?? STATUS_BADGE.PENDING;
-  return <Badge className={cfg.className}>{cfg.label}</Badge>;
-}
-
-function upiBadge(status: string) {
-  const cfg = UPI_BADGE[status as UpiStatus] ?? UPI_BADGE.PENDING_VERIFICATION;
   return <Badge className={cfg.className}>{cfg.label}</Badge>;
 }
 
@@ -182,49 +168,6 @@ function RejectDialog({
   );
 }
 
-// ─── Reject UPI Dialog ────────────────────────────────────────────────────────
-function RejectUpiDialog({
-  methodId, open, onClose, onSuccess,
-}: { methodId: string; open: boolean; onClose: () => void; onSuccess: () => void }) {
-  const [reason, setReason] = useState("");
-  const rejectUpiMutation = usePostAdminPaymentMethodsIdRejectUpi();
-  const { toast } = useToast();
-
-  async function handleConfirm() {
-    if (!reason.trim()) return;
-    try {
-      await rejectUpiMutation.mutateAsync({ id: methodId, data: { rejectionReason: reason.trim() } });
-      toast({ title: "UPI rejected" });
-      setReason("");
-      onClose();
-      onSuccess();
-    } catch (e: unknown) {
-      toast({ title: "Failed to reject UPI", description: (e as { message?: string })?.message, variant: "destructive" });
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-card border-border max-w-sm">
-        <DialogHeader><DialogTitle>Reject UPI ID</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label>Rejection reason *</Label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Explain to the user why their UPI ID was rejected" className="bg-background resize-none" rows={3} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={rejectUpiMutation.isPending || !reason.trim()} className="gap-2">
-            {rejectUpiMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Reject UPI
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Detail Panel ─────────────────────────────────────────────────────────────
 function DetailPanel({
   payoutId, open, onClose,
@@ -235,13 +178,11 @@ function DetailPanel({
     { query: { enabled: !!payoutId, queryKey: getGetAdminPayoutsIdQueryKey(payoutId ?? "", {}) } },
   );
   const startProcessingMutation = usePostAdminPayoutsIdStartProcessing();
-  const verifyUpiMutation = usePostAdminPaymentMethodsIdVerifyUpi();
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectUpiOpen, setRejectUpiOpen] = useState(false);
   const [revealUpi, setRevealUpi] = useState(false);
 
   const detail = payout as AdminPayoutDetail | undefined;
@@ -255,17 +196,6 @@ function DetailPanel({
       toast({ title: "Moved to Processing" });
     } catch (e: unknown) {
       toast({ title: "Failed", description: (e as { message?: string })?.message, variant: "destructive" });
-    }
-  }
-
-  async function handleVerifyUpi() {
-    if (!detail?.paymentMethodId) return;
-    try {
-      await verifyUpiMutation.mutateAsync({ id: detail.paymentMethodId });
-      await refetch();
-      toast({ title: "UPI verified" });
-    } catch (e: unknown) {
-      toast({ title: "Failed to verify UPI", description: (e as { message?: string })?.message, variant: "destructive" });
     }
   }
 
@@ -290,9 +220,8 @@ function DetailPanel({
                   <p className="text-2xl font-bold">₹{Number(detail.amount).toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">{detail.currency}</p>
                 </div>
-                <div className="text-right space-y-1">
+                <div className="text-right">
                   {statusBadge(detail.status)}
-                  {detail.upiVerificationStatus && upiBadge(detail.upiVerificationStatus)}
                 </div>
               </div>
 
@@ -308,28 +237,13 @@ function DetailPanel({
 
               {/* UPI info */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">UPI ID</p>
-                  {detail.paymentMethodId && (
-                    <div className="flex gap-2">
-                      {detail.upiVerificationStatus === "PENDING_VERIFICATION" && (
-                        <>
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-emerald-400 border-emerald-400/30"
-                            onClick={handleVerifyUpi} disabled={verifyUpiMutation.isPending}>
-                            {verifyUpiMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                            Verify
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-red-400 border-red-400/30"
-                            onClick={() => setRejectUpiOpen(true)}>
-                            <XCircle className="h-3 w-3" /> Reject UPI
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">UPI ID</p>
                 <div className="bg-background rounded-lg border border-border p-3 flex items-center gap-2">
-                  <p className="text-sm font-mono flex-1">{revealUpi && (detail as AdminPayoutDetail & { upiId?: string }).upiId ? (detail as AdminPayoutDetail & { upiId?: string }).upiId : detail.upiIdMasked}</p>
+                  <p className="text-sm font-mono flex-1">
+                    {revealUpi && (detail as AdminPayoutDetail & { upiId?: string }).upiId
+                      ? (detail as AdminPayoutDetail & { upiId?: string }).upiId
+                      : detail.upiIdMasked}
+                  </p>
                   <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setRevealUpi((v) => !v)}>
                     <Eye className="h-3 w-3" />{revealUpi ? "Hide" : "Reveal"}
                   </Button>
@@ -411,14 +325,6 @@ function DetailPanel({
 
       <MarkPaidDialog payout={detail} open={markPaidOpen} onClose={() => { setMarkPaidOpen(false); refetch(); }} />
       <RejectDialog payout={detail} open={rejectOpen} onClose={() => { setRejectOpen(false); refetch(); }} />
-      {detail?.paymentMethodId && (
-        <RejectUpiDialog
-          methodId={detail.paymentMethodId}
-          open={rejectUpiOpen}
-          onClose={() => setRejectUpiOpen(false)}
-          onSuccess={() => refetch()}
-        />
-      )}
     </>
   );
 }
@@ -427,7 +333,6 @@ function DetailPanel({
 export default function PayoutsPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<PayoutStatus | "all">("all");
-  const [upiFilter, setUpiFilter] = useState<UpiStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -438,7 +343,6 @@ export default function PayoutsPage() {
     page,
     limit,
     status: statusFilter !== "all" ? statusFilter : undefined,
-    upiVerificationStatus: upiFilter !== "all" ? upiFilter : undefined,
     search: search || undefined,
   });
 
@@ -493,18 +397,6 @@ export default function PayoutsPage() {
             <SelectItem value="CANCELLED">Cancelled</SelectItem>
           </SelectContent>
         </Select>
-
-        <Select value={upiFilter} onValueChange={(v) => { setUpiFilter(v as UpiStatus | "all"); setPage(1); }}>
-          <SelectTrigger className="w-44 bg-background">
-            <SelectValue placeholder="UPI status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All UPI statuses</SelectItem>
-            <SelectItem value="PENDING_VERIFICATION">UPI Pending</SelectItem>
-            <SelectItem value="VERIFIED">UPI Verified</SelectItem>
-            <SelectItem value="REJECTED">UPI Rejected</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Table */}
@@ -516,7 +408,6 @@ export default function PayoutsPage() {
               <TableHead>UPI ID</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>UPI</TableHead>
               <TableHead>Requested</TableHead>
             </TableRow>
           </TableHeader>
@@ -524,14 +415,14 @@ export default function PayoutsPage() {
             {isLoading ? (
               [...Array(5)].map((_, i) => (
                 <TableRow key={i} className="border-border">
-                  {[...Array(6)].map((_, j) => (
+                  {[...Array(5)].map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : payouts.length === 0 ? (
               <TableRow className="border-border">
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                   No payout requests found
                 </TableCell>
               </TableRow>
@@ -555,7 +446,6 @@ export default function PayoutsPage() {
                     <span className="font-semibold">₹{Number(p.amount).toFixed(2)}</span>
                   </TableCell>
                   <TableCell>{statusBadge(p.status)}</TableCell>
-                  <TableCell>{upiBadge(p.upiVerificationStatus)}</TableCell>
                   <TableCell>
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(p.requestedAt), { addSuffix: true })}

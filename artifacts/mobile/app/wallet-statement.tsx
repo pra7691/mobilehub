@@ -16,9 +16,8 @@ import { useColors } from "@/hooks/useColors";
 
 const PAGE_SIZE = 20;
 
-function formatCurrency(amount: number, currency?: string): string {
-  const symbol = currency === "INR" ? "₹" : currency === "NGN" ? "₦" : "$";
-  return `${symbol}${amount.toFixed(2)}`;
+function formatCurrency(amount: number, _currency?: string): string {
+  return `₹${amount.toFixed(2)}`;
 }
 
 function sourceLabel(sourceType: string): string {

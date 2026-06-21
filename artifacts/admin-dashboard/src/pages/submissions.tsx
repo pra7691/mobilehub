@@ -242,7 +242,7 @@ export default function Submissions() {
 
   const taskSnapshot = selectedSub?.taskSnapshot as TaskSnapshot | undefined;
   const snapshotAmount = selectedSub?.paymentAmountSnapshot;
-  const currency = selectedSub?.currencySnapshot === "INR" ? "₹" : "$";
+  const currency = "₹";
 
   return (
     <div className="space-y-6">
@@ -430,7 +430,7 @@ export default function Submissions() {
                   </TableCell>
                   <TableCell>{getStatusBadge(sub.status)}</TableCell>
                   <TableCell className="text-right font-mono text-sm font-medium">
-                    {sub.currencySnapshot === "INR" ? "₹" : "$"}{sub.paymentAmountSnapshot.toFixed(2)}
+                    ₹{sub.paymentAmountSnapshot.toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Info className="h-4 w-4 text-muted-foreground" />
@@ -670,7 +670,7 @@ export default function Submissions() {
                   <SectionTitle>Review</SectionTitle>
                   <div className="bg-background rounded-lg border border-border p-3 space-y-1.5">
                     {selectedSub.approvedAmount != null && (
-                      <DetailRow label="Approved amount" value={`${selectedSub.currencySnapshot === "INR" ? "₹" : "$"}${Number(selectedSub.approvedAmount).toFixed(2)}`} />
+                      <DetailRow label="Approved amount" value={`₹${Number(selectedSub.approvedAmount).toFixed(2)}`} />
                     )}
                     {selectedSub.rejectionReason && (
                       <div>
@@ -702,7 +702,7 @@ export default function Submissions() {
                       {taskSnapshot.subcategory && <DetailRow label="Subcategory" value={taskSnapshot.subcategory.name} />}
                       <DetailRow
                         label="Reward"
-                        value={`${taskSnapshot.currency === "INR" ? "₹" : "$"}${taskSnapshot.paymentAmount?.toFixed(2) ?? "—"}`}
+                        value={`₹${taskSnapshot.paymentAmount?.toFixed(2) ?? "—"}`}
                       />
                       {taskSnapshot.minimumDurationSeconds != null && (
                         <DetailRow label="Min duration" value={`${taskSnapshot.minimumDurationSeconds}s`} />

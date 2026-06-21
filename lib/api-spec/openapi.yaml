@@ -2091,52 +2091,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminPaymentMethodDetail"
 
-  /admin/payment-methods/{id}/verify-upi:
-    post:
-      summary: Admin verify UPI ID
-      tags: [admin-payment-methods]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserPaymentMethod"
-
-  /admin/payment-methods/{id}/reject-upi:
-    post:
-      summary: Admin reject UPI ID
-      tags: [admin-payment-methods]
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminRejectUpiBody"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserPaymentMethod"
-
   /payouts/my:
     get:
       summary: Get my payout requests
@@ -2245,10 +2199,6 @@ paths:
           schema:
             type: string
             enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
-        - name: upiVerificationStatus
-          in: query
-          schema:
-            type: string
         - name: search
           in: query
           schema:
@@ -4644,12 +4594,6 @@ components:
           type: string
         upiIdMasked:
           type: string
-        verificationStatus:
-          type: string
-          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
-        rejectionReason:
-          type: string
-          nullable: true
         isDefault:
           type: boolean
         createdAt:
@@ -4658,7 +4602,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, type, upiIdMasked, verificationStatus, isDefault, createdAt, updatedAt]
+      required: [id, userId, type, upiIdMasked, isDefault, createdAt, updatedAt]
 
     UserPaymentMethodWithFullUpi:
       type: object
@@ -4673,12 +4617,6 @@ components:
           type: string
         upiIdMasked:
           type: string
-        verificationStatus:
-          type: string
-          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
-        rejectionReason:
-          type: string
-          nullable: true
         isDefault:
           type: boolean
         createdAt:
@@ -4687,7 +4625,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, type, upiId, upiIdMasked, verificationStatus, isDefault, createdAt, updatedAt]
+      required: [id, userId, type, upiId, upiIdMasked, isDefault, createdAt, updatedAt]
 
     AdminPaymentMethodDetail:
       type: object
@@ -4702,12 +4640,6 @@ components:
           type: string
         upiIdMasked:
           type: string
-        verificationStatus:
-          type: string
-          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
-        rejectionReason:
-          type: string
-          nullable: true
         isDefault:
           type: boolean
         user:
@@ -4727,7 +4659,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, type, upiId, upiIdMasked, verificationStatus, isDefault, user, createdAt, updatedAt]
+      required: [id, userId, type, upiId, upiIdMasked, isDefault, user, createdAt, updatedAt]
 
     UpiPaymentMethodBody:
       type: object
@@ -4736,13 +4668,6 @@ components:
           type: string
           description: "UPI ID e.g. name@upi"
       required: [upiId]
-
-    AdminRejectUpiBody:
-      type: object
-      properties:
-        rejectionReason:
-          type: string
-      required: [rejectionReason]
 
     PayoutRequestItem:
       type: object
@@ -4762,10 +4687,6 @@ components:
           enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
         upiIdMasked:
           type: string
-        upiVerificationStatus:
-          type: string
-          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
-          nullable: true
         requestedAt:
           type: string
           format: date-time
@@ -4858,9 +4779,6 @@ components:
           enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
         upiIdMasked:
           type: string
-        upiVerificationStatus:
-          type: string
-          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
         requestedAt:
           type: string
           format: date-time
@@ -4894,7 +4812,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, amount, currency, status, upiIdMasked, upiVerificationStatus, requestedAt, user, createdAt, updatedAt]
+      required: [id, userId, amount, currency, status, upiIdMasked, requestedAt, user, createdAt, updatedAt]
 
     AdminPayoutDetail:
       type: object
@@ -4918,9 +4836,6 @@ components:
           type: string
           nullable: true
           description: "Full UPI ID — only returned when revealUpi=true"
-        upiVerificationStatus:
-          type: string
-          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
         adminNote:
           type: string
           nullable: true
@@ -4979,7 +4894,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, amount, currency, status, upiIdMasked, upiVerificationStatus, requestedAt, user, createdAt, updatedAt]
+      required: [id, userId, amount, currency, status, upiIdMasked, requestedAt, user, createdAt, updatedAt]
 
     AdminPayoutListResponse:
       type: object

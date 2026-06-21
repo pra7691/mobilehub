@@ -15,14 +15,9 @@ import { IsString, IsNotEmpty } from 'class-validator';
 import type { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 interface AuthRequest { user: JwtPayload }
-interface AdminRequest { user: { sub: string; email?: string } }
 
 class UpiDto {
   @IsString() @IsNotEmpty() upiId!: string;
-}
-
-class RejectUpiDto {
-  @IsString() @IsNotEmpty() rejectionReason!: string;
 }
 
 @Controller('payment-methods')
@@ -63,24 +58,5 @@ export class AdminPaymentMethodsController {
   @Get(':id')
   getPaymentMethod(@Param('id') id: string) {
     return this.service.adminGetPaymentMethod(id);
-  }
-
-  @Post(':id/verify-upi')
-  verifyUpi(@Param('id') id: string, @Req() req: AdminRequest) {
-    return this.service.adminVerifyUpi(id, req.user.sub, req.user.email ?? req.user.sub);
-  }
-
-  @Post(':id/reject-upi')
-  rejectUpi(
-    @Param('id') id: string,
-    @Req() req: AdminRequest,
-    @Body() body: RejectUpiDto,
-  ) {
-    return this.service.adminRejectUpi(
-      id,
-      body.rejectionReason,
-      req.user.sub,
-      req.user.email ?? req.user.sub,
-    );
   }
 }
