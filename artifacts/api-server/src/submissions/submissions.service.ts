@@ -217,6 +217,7 @@ export class SubmissionsService {
       lensRequested?: string;
       orientation?: string;
     },
+    requestId?: string,
   ) {
     const task = await this.prisma.task.findUnique({
       where: { id: body.taskId },
@@ -433,7 +434,7 @@ export class SubmissionsService {
     });
 
     this.logger.log(
-      `Submission initiated: submissionId=${submission.id} userId=${userId} taskId=${body.taskId} fileCount=${uploadTargets.length} type=${task.collectionType}`,
+      `Submission initiated: submissionId=${submission.id} userId=${userId} taskId=${body.taskId} fileCount=${uploadTargets.length} type=${task.collectionType}${requestId ? ` requestId=${requestId}` : ''}`,
     );
 
     return {
@@ -449,6 +450,7 @@ export class SubmissionsService {
     body: {
       uploadedMedia: Array<{ mediaId: string; fileSize?: number }>;
     },
+    requestId?: string,
   ) {
     const submission = await this.prisma.submission.findUnique({
       where: { id: submissionId },
@@ -497,7 +499,7 @@ export class SubmissionsService {
     });
 
     this.logger.log(
-      `Upload complete: submissionId=${submissionId} userId=${userId} mediaCount=${body.uploadedMedia.length} → UNDER_REVIEW`,
+      `Upload complete: submissionId=${submissionId} userId=${userId} mediaCount=${body.uploadedMedia.length} → UNDER_REVIEW${requestId ? ` requestId=${requestId}` : ''}`,
     );
 
     return formatSubmission(updated);
@@ -508,6 +510,7 @@ export class SubmissionsService {
     userId: string,
     submissionId: string,
     body: { failureReason?: string; failedMediaIds?: string[] },
+    requestId?: string,
   ) {
     const submission = await this.prisma.submission.findUnique({
       where: { id: submissionId },
@@ -533,7 +536,7 @@ export class SubmissionsService {
     });
 
     this.logger.warn(
-      `Upload failed: submissionId=${submissionId} userId=${userId} reason="${body.failureReason ?? 'none'}" failedMedia=${body.failedMediaIds?.length ?? 0}`,
+      `Upload failed: submissionId=${submissionId} userId=${userId} reason="${body.failureReason ?? 'none'}" failedMedia=${body.failedMediaIds?.length ?? 0}${requestId ? ` requestId=${requestId}` : ''}`,
     );
 
     return formatSubmission(updated);

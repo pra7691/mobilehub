@@ -72,30 +72,30 @@ export class SubmissionsController {
   // POST /submissions/initiate
   @Post('initiate')
   @HttpCode(HttpStatus.CREATED)
-  initiate(@Req() req: { user: JwtPayload }, @Body() body: InitiateSubmissionDto) {
-    return this.service.initiate(req.user.sub, body);
+  initiate(@Req() req: { user: JwtPayload; requestId?: string }, @Body() body: InitiateSubmissionDto) {
+    return this.service.initiate(req.user.sub, body, req.requestId);
   }
 
   // POST /submissions/:id/upload-complete
   @Post(':id/upload-complete')
   @HttpCode(HttpStatus.OK)
   uploadComplete(
-    @Req() req: { user: JwtPayload },
+    @Req() req: { user: JwtPayload; requestId?: string },
     @Param('id') id: string,
     @Body() body: UploadCompleteDto,
   ) {
-    return this.service.uploadComplete(req.user.sub, id, body);
+    return this.service.uploadComplete(req.user.sub, id, body, req.requestId);
   }
 
   // POST /submissions/:id/upload-failed
   @Post(':id/upload-failed')
   @HttpCode(HttpStatus.OK)
   uploadFailed(
-    @Req() req: { user: JwtPayload },
+    @Req() req: { user: JwtPayload; requestId?: string },
     @Param('id') id: string,
     @Body() body: UploadFailedDto,
   ) {
-    return this.service.uploadFailed(req.user.sub, id, body);
+    return this.service.uploadFailed(req.user.sub, id, body, req.requestId);
   }
 
   // GET /submissions/my
