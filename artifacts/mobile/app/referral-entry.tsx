@@ -20,12 +20,22 @@ import { Feather } from "@expo/vector-icons";
 
 const REFERRAL_PROMPTED_KEY = (userId: string) => `capto_referral_prompted_${userId}`;
 
+async function storeGet(key: string): Promise<string | null> {
+  if (Platform.OS === "web") return localStorage.getItem(key);
+  return SecureStore.getItemAsync(key);
+}
+
+async function storeSet(key: string, value: string): Promise<void> {
+  if (Platform.OS === "web") { localStorage.setItem(key, value); return; }
+  return SecureStore.setItemAsync(key, value);
+}
+
 export async function markReferralPrompted(userId: string) {
-  await SecureStore.setItemAsync(REFERRAL_PROMPTED_KEY(userId), "1");
+  await storeSet(REFERRAL_PROMPTED_KEY(userId), "1");
 }
 
 export async function hasBeenPrompted(userId: string): Promise<boolean> {
-  const val = await SecureStore.getItemAsync(REFERRAL_PROMPTED_KEY(userId));
+  const val = await storeGet(REFERRAL_PROMPTED_KEY(userId));
   return val === "1";
 }
 
@@ -101,7 +111,6 @@ export default function ReferralEntryScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }]}>
-        {/* Icon */}
         <View style={styles.iconWrap}>
           <Feather name="gift" size={36} color={colors.primary} />
         </View>
@@ -109,7 +118,6 @@ export default function ReferralEntryScreen() {
         <Text style={styles.title}>{t("referral.entryTitle")}</Text>
         <Text style={styles.subtitle}>{t("referral.entrySubtitle")}</Text>
 
-        {/* Code input */}
         <View style={styles.inputWrap}>
           <TextInput
             style={[
@@ -134,14 +142,12 @@ export default function ReferralEntryScreen() {
           )}
         </View>
 
-        {/* Validation message */}
         {validationMsg && (
           <Text style={[styles.validationMsg, isValid ? styles.validMsg : styles.invalidMsg]}>
             {validationMsg}
           </Text>
         )}
 
-        {/* Apply button */}
         <TouchableOpacity
           style={[
             styles.applyBtn,
@@ -158,7 +164,6 @@ export default function ReferralEntryScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Skip */}
         <TouchableOpacity style={styles.skipBtn} onPress={dismiss} activeOpacity={0.7}>
           <Text style={styles.skipText}>{t("referral.skip")}</Text>
         </TouchableOpacity>

@@ -1,0 +1,132 @@
+Continue from the existing Capto Expo mobile app. Do not rebuild authentication, tasks, uploads, capture, wallet, referrals, language selection, or navigation.
+
+Fix global network/offline handling across the mobile app.
+
+Problem:
+On the Android emulator, a red system banner at the top says “No internet connection.” The app also needs a proper in-app offline state so screens do not look broken when internet is unavailable.
+
+Important clarification:
+
+* Do not try to remove, style, hide, or modify the Android emulator/system “No internet connection” banner. That banner belongs to the device/emulator OS, not the Capto app.
+* Fix Capto’s own network handling and ensure no Capto UI overlaps with the status bar/system banner.
+
+Requirements:
+
+1. Add global connectivity detection
+
+* Use a reliable Expo/React Native-compatible network status solution.
+* Detect:
+
+  * online
+  * offline
+  * internet reachable/unreachable where supported
+* Keep connection status in global app state.
+* Re-check connectivity when app returns to foreground.
+
+2. Add a Capto in-app offline banner
+
+* Show a slim in-app offline banner only below the safe area/status bar.
+* Text: “No internet connection”
+* Do not use red full-screen error UI unless the user is trying to perform an internet-required action.
+* Banner must not overlap:
+
+  * Dynamic Island
+  * status bar
+  * Android cutout
+  * app header/back button
+  * bottom navigation
+* Use existing Capto dark/cyan visual language, but make offline state clearly noticeable.
+* When internet returns, show a short “Back online” confirmation and then hide the banner.
+
+3. Offline behavior by screen
+   When offline:
+
+* Tasks/category/task detail:
+
+  * Show cached content if available.
+  * Otherwise show an offline empty state with Retry button.
+* My Uploads:
+
+  * Continue showing local drafts.
+  * Show under-review/completed cached content if available.
+* Upload:
+
+  * Prevent starting new upload.
+  * Keep draft intact.
+  * Show: “You’re offline. Connect to the internet to upload.”
+* Login/OTP:
+
+  * Show clear message that internet is required.
+  * Do not show raw API errors.
+* Wallet/payout/referral:
+
+  * Show last cached data if available.
+  * Add pull-to-refresh retry once internet returns.
+* Banner carousel:
+
+  * Hide if data is unavailable.
+  * Do not block category display.
+
+4. API handling
+
+* Add centralized API/network error handling.
+* Distinguish:
+
+  * no internet
+  * timeout
+  * backend unavailable
+  * unauthorized
+  * disabled account
+  * validation error
+* Show user-friendly messages only.
+* Never show raw error JSON, stack traces, developer error logs, or request dump screens.
+
+5. Safe-area verification
+
+* Confirm the offline banner and all top headers use the shared safe-area layout.
+* Ensure the banner is below the safe-area top inset and below any app header where needed.
+* Do not use hard-coded top offsets.
+* Make sure it works on:
+
+  * iPhone with Dynamic Island
+  * iPhone notch devices
+  * Android cutout devices
+  * Android emulator
+
+6. Caching
+
+* Add lightweight caching for safe read-only API responses where practical:
+
+  * categories
+  * subcategories
+  * tasks
+  * profile summary
+  * wallet summary
+  * FAQ
+  * settings
+* Do not cache tokens insecurely.
+* Do not cache sensitive UPI IDs in plain text.
+* Clearly mark cached/offline data where useful.
+
+7. Testing
+   Test:
+
+* Turn emulator/device internet off.
+* Launch app.
+* Navigate existing cached screens.
+* Try login.
+* Try upload.
+* Try pull-to-refresh.
+* Turn internet back on.
+* Confirm app refreshes correctly.
+* Confirm no Capto UI is hidden behind status bar/system banners.
+* Confirm the OS red banner is recognized as system UI and not treated as a Capto bug.
+
+At the end provide:
+
+* Files changed
+* Connectivity library/service used
+* Screens updated
+* Offline behavior summary
+* Confirmation that the Android red banner is system-level and cannot be controlled by the app
+* Test steps for emulator and real phone

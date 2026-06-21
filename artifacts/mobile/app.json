@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Capto Mobile App",
-    "slug": "mobile",
+    "name": "Tarzi",
+    "slug": "tarzi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "tarzi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -18,7 +18,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Capto needs camera access to capture photo and video evidence for tasks.",
         "NSMicrophoneUsageDescription": "Capto needs microphone access to record audio evidence and video with sound for tasks."
-      }
+      },
+      "bundleIdentifier": "com.tarzi.app"
     },
     "android": {
       "permissions": [
@@ -30,7 +31,8 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS"
-      ]
+      ],
+      "package": "com.tarzi.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"

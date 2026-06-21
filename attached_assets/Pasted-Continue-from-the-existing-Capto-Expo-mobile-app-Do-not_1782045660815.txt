@@ -1,0 +1,83 @@
+Continue from the existing Capto Expo mobile app. Do not modify business logic, authentication, APIs, task flows, capture, uploads, or navigation.
+
+Improve the production splash screen and app startup experience.
+
+Important clarification:
+
+* The Expo/Metro “Bundling 100.0%” text and percentage shown in the emulator or Expo Go/dev environment are development tooling and must not be treated as an in-app UI component.
+* Do not attempt to replace or customize the Expo development bundling screen.
+* Focus only on the real Capto splash screen shown in preview and production builds.
+
+Requirements:
+
+1. Native Splash Screen
+   Configure a proper native Capto splash screen for iOS and Android.
+
+Use:
+
+* Capto logo
+* Clean dark navy background matching the brand
+* Centered logo
+* No text saying “Capto Mobile App”
+* No percentage
+* No “Bundling”
+* No technical loading logs
+* No developer/debug information
+
+2. App Startup Loading
+   After the native splash screen, show a clean in-app loading state only if startup checks take time.
+
+Show:
+
+* Capto logo or small centered brand mark
+* Simple text: “Loading...”
+* Optional subtle indeterminate progress bar or small activity indicator
+* No percentage value
+* No “Bundling”
+* No debug logs
+* No raw errors
+
+3. Splash Timing
+   Keep native splash visible while the app is:
+
+* Loading fonts/assets
+* Checking saved language preference
+* Checking stored authentication session
+* Checking disabled-user state if authenticated
+* Preparing initial route
+
+Do not hide splash until those startup checks are complete.
+
+4. Production Build Verification
+   Add or confirm Expo splash configuration in app config/app.json/app.config.ts.
+
+Ensure:
+
+* iOS splash uses correct background color and icon
+* Android splash uses correct background color and icon
+* Logo is correctly centered and not stretched
+* Dark mode appearance is handled consistently if supported
+* Expo Go/dev bundling screen is not used to judge final splash appearance
+
+5. Error Handling
+   If startup API/session check fails:
+
+* Move to the appropriate Login or retry screen.
+* Never show a raw error log.
+* Never leave splash frozen indefinitely.
+* Add a reasonable startup timeout and fallback.
+
+6. Test Instructions
+   Provide exact instructions for testing:
+
+* Expo Go/dev mode: explain that bundling text may still appear and is expected.
+* Preview build: verify real splash screen.
+* Production build: verify real splash screen.
+* iPhone and Android physical devices.
+
+At the end provide:
+
+* Splash-related files/config updated
+* Whether a preview/production build is required to test final behavior
+* Confirmation that users will not see the Expo “Bundling xx%” screen in the shipped app
+* Exact commands/build profile needed to create a preview build
