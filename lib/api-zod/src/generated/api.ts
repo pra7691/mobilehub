@@ -1457,6 +1457,357 @@ export const AdminGetSubmissionResponse = zod.object({
 })
 
 
+export const AdminApproveSubmissionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const adminApproveSubmissionBodyApprovedAmountMin = 0;
+
+
+
+export const AdminApproveSubmissionBody = zod.object({
+  "approvedAmount": zod.number().min(adminApproveSubmissionBodyApprovedAmountMin).optional(),
+  "adminNote": zod.string().optional()
+})
+
+export const AdminApproveSubmissionResponse = zod.object({
+  "id": zod.string(),
+  "taskId": zod.string(),
+  "task": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
+  "categoryId": zod.string(),
+  "category": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
+}).optional(),
+  "subcategoryId": zod.string().optional(),
+  "subcategory": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "isActive": zod.boolean()
+}).optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
+  "status": zod.enum(['active', 'inactive', 'draft']),
+  "submissionCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "userId": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "totalEarnings": zod.number(),
+  "totalSubmissions": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "categoryId": zod.string().optional(),
+  "subcategoryId": zod.string().optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "status": zod.enum(['DRAFT', 'UPLOADING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'RESUBMISSION_REQUIRED', 'UPLOAD_FAILED']),
+  "submittedAt": zod.coerce.date().optional(),
+  "uploadStartedAt": zod.coerce.date().optional(),
+  "uploadCompletedAt": zod.coerce.date().optional(),
+  "captureStartedAt": zod.coerce.date().optional(),
+  "captureEndedAt": zod.coerce.date().optional(),
+  "durationSeconds": zod.number().optional(),
+  "imageCount": zod.number().optional(),
+  "totalFileSize": zod.number().optional(),
+  "devicePlatform": zod.string().optional(),
+  "deviceModel": zod.string().optional(),
+  "osVersion": zod.string().optional(),
+  "captureMetadata": zod.object({
+
+}).passthrough().optional(),
+  "taskSnapshot": zod.object({
+
+}).passthrough(),
+  "paymentAmountSnapshot": zod.number(),
+  "currencySnapshot": zod.string(),
+  "failureReason": zod.string().optional(),
+  "approvedAmount": zod.number().optional(),
+  "rejectionReason": zod.string().optional(),
+  "resubmissionReason": zod.string().optional(),
+  "adminNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional(),
+  "media": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO', 'THUMBNAIL']),
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "readUrl": zod.string().optional().describe('Short-lived presigned GET URL for direct access (admin only, ~1h TTL)'),
+  "thumbnailUrl": zod.string().optional(),
+  "fileSize": zod.number().optional(),
+  "durationSeconds": zod.number().optional(),
+  "mimeType": zod.string(),
+  "sortOrder": zod.number(),
+  "uploadStatus": zod.enum(['PENDING', 'UPLOADING', 'UPLOADED', 'FAILED'])
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminRejectSubmissionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminRejectSubmissionBody = zod.object({
+  "rejectionReason": zod.string(),
+  "adminNote": zod.string().optional()
+})
+
+export const AdminRejectSubmissionResponse = zod.object({
+  "id": zod.string(),
+  "taskId": zod.string(),
+  "task": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
+  "categoryId": zod.string(),
+  "category": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
+}).optional(),
+  "subcategoryId": zod.string().optional(),
+  "subcategory": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "isActive": zod.boolean()
+}).optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
+  "status": zod.enum(['active', 'inactive', 'draft']),
+  "submissionCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "userId": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "totalEarnings": zod.number(),
+  "totalSubmissions": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "categoryId": zod.string().optional(),
+  "subcategoryId": zod.string().optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "status": zod.enum(['DRAFT', 'UPLOADING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'RESUBMISSION_REQUIRED', 'UPLOAD_FAILED']),
+  "submittedAt": zod.coerce.date().optional(),
+  "uploadStartedAt": zod.coerce.date().optional(),
+  "uploadCompletedAt": zod.coerce.date().optional(),
+  "captureStartedAt": zod.coerce.date().optional(),
+  "captureEndedAt": zod.coerce.date().optional(),
+  "durationSeconds": zod.number().optional(),
+  "imageCount": zod.number().optional(),
+  "totalFileSize": zod.number().optional(),
+  "devicePlatform": zod.string().optional(),
+  "deviceModel": zod.string().optional(),
+  "osVersion": zod.string().optional(),
+  "captureMetadata": zod.object({
+
+}).passthrough().optional(),
+  "taskSnapshot": zod.object({
+
+}).passthrough(),
+  "paymentAmountSnapshot": zod.number(),
+  "currencySnapshot": zod.string(),
+  "failureReason": zod.string().optional(),
+  "approvedAmount": zod.number().optional(),
+  "rejectionReason": zod.string().optional(),
+  "resubmissionReason": zod.string().optional(),
+  "adminNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional(),
+  "media": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO', 'THUMBNAIL']),
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "readUrl": zod.string().optional().describe('Short-lived presigned GET URL for direct access (admin only, ~1h TTL)'),
+  "thumbnailUrl": zod.string().optional(),
+  "fileSize": zod.number().optional(),
+  "durationSeconds": zod.number().optional(),
+  "mimeType": zod.string(),
+  "sortOrder": zod.number(),
+  "uploadStatus": zod.enum(['PENDING', 'UPLOADING', 'UPLOADED', 'FAILED'])
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminRequestResubmissionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminRequestResubmissionBody = zod.object({
+  "resubmissionReason": zod.string()
+})
+
+export const AdminRequestResubmissionResponse = zod.object({
+  "id": zod.string(),
+  "taskId": zod.string(),
+  "task": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "detailedInstructions": zod.string().optional(),
+  "dos": zod.array(zod.string()),
+  "donts": zod.array(zod.string()),
+  "categoryId": zod.string(),
+  "category": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "icon": zod.string().optional(),
+  "isActive": zod.boolean()
+}).optional(),
+  "subcategoryId": zod.string().optional(),
+  "subcategory": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "isActive": zod.boolean()
+}).optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "paymentAmount": zod.number(),
+  "currency": zod.string(),
+  "sampleMediaUrl": zod.string().optional(),
+  "minimumDurationSeconds": zod.number().optional(),
+  "maximumDurationSeconds": zod.number().optional(),
+  "minimumImageCount": zod.number().optional(),
+  "maximumImageCount": zod.number().optional(),
+  "preferredFps": zod.number().optional(),
+  "minimumFps": zod.number().optional(),
+  "preferredCamera": zod.enum(['REAR', 'FRONT', 'ANY']),
+  "preferredLens": zod.enum(['ULTRA_WIDE', 'STANDARD', 'ANY']),
+  "requiredOrientation": zod.enum(['PORTRAIT', 'LANDSCAPE', 'ANY']),
+  "audioRequired": zod.boolean(),
+  "pauseAllowed": zod.boolean(),
+  "maxSubmissionsPerUser": zod.number().optional(),
+  "maxTotalSubmissions": zod.number().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "displayOrder": zod.number(),
+  "status": zod.enum(['active', 'inactive', 'draft']),
+  "submissionCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "userId": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "totalEarnings": zod.number(),
+  "totalSubmissions": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "categoryId": zod.string().optional(),
+  "subcategoryId": zod.string().optional(),
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "status": zod.enum(['DRAFT', 'UPLOADING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'RESUBMISSION_REQUIRED', 'UPLOAD_FAILED']),
+  "submittedAt": zod.coerce.date().optional(),
+  "uploadStartedAt": zod.coerce.date().optional(),
+  "uploadCompletedAt": zod.coerce.date().optional(),
+  "captureStartedAt": zod.coerce.date().optional(),
+  "captureEndedAt": zod.coerce.date().optional(),
+  "durationSeconds": zod.number().optional(),
+  "imageCount": zod.number().optional(),
+  "totalFileSize": zod.number().optional(),
+  "devicePlatform": zod.string().optional(),
+  "deviceModel": zod.string().optional(),
+  "osVersion": zod.string().optional(),
+  "captureMetadata": zod.object({
+
+}).passthrough().optional(),
+  "taskSnapshot": zod.object({
+
+}).passthrough(),
+  "paymentAmountSnapshot": zod.number(),
+  "currencySnapshot": zod.string(),
+  "failureReason": zod.string().optional(),
+  "approvedAmount": zod.number().optional(),
+  "rejectionReason": zod.string().optional(),
+  "resubmissionReason": zod.string().optional(),
+  "adminNote": zod.string().optional(),
+  "reviewedBy": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().optional(),
+  "media": zod.array(zod.object({
+  "id": zod.string(),
+  "mediaType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO', 'THUMBNAIL']),
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string(),
+  "readUrl": zod.string().optional().describe('Short-lived presigned GET URL for direct access (admin only, ~1h TTL)'),
+  "thumbnailUrl": zod.string().optional(),
+  "fileSize": zod.number().optional(),
+  "durationSeconds": zod.number().optional(),
+  "mimeType": zod.string(),
+  "sortOrder": zod.number(),
+  "uploadStatus": zod.enum(['PENDING', 'UPLOADING', 'UPLOADED', 'FAILED'])
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
 export const GetMyWalletResponse = zod.object({
   "id": zod.string(),
   "userId": zod.string(),

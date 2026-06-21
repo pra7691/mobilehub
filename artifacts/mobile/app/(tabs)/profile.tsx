@@ -160,6 +160,19 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* Wallet statement link */}
+      {wallet && (
+        <TouchableOpacity
+          style={styles.statementBtn}
+          onPress={() => router.push("/wallet-statement" as never)}
+          activeOpacity={0.7}
+        >
+          <Feather name="list" size={14} color={colors.primary} />
+          <Text style={styles.statementBtnText}>View Wallet Statement</Text>
+          <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+        </TouchableOpacity>
+      )}
+
       {/* Submission breakdown */}
       <View style={styles.subRow}>
         <View style={styles.subStat}>
@@ -350,6 +363,8 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     statLabel: { fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 2 },
     pendingBanner: { flexDirection: "row", alignItems: "center", gap: 6, marginHorizontal: 20, marginTop: 8, backgroundColor: "#422006", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: "#92400e" },
     pendingText: { fontSize: 12, color: "#f59e0b", fontFamily: "Inter_500Medium" },
+    statementBtn: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8, marginHorizontal: 20, marginTop: 10, backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, borderColor: colors.border },
+    statementBtnText: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium", color: colors.foreground },
     subRow: { flexDirection: "row", marginHorizontal: 20, marginTop: 10, backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
     subStat: { flex: 1, alignItems: "center", paddingVertical: 12 },
     subStatCenter: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border },

@@ -802,6 +802,87 @@ paths:
               schema:
                 $ref: "#/components/schemas/Submission"
 
+  /admin/submissions/{id}/approve:
+    post:
+      operationId: adminApproveSubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approvedAmount:
+                  type: number
+                  minimum: 0
+                adminNote:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /admin/submissions/{id}/reject:
+    post:
+      operationId: adminRejectSubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              properties:
+                rejectionReason:
+                  type: string
+                adminNote:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
+  /admin/submissions/{id}/request-resubmission:
+    post:
+      operationId: adminRequestResubmission
+      tags: [admin-submissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resubmissionReason]
+              properties:
+                resubmissionReason:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+
   /wallet/me:
     get:
       operationId: getMyWallet

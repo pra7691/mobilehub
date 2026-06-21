@@ -1136,6 +1136,21 @@ export const AdminListSubmissionsCollectionType = {
   AUDIO: 'AUDIO',
 } as const;
 
+export type AdminApproveSubmissionBody = {
+  /** @minimum 0 */
+  approvedAmount?: number;
+  adminNote?: string;
+};
+
+export type AdminRejectSubmissionBody = {
+  rejectionReason: string;
+  adminNote?: string;
+};
+
+export type AdminRequestResubmissionBody = {
+  resubmissionReason: string;
+};
+
 export type ListMyWalletTransactionsParams = {
 /**
  * @minimum 1

@@ -13,7 +13,7 @@ export default function Dashboard() {
     { title: "Total Users", value: stats?.totalUsers, icon: Users, subtext: `${stats?.activeUsers || 0} active` },
     { title: "Active Tasks", value: stats?.activeTasks, icon: FileQuestion, subtext: `of ${stats?.totalTasks || 0} total` },
     { title: "Submissions", value: stats?.totalSubmissions, icon: SendToBack, subtext: `${stats?.pendingSubmissions || 0} pending` },
-    { title: "Total Earned Today", value: stats?.totalEarnedToday ? `$${stats.totalEarnedToday.toFixed(2)}` : "$0.00", icon: Wallet, subtext: `Total bal: $${stats?.totalWalletBalance?.toFixed(2) || '0.00'}` }
+    { title: "Total Earned Today", value: stats?.totalEarnedToday ? `₹${stats.totalEarnedToday.toFixed(2)}` : "₹0.00", icon: Wallet, subtext: `Total bal: ₹${stats?.totalWalletBalance?.toFixed(2) || '0.00'}` }
   ];
 
   return (

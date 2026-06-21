@@ -40,6 +40,9 @@ interface Submission {
   createdAt: string;
   task?: { title: string; collectionType?: string } | null;
   taskSnapshot?: { title?: string; collectionType?: string };
+  rejectionReason?: string | null;
+  resubmissionReason?: string | null;
+  approvedAmount?: number | null;
 }
 
 const SUBMISSION_STATUS_CONFIG: Record<
@@ -496,6 +499,18 @@ function SubmissionCard({
           </View>
         )}
       </View>
+      {item.status === "REJECTED" && item.rejectionReason ? (
+        <View style={styles.reasonBox}>
+          <Feather name="x-circle" size={12} color="#ef4444" />
+          <Text style={styles.reasonText} numberOfLines={3}>{item.rejectionReason}</Text>
+        </View>
+      ) : null}
+      {item.status === "RESUBMISSION_REQUIRED" && item.resubmissionReason ? (
+        <View style={styles.reasonBox}>
+          <Feather name="alert-circle" size={12} color="#f59e0b" />
+          <Text style={[styles.reasonText, { color: "#f59e0b" }]} numberOfLines={3}>{item.resubmissionReason}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -703,6 +718,24 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: "#fff",
     },
     deleteBtn: { padding: 4 },
+
+    reasonBox: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+      backgroundColor: "#1c0a0a",
+      borderRadius: 8,
+      padding: 8,
+      borderWidth: 1,
+      borderColor: "#3b0a0a",
+    },
+    reasonText: {
+      flex: 1,
+      fontSize: 12,
+      color: "#f87171",
+      fontFamily: "Inter_400Regular",
+      lineHeight: 17,
+    },
 
     empty: { alignItems: "center", paddingTop: 80, gap: 10 },
     emptyText: {

@@ -711,7 +711,7 @@ export class SubmissionsService {
         void this.notificationsService.dispatch({
           userId: submission.userId,
           title: '✅ Submission Approved',
-          body: `Your submission for "${taskTitle}" has been approved. ₦${amount.toFixed(2)} credited to your wallet.`,
+          body: `Your submission for "${taskTitle}" has been approved. ${submission.currencySnapshot === 'INR' ? '₹' : submission.currencySnapshot === 'NGN' ? '₦' : '$'}${amount.toFixed(2)} credited to your wallet.`,
           type: NotificationType.SUBMISSION_APPROVED,
           relatedEntityType: NotificationEntityType.SUBMISSION,
           relatedEntityId: submissionId,

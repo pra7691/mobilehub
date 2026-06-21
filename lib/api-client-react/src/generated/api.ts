@@ -20,12 +20,15 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminApproveSubmissionBody,
   AdminListFaqParams,
   AdminListNoticesParams,
   AdminListPagesParams,
   AdminListSubmissionsParams,
   AdminLoginRequest,
   AdminNotificationListResponse,
+  AdminRejectSubmissionBody,
+  AdminRequestResubmissionBody,
   AdminUser,
   AdminUserListResponse,
   AppNotification,
@@ -2948,6 +2951,204 @@ export function useAdminGetSubmission<TData = Awaited<ReturnType<typeof adminGet
 
 
 
+
+export const getAdminApproveSubmissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/submissions/${id}/approve`
+}
+
+export const adminApproveSubmission = async (id: string,
+    adminApproveSubmissionBody?: AdminApproveSubmissionBody, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getAdminApproveSubmissionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminApproveSubmissionBody,)
+  }
+);}
+
+
+
+
+export const getAdminApproveSubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminApproveSubmission>>, TError,{id: string;data?: BodyType<AdminApproveSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminApproveSubmission>>, TError,{id: string;data?: BodyType<AdminApproveSubmissionBody>}, TContext> => {
+
+const mutationKey = ['adminApproveSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminApproveSubmission>>, {id: string;data?: BodyType<AdminApproveSubmissionBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminApproveSubmission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminApproveSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof adminApproveSubmission>>>
+    export type AdminApproveSubmissionMutationBody = BodyType<AdminApproveSubmissionBody> | undefined
+    export type AdminApproveSubmissionMutationError = ErrorType<unknown>
+
+    export const useAdminApproveSubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminApproveSubmission>>, TError,{id: string;data?: BodyType<AdminApproveSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminApproveSubmission>>,
+        TError,
+        {id: string;data?: BodyType<AdminApproveSubmissionBody>},
+        TContext
+      > => {
+      return useMutation(getAdminApproveSubmissionMutationOptions(options));
+    }
+
+export const getAdminRejectSubmissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/submissions/${id}/reject`
+}
+
+export const adminRejectSubmission = async (id: string,
+    adminRejectSubmissionBody: AdminRejectSubmissionBody, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getAdminRejectSubmissionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRejectSubmissionBody,)
+  }
+);}
+
+
+
+
+export const getAdminRejectSubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRejectSubmission>>, TError,{id: string;data: BodyType<AdminRejectSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRejectSubmission>>, TError,{id: string;data: BodyType<AdminRejectSubmissionBody>}, TContext> => {
+
+const mutationKey = ['adminRejectSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRejectSubmission>>, {id: string;data: BodyType<AdminRejectSubmissionBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminRejectSubmission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRejectSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof adminRejectSubmission>>>
+    export type AdminRejectSubmissionMutationBody = BodyType<AdminRejectSubmissionBody>
+    export type AdminRejectSubmissionMutationError = ErrorType<unknown>
+
+    export const useAdminRejectSubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRejectSubmission>>, TError,{id: string;data: BodyType<AdminRejectSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRejectSubmission>>,
+        TError,
+        {id: string;data: BodyType<AdminRejectSubmissionBody>},
+        TContext
+      > => {
+      return useMutation(getAdminRejectSubmissionMutationOptions(options));
+    }
+
+export const getAdminRequestResubmissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/submissions/${id}/request-resubmission`
+}
+
+export const adminRequestResubmission = async (id: string,
+    adminRequestResubmissionBody: AdminRequestResubmissionBody, options?: RequestInit): Promise<Submission> => {
+
+  return customFetch<Submission>(getAdminRequestResubmissionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRequestResubmissionBody,)
+  }
+);}
+
+
+
+
+export const getAdminRequestResubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRequestResubmission>>, TError,{id: string;data: BodyType<AdminRequestResubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRequestResubmission>>, TError,{id: string;data: BodyType<AdminRequestResubmissionBody>}, TContext> => {
+
+const mutationKey = ['adminRequestResubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRequestResubmission>>, {id: string;data: BodyType<AdminRequestResubmissionBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminRequestResubmission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRequestResubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof adminRequestResubmission>>>
+    export type AdminRequestResubmissionMutationBody = BodyType<AdminRequestResubmissionBody>
+    export type AdminRequestResubmissionMutationError = ErrorType<unknown>
+
+    export const useAdminRequestResubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRequestResubmission>>, TError,{id: string;data: BodyType<AdminRequestResubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRequestResubmission>>,
+        TError,
+        {id: string;data: BodyType<AdminRequestResubmissionBody>},
+        TContext
+      > => {
+      return useMutation(getAdminRequestResubmissionMutationOptions(options));
+    }
 
 export const getGetMyWalletUrl = () => {
 
