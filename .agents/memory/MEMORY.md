@@ -1,1 +1,3 @@
 - [Disabled-user access control](disabled-user-access.md) — JWT strategy checks user.status on every request; exception filter must preserve `code` field for mobile detection.
+- [Mobile error reporting](mobile-error-reporting.md) — offline queue in AsyncStorage, drains on app ready, wired into submitDraft and ErrorBoundary
+- [MobileErrorLog module](mobile-error-log-module.md) — NestJS module + Prisma model + OpenAPI spec for mobile error capture with admin resolve/unresolve

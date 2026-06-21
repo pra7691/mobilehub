@@ -1060,6 +1060,86 @@ export interface AdminNotificationListResponse {
   meta: PaginationMeta;
 }
 
+export type CreateMobileErrorLogRequestMetadata = { [key: string]: unknown };
+
+export interface CreateMobileErrorLogRequest {
+  errorType: string;
+  errorCode?: string;
+  message: string;
+  stackTrace?: string;
+  endpoint?: string;
+  httpMethod?: string;
+  httpStatus?: number;
+  requestId?: string;
+  platform: string;
+  deviceModel?: string;
+  osVersion?: string;
+  appVersion?: string;
+  networkState?: string;
+  collectionType?: string;
+  metadata?: CreateMobileErrorLogRequestMetadata;
+}
+
+export interface MobileErrorLogUser {
+  id: string;
+  phoneNumber: string;
+  name?: string | null;
+}
+
+export interface MobileErrorLogItem {
+  id: string;
+  userId?: string | null;
+  errorType: string;
+  errorCode?: string | null;
+  message: string;
+  endpoint?: string | null;
+  httpMethod?: string | null;
+  httpStatus?: number | null;
+  platform: string;
+  appVersion?: string | null;
+  networkState?: string | null;
+  collectionType?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+  resolvedBy?: string | null;
+  user?: MobileErrorLogUser | null;
+}
+
+export type MobileErrorLogDetailMetadata = { [key: string]: unknown };
+
+export interface MobileErrorLogDetail {
+  id: string;
+  userId?: string | null;
+  errorType: string;
+  errorCode?: string | null;
+  message: string;
+  stackTrace?: string | null;
+  endpoint?: string | null;
+  httpMethod?: string | null;
+  httpStatus?: number | null;
+  requestId?: string | null;
+  platform: string;
+  deviceModel?: string | null;
+  osVersion?: string | null;
+  appVersion?: string | null;
+  networkState?: string | null;
+  collectionType?: string | null;
+  metadata: MobileErrorLogDetailMetadata;
+  createdAt: string;
+  resolvedAt?: string | null;
+  resolvedBy?: string | null;
+  resolutionNote?: string | null;
+  user?: MobileErrorLogUser | null;
+}
+
+export interface MobileErrorLogListResponse {
+  items: MobileErrorLogItem[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -1365,4 +1445,21 @@ export const GetAdminNotificationsType = {
   NEW_TASK: 'NEW_TASK',
   APP_NOTICE: 'APP_NOTICE',
 } as const;
+
+export type CreateMobileErrorLog201 = {
+  id: string;
+};
+
+export type AdminListMobileErrorLogsParams = {
+page?: string;
+limit?: string;
+resolved?: string;
+errorType?: string;
+platform?: string;
+userId?: string;
+};
+
+export type AdminResolveMobileErrorLogBody = {
+  resolutionNote?: string;
+};
 

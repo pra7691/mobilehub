@@ -2658,3 +2658,190 @@ export const GetAdminNotificationsResponse = zod.object({
 })
 
 
+/**
+ * @summary Report a mobile error
+ */
+export const CreateMobileErrorLogBody = zod.object({
+  "errorType": zod.string(),
+  "errorCode": zod.string().optional(),
+  "message": zod.string(),
+  "stackTrace": zod.string().optional(),
+  "endpoint": zod.string().optional(),
+  "httpMethod": zod.string().optional(),
+  "httpStatus": zod.number().optional(),
+  "requestId": zod.string().optional(),
+  "platform": zod.string(),
+  "deviceModel": zod.string().optional(),
+  "osVersion": zod.string().optional(),
+  "appVersion": zod.string().optional(),
+  "networkState": zod.string().optional(),
+  "collectionType": zod.string().optional(),
+  "metadata": zod.object({
+
+}).passthrough().optional()
+})
+
+
+/**
+ * @summary List mobile error logs
+ */
+export const AdminListMobileErrorLogsQueryParams = zod.object({
+  "page": zod.coerce.string().optional(),
+  "limit": zod.coerce.string().optional(),
+  "resolved": zod.coerce.string().optional(),
+  "errorType": zod.coerce.string().optional(),
+  "platform": zod.coerce.string().optional(),
+  "userId": zod.coerce.string().optional()
+})
+
+export const AdminListMobileErrorLogsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string().nullish(),
+  "errorType": zod.string(),
+  "errorCode": zod.string().nullish(),
+  "message": zod.string(),
+  "endpoint": zod.string().nullish(),
+  "httpMethod": zod.string().nullish(),
+  "httpStatus": zod.number().nullish(),
+  "platform": zod.string(),
+  "appVersion": zod.string().nullish(),
+  "networkState": zod.string().nullish(),
+  "collectionType": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "resolvedAt": zod.string().nullish(),
+  "resolvedBy": zod.string().nullish(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish()
+}).nullish()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "pages": zod.number()
+})
+
+
+/**
+ * @summary Get a mobile error log
+ */
+export const AdminGetMobileErrorLogParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminGetMobileErrorLogResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string().nullish(),
+  "errorType": zod.string(),
+  "errorCode": zod.string().nullish(),
+  "message": zod.string(),
+  "stackTrace": zod.string().nullish(),
+  "endpoint": zod.string().nullish(),
+  "httpMethod": zod.string().nullish(),
+  "httpStatus": zod.number().nullish(),
+  "requestId": zod.string().nullish(),
+  "platform": zod.string(),
+  "deviceModel": zod.string().nullish(),
+  "osVersion": zod.string().nullish(),
+  "appVersion": zod.string().nullish(),
+  "networkState": zod.string().nullish(),
+  "collectionType": zod.string().nullish(),
+  "metadata": zod.object({
+
+}).passthrough(),
+  "createdAt": zod.string(),
+  "resolvedAt": zod.string().nullish(),
+  "resolvedBy": zod.string().nullish(),
+  "resolutionNote": zod.string().nullish(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish()
+}).nullish()
+})
+
+
+/**
+ * @summary Resolve a mobile error log
+ */
+export const AdminResolveMobileErrorLogParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminResolveMobileErrorLogBody = zod.object({
+  "resolutionNote": zod.string().optional()
+})
+
+export const AdminResolveMobileErrorLogResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string().nullish(),
+  "errorType": zod.string(),
+  "errorCode": zod.string().nullish(),
+  "message": zod.string(),
+  "stackTrace": zod.string().nullish(),
+  "endpoint": zod.string().nullish(),
+  "httpMethod": zod.string().nullish(),
+  "httpStatus": zod.number().nullish(),
+  "requestId": zod.string().nullish(),
+  "platform": zod.string(),
+  "deviceModel": zod.string().nullish(),
+  "osVersion": zod.string().nullish(),
+  "appVersion": zod.string().nullish(),
+  "networkState": zod.string().nullish(),
+  "collectionType": zod.string().nullish(),
+  "metadata": zod.object({
+
+}).passthrough(),
+  "createdAt": zod.string(),
+  "resolvedAt": zod.string().nullish(),
+  "resolvedBy": zod.string().nullish(),
+  "resolutionNote": zod.string().nullish(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish()
+}).nullish()
+})
+
+
+/**
+ * @summary Unresolve a mobile error log
+ */
+export const AdminUnresolveMobileErrorLogParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminUnresolveMobileErrorLogResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string().nullish(),
+  "errorType": zod.string(),
+  "errorCode": zod.string().nullish(),
+  "message": zod.string(),
+  "stackTrace": zod.string().nullish(),
+  "endpoint": zod.string().nullish(),
+  "httpMethod": zod.string().nullish(),
+  "httpStatus": zod.number().nullish(),
+  "requestId": zod.string().nullish(),
+  "platform": zod.string(),
+  "deviceModel": zod.string().nullish(),
+  "osVersion": zod.string().nullish(),
+  "appVersion": zod.string().nullish(),
+  "networkState": zod.string().nullish(),
+  "collectionType": zod.string().nullish(),
+  "metadata": zod.object({
+
+}).passthrough(),
+  "createdAt": zod.string(),
+  "resolvedAt": zod.string().nullish(),
+  "resolvedBy": zod.string().nullish(),
+  "resolutionNote": zod.string().nullish(),
+  "user": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish()
+}).nullish()
+})
+
+

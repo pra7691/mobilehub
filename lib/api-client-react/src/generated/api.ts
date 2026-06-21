@@ -22,6 +22,7 @@ import type {
 import type {
   AdminApproveSubmissionBody,
   AdminListFaqParams,
+  AdminListMobileErrorLogsParams,
   AdminListNoticesParams,
   AdminListPagesParams,
   AdminListSubmissionsParams,
@@ -29,6 +30,7 @@ import type {
   AdminNotificationListResponse,
   AdminRejectSubmissionBody,
   AdminRequestResubmissionBody,
+  AdminResolveMobileErrorLogBody,
   AdminSettings,
   AdminUser,
   AdminUserListResponse,
@@ -40,6 +42,8 @@ import type {
   CreateAdminUserRequest,
   CreateCategoryRequest,
   CreateFaqRequest,
+  CreateMobileErrorLog201,
+  CreateMobileErrorLogRequest,
   CreateNoticeRequest,
   CreateStaticPageRequest,
   CreateSubcategoryRequest,
@@ -67,6 +71,8 @@ import type {
   ListTasksParams,
   ListUsersParams,
   ListWalletTransactionsParams,
+  MobileErrorLogDetail,
+  MobileErrorLogListResponse,
   Notice,
   NoticeListResponse,
   NotificationListResponse,
@@ -6330,4 +6336,378 @@ export function useGetAdminNotifications<TData = Awaited<ReturnType<typeof getAd
 
 
 
+
+export const getCreateMobileErrorLogUrl = () => {
+
+
+
+
+  return `/api/mobile-error-logs`
+}
+
+/**
+ * @summary Report a mobile error
+ */
+export const createMobileErrorLog = async (createMobileErrorLogRequest: CreateMobileErrorLogRequest, options?: RequestInit): Promise<CreateMobileErrorLog201> => {
+
+  return customFetch<CreateMobileErrorLog201>(getCreateMobileErrorLogUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createMobileErrorLogRequest,)
+  }
+);}
+
+
+
+
+export const getCreateMobileErrorLogMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMobileErrorLog>>, TError,{data: BodyType<CreateMobileErrorLogRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMobileErrorLog>>, TError,{data: BodyType<CreateMobileErrorLogRequest>}, TContext> => {
+
+const mutationKey = ['createMobileErrorLog'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMobileErrorLog>>, {data: BodyType<CreateMobileErrorLogRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMobileErrorLog(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMobileErrorLogMutationResult = NonNullable<Awaited<ReturnType<typeof createMobileErrorLog>>>
+    export type CreateMobileErrorLogMutationBody = BodyType<CreateMobileErrorLogRequest>
+    export type CreateMobileErrorLogMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Report a mobile error
+ */
+export const useCreateMobileErrorLog = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMobileErrorLog>>, TError,{data: BodyType<CreateMobileErrorLogRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMobileErrorLog>>,
+        TError,
+        {data: BodyType<CreateMobileErrorLogRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateMobileErrorLogMutationOptions(options));
+    }
+
+export const getAdminListMobileErrorLogsUrl = (params?: AdminListMobileErrorLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/mobile-error-logs?${stringifiedParams}` : `/api/admin/mobile-error-logs`
+}
+
+/**
+ * @summary List mobile error logs
+ */
+export const adminListMobileErrorLogs = async (params?: AdminListMobileErrorLogsParams, options?: RequestInit): Promise<MobileErrorLogListResponse> => {
+
+  return customFetch<MobileErrorLogListResponse>(getAdminListMobileErrorLogsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListMobileErrorLogsQueryKey = (params?: AdminListMobileErrorLogsParams,) => {
+    return [
+    `/api/admin/mobile-error-logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getAdminListMobileErrorLogsQueryOptions = <TData = Awaited<ReturnType<typeof adminListMobileErrorLogs>>, TError = ErrorType<unknown>>(params?: AdminListMobileErrorLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListMobileErrorLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListMobileErrorLogsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListMobileErrorLogs>>> = ({ signal }) => adminListMobileErrorLogs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListMobileErrorLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListMobileErrorLogsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListMobileErrorLogs>>>
+export type AdminListMobileErrorLogsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List mobile error logs
+ */
+
+export function useAdminListMobileErrorLogs<TData = Awaited<ReturnType<typeof adminListMobileErrorLogs>>, TError = ErrorType<unknown>>(
+ params?: AdminListMobileErrorLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListMobileErrorLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListMobileErrorLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminGetMobileErrorLogUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mobile-error-logs/${id}`
+}
+
+/**
+ * @summary Get a mobile error log
+ */
+export const adminGetMobileErrorLog = async (id: string, options?: RequestInit): Promise<MobileErrorLogDetail> => {
+
+  return customFetch<MobileErrorLogDetail>(getAdminGetMobileErrorLogUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetMobileErrorLogQueryKey = (id: string,) => {
+    return [
+    `/api/admin/mobile-error-logs/${id}`
+    ] as const;
+    }
+
+
+export const getAdminGetMobileErrorLogQueryOptions = <TData = Awaited<ReturnType<typeof adminGetMobileErrorLog>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetMobileErrorLog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetMobileErrorLogQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetMobileErrorLog>>> = ({ signal }) => adminGetMobileErrorLog(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetMobileErrorLog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetMobileErrorLogQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetMobileErrorLog>>>
+export type AdminGetMobileErrorLogQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a mobile error log
+ */
+
+export function useAdminGetMobileErrorLog<TData = Awaited<ReturnType<typeof adminGetMobileErrorLog>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetMobileErrorLog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetMobileErrorLogQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminResolveMobileErrorLogUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mobile-error-logs/${id}/resolve`
+}
+
+/**
+ * @summary Resolve a mobile error log
+ */
+export const adminResolveMobileErrorLog = async (id: string,
+    adminResolveMobileErrorLogBody?: AdminResolveMobileErrorLogBody, options?: RequestInit): Promise<MobileErrorLogDetail> => {
+
+  return customFetch<MobileErrorLogDetail>(getAdminResolveMobileErrorLogUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminResolveMobileErrorLogBody,)
+  }
+);}
+
+
+
+
+export const getAdminResolveMobileErrorLogMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResolveMobileErrorLog>>, TError,{id: string;data?: BodyType<AdminResolveMobileErrorLogBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminResolveMobileErrorLog>>, TError,{id: string;data?: BodyType<AdminResolveMobileErrorLogBody>}, TContext> => {
+
+const mutationKey = ['adminResolveMobileErrorLog'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminResolveMobileErrorLog>>, {id: string;data?: BodyType<AdminResolveMobileErrorLogBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminResolveMobileErrorLog(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminResolveMobileErrorLogMutationResult = NonNullable<Awaited<ReturnType<typeof adminResolveMobileErrorLog>>>
+    export type AdminResolveMobileErrorLogMutationBody = BodyType<AdminResolveMobileErrorLogBody> | undefined
+    export type AdminResolveMobileErrorLogMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Resolve a mobile error log
+ */
+export const useAdminResolveMobileErrorLog = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResolveMobileErrorLog>>, TError,{id: string;data?: BodyType<AdminResolveMobileErrorLogBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminResolveMobileErrorLog>>,
+        TError,
+        {id: string;data?: BodyType<AdminResolveMobileErrorLogBody>},
+        TContext
+      > => {
+      return useMutation(getAdminResolveMobileErrorLogMutationOptions(options));
+    }
+
+export const getAdminUnresolveMobileErrorLogUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/mobile-error-logs/${id}/unresolve`
+}
+
+/**
+ * @summary Unresolve a mobile error log
+ */
+export const adminUnresolveMobileErrorLog = async (id: string, options?: RequestInit): Promise<MobileErrorLogDetail> => {
+
+  return customFetch<MobileErrorLogDetail>(getAdminUnresolveMobileErrorLogUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getAdminUnresolveMobileErrorLogMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUnresolveMobileErrorLog>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUnresolveMobileErrorLog>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['adminUnresolveMobileErrorLog'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUnresolveMobileErrorLog>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminUnresolveMobileErrorLog(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUnresolveMobileErrorLogMutationResult = NonNullable<Awaited<ReturnType<typeof adminUnresolveMobileErrorLog>>>
+
+    export type AdminUnresolveMobileErrorLogMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Unresolve a mobile error log
+ */
+export const useAdminUnresolveMobileErrorLog = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUnresolveMobileErrorLog>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUnresolveMobileErrorLog>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getAdminUnresolveMobileErrorLogMutationOptions(options));
+    }
 

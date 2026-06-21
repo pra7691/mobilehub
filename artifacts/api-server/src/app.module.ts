@@ -21,6 +21,7 @@ import { NoticesModule } from './notices/notices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuditModule } from './audit/audit.module';
 import { SettingsModule } from './settings/settings.module';
+import { MobileErrorLogsModule } from './mobile-error-logs/mobile-error-logs.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { SettingsModule } from './settings/settings.module';
     NoticesModule,
     NotificationsModule,
     SettingsModule,
+    MobileErrorLogsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

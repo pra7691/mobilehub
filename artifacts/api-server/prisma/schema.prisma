@@ -123,6 +123,7 @@ model User {
   walletTransactions WalletTransaction[]
   deviceTokens       DeviceToken[]
   notifications      Notification[]
+  mobileErrorLogs    MobileErrorLog[]
   refreshTokens      RefreshToken[]
 
   @@map("users")
@@ -493,4 +494,35 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model MobileErrorLog {
+  id              String    @id @default(cuid())
+  userId          String?
+  errorType       String
+  errorCode       String?
+  message         String
+  stackTrace      String?
+  endpoint        String?
+  httpMethod      String?
+  httpStatus      Int?
+  requestId       String?
+  platform        String
+  deviceModel     String?
+  osVersion       String?
+  appVersion      String?
+  networkState    String?
+  collectionType  String?
+  metadata        Json      @default("{}")
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolutionNote  String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([errorType])
+  @@map("mobile_error_logs")
 }

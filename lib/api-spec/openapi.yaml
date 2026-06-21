@@ -1767,6 +1767,144 @@ paths:
                 $ref: "#/components/schemas/AdminNotificationListResponse"
 
 
+  /mobile-error-logs:
+    post:
+      operationId: createMobileErrorLog
+      tags: [mobile-error-logs]
+      summary: Report a mobile error
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMobileErrorLogRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                required: [id]
+
+  /admin/mobile-error-logs:
+    get:
+      operationId: adminListMobileErrorLogs
+      tags: [admin-mobile-error-logs]
+      summary: List mobile error logs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: string
+        - name: resolved
+          in: query
+          schema:
+            type: string
+        - name: errorType
+          in: query
+          schema:
+            type: string
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: userId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileErrorLogListResponse"
+
+  /admin/mobile-error-logs/{id}:
+    get:
+      operationId: adminGetMobileErrorLog
+      tags: [admin-mobile-error-logs]
+      summary: Get a mobile error log
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileErrorLogDetail"
+
+  /admin/mobile-error-logs/{id}/resolve:
+    patch:
+      operationId: adminResolveMobileErrorLog
+      tags: [admin-mobile-error-logs]
+      summary: Resolve a mobile error log
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolutionNote:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileErrorLogDetail"
+
+  /admin/mobile-error-logs/{id}/unresolve:
+    patch:
+      operationId: adminUnresolveMobileErrorLog
+      tags: [admin-mobile-error-logs]
+      summary: Unresolve a mobile error log
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileErrorLogDetail"
+
+
 components:
   securitySchemes:
     BearerAuth:
@@ -3376,3 +3514,182 @@ components:
         meta:
           $ref: "#/components/schemas/PaginationMeta"
       required: [data, meta]
+
+    CreateMobileErrorLogRequest:
+      type: object
+      properties:
+        errorType:
+          type: string
+        errorCode:
+          type: string
+        message:
+          type: string
+        stackTrace:
+          type: string
+        endpoint:
+          type: string
+        httpMethod:
+          type: string
+        httpStatus:
+          type: number
+        requestId:
+          type: string
+        platform:
+          type: string
+        deviceModel:
+          type: string
+        osVersion:
+          type: string
+        appVersion:
+          type: string
+        networkState:
+          type: string
+        collectionType:
+          type: string
+        metadata:
+          type: object
+      required: [errorType, message, platform]
+
+    MobileErrorLogUser:
+      type: object
+      properties:
+        id:
+          type: string
+        phoneNumber:
+          type: string
+        name:
+          type: string
+          nullable: true
+      required: [id, phoneNumber]
+
+    MobileErrorLogItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+          nullable: true
+        errorType:
+          type: string
+        errorCode:
+          type: string
+          nullable: true
+        message:
+          type: string
+        endpoint:
+          type: string
+          nullable: true
+        httpMethod:
+          type: string
+          nullable: true
+        httpStatus:
+          type: number
+          nullable: true
+        platform:
+          type: string
+        appVersion:
+          type: string
+          nullable: true
+        networkState:
+          type: string
+          nullable: true
+        collectionType:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        resolvedAt:
+          type: string
+          nullable: true
+        resolvedBy:
+          type: string
+          nullable: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/MobileErrorLogUser"
+          nullable: true
+      required: [id, errorType, message, platform, createdAt]
+
+    MobileErrorLogDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+          nullable: true
+        errorType:
+          type: string
+        errorCode:
+          type: string
+          nullable: true
+        message:
+          type: string
+        stackTrace:
+          type: string
+          nullable: true
+        endpoint:
+          type: string
+          nullable: true
+        httpMethod:
+          type: string
+          nullable: true
+        httpStatus:
+          type: number
+          nullable: true
+        requestId:
+          type: string
+          nullable: true
+        platform:
+          type: string
+        deviceModel:
+          type: string
+          nullable: true
+        osVersion:
+          type: string
+          nullable: true
+        appVersion:
+          type: string
+          nullable: true
+        networkState:
+          type: string
+          nullable: true
+        collectionType:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+        createdAt:
+          type: string
+        resolvedAt:
+          type: string
+          nullable: true
+        resolvedBy:
+          type: string
+          nullable: true
+        resolutionNote:
+          type: string
+          nullable: true
+        user:
+          allOf:
+            - $ref: "#/components/schemas/MobileErrorLogUser"
+          nullable: true
+      required: [id, errorType, message, platform, metadata, createdAt]
+
+    MobileErrorLogListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MobileErrorLogItem"
+        total:
+          type: number
+        page:
+          type: number
+        limit:
+          type: number
+        pages:
+          type: number
+      required: [items, total, page, limit, pages]

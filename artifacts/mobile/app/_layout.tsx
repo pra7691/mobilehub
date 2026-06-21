@@ -16,6 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
 import { AuthProvider, useAuth, _notifyDisabled, isDisabledError } from "@/contexts/AuthContext";
@@ -116,6 +117,8 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
       setAppReady(true);
+      // Drain any queued error reports from previous sessions
+      drainErrorQueue().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
 
@@ -123,7 +126,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary>
+      <ErrorBoundary onError={reportRenderError}>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>

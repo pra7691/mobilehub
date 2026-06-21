@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -185,6 +186,8 @@ const SUBMISSION_INCLUDE = {
 
 @Injectable()
 export class SubmissionsService {
+  private readonly logger = new Logger(SubmissionsService.name);
+
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
@@ -429,6 +432,10 @@ export class SubmissionsService {
       data: { status: 'UPLOADING', uploadStartedAt: new Date() },
     });
 
+    this.logger.log(
+      `Submission initiated: submissionId=${submission.id} userId=${userId} taskId=${body.taskId} fileCount=${uploadTargets.length} type=${task.collectionType}`,
+    );
+
     return {
       submissionId: submission.id,
       uploadTargets,
@@ -489,6 +496,10 @@ export class SubmissionsService {
       include: SUBMISSION_INCLUDE,
     });
 
+    this.logger.log(
+      `Upload complete: submissionId=${submissionId} userId=${userId} mediaCount=${body.uploadedMedia.length} → UNDER_REVIEW`,
+    );
+
     return formatSubmission(updated);
   }
 
@@ -520,6 +531,10 @@ export class SubmissionsService {
       },
       include: SUBMISSION_INCLUDE,
     });
+
+    this.logger.warn(
+      `Upload failed: submissionId=${submissionId} userId=${userId} reason="${body.failureReason ?? 'none'}" failedMedia=${body.failedMediaIds?.length ?? 0}`,
+    );
 
     return formatSubmission(updated);
   }
