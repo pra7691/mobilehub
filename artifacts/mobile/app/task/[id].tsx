@@ -166,7 +166,7 @@ export default function TaskDetailScreen() {
     task.audioRequired;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
         <Text style={styles.backText}>‹ Back</Text>
       </TouchableOpacity>
@@ -362,24 +362,25 @@ export default function TaskDetailScreen() {
           </View>
         ) : null}
 
-        {/* CTA */}
-        {task.status === "active" ? (
-          <StartTaskButton
-            collectionType={task.collectionType as CollectionType}
-            taskId={id}
-            typeConf={typeConf}
-          />
-        ) : (
-          <View style={styles.ctaSection}>
-            <View style={[styles.ctaBtn, styles.ctaBtnDisabled]}>
-              <Text style={[styles.ctaBtnText, styles.ctaBtnTextDisabled]}>
-                Task not available
-              </Text>
-            </View>
-            <Text style={styles.ctaNote}>This task is currently {task.status}</Text>
-          </View>
-        )}
       </ScrollView>
+
+      {/* Fixed bottom CTA */}
+      {task.status === "active" ? (
+        <StartTaskButton
+          collectionType={task.collectionType as CollectionType}
+          taskId={id}
+          typeConf={typeConf}
+        />
+      ) : (
+        <View style={styles.ctaSection}>
+          <View style={[styles.ctaBtn, styles.ctaBtnDisabled]}>
+            <Text style={[styles.ctaBtnText, styles.ctaBtnTextDisabled]}>
+              Task not available
+            </Text>
+          </View>
+          <Text style={styles.ctaNote}>This task is currently {task.status}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -390,7 +391,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 16, color: "#06b6d4", fontFamily: "Inter_500Medium" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { color: "#9ca3af", fontFamily: "Inter_400Regular", fontSize: 16 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { paddingBottom: 24 },
 
   hero: {
     paddingHorizontal: 20,
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
   reqLabel: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#9ca3af", flex: 1 },
   reqValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ffffff", textAlign: "right" },
 
-  ctaSection: { padding: 20, paddingTop: 28, alignItems: "center" },
+  ctaSection: { padding: 20, paddingTop: 16, alignItems: "center", borderTopWidth: 1, borderTopColor: "#1a1a1a", backgroundColor: "#0a0a0a" },
   ctaBtn: {
     backgroundColor: "#164e63",
     borderRadius: 14,
