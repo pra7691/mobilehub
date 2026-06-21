@@ -135,6 +135,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     otpRow: { flexDirection: "row", gap: 10, justifyContent: "center" },
     otpBox: {
       width: 48,
+      minWidth: 0,
       height: 58,
       borderRadius: 12,
       borderWidth: 1.5,
