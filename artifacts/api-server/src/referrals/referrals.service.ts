@@ -212,14 +212,15 @@ export class ReferralsService {
       return; // not a referred user, already rewarded, or cancelled
     }
 
-    // Check if this is the user's first approved submission
+    // Check if this is the user's first approved submission.
+    // We exclude the current submissionId so this check is correct whether called
+    // before or after the approval is committed to the DB.
     const approvedCount = await tx.submission.count({
-      where: { userId: submittingUserId, status: 'APPROVED' },
+      where: { userId: submittingUserId, status: 'APPROVED', id: { not: submissionId } },
     });
 
     if (approvedCount !== 0) {
-      // This is not the first approval (the current one isn't saved yet, so count = 0 means this is first)
-      // Actually count is being checked BEFORE the status update, so 0 = first
+      // The user has other approved submissions — this is not their first approval.
       return;
     }
 

@@ -33,6 +33,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import {
   ChevronLeft, ChevronRight, Search, Filter, Image, Video, Mic, X, ExternalLink,
   Info, CheckCircle, XCircle, RefreshCw, Loader2,
 } from "lucide-react";
@@ -114,6 +118,8 @@ export default function Submissions() {
   const [resubmitNote, setResubmitNote] = useState("");
   const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   const limit = 15;
   const queryClient = useQueryClient();
@@ -364,6 +370,7 @@ export default function Submissions() {
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead>Task</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>User</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Submitted</TableHead>
@@ -376,14 +383,14 @@ export default function Submissions() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : data?.data?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                   No submissions found.
                 </TableCell>
               </TableRow>
@@ -397,6 +404,14 @@ export default function Submissions() {
                   <TableCell>
                     <div className="font-medium text-foreground">{getTaskTitle(sub)}</div>
                     <div className="text-xs text-muted-foreground font-mono mt-0.5">{sub.id.substring(0, 8)}…</div>
+                  </TableCell>
+                  <TableCell>
+                    {(sub as { taskSnapshot?: { category?: { name: string }; subcategory?: { name: string } } }).taskSnapshot?.category?.name
+                      ? <div className="text-sm">{(sub as { taskSnapshot?: { category?: { name: string }; subcategory?: { name: string } } }).taskSnapshot!.category!.name}</div>
+                      : <span className="text-muted-foreground text-xs">—</span>}
+                    {(sub as { taskSnapshot?: { subcategory?: { name: string } } }).taskSnapshot?.subcategory?.name && (
+                      <div className="text-xs text-muted-foreground">{(sub as { taskSnapshot?: { subcategory?: { name: string } } }).taskSnapshot!.subcategory!.name}</div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">{sub.user?.phoneNumber ?? "—"}</div>
@@ -774,22 +789,26 @@ export default function Submissions() {
                               {m.uploadStatus}
                             </Badge>
                           </div>
-                          {/* Image: thumbnail linking to full-size */}
-                          {m.uploadStatus === "UPLOADED" && m.readUrl && m.mediaType === "IMAGE" && (
-                            <a
-                              href={m.readUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-shrink-0"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <img
-                                src={m.readUrl}
-                                alt={`Media ${i + 1}`}
-                                className="w-16 h-16 object-cover rounded border border-border hover:opacity-80 transition-opacity"
-                              />
-                            </a>
-                          )}
+                          {/* Image: clickable thumbnail → lightbox gallery */}
+                          {m.uploadStatus === "UPLOADED" && m.readUrl && m.mediaType === "IMAGE" && (() => {
+                            const imageUrls = (selectedSub.media ?? [])
+                              .filter((x) => x.uploadStatus === "UPLOADED" && x.readUrl && x.mediaType === "IMAGE")
+                              .map((x) => x.readUrl as string);
+                            const idx = imageUrls.indexOf(m.readUrl);
+                            return (
+                              <button
+                                type="button"
+                                className="flex-shrink-0 focus:outline-none"
+                                onClick={(e) => { e.stopPropagation(); setLightboxUrls(imageUrls); setLightboxIndex(idx >= 0 ? idx : 0); }}
+                              >
+                                <img
+                                  src={m.readUrl}
+                                  alt={`Media ${i + 1}`}
+                                  className="w-16 h-16 object-cover rounded border border-border hover:opacity-80 transition-opacity cursor-zoom-in"
+                                />
+                              </button>
+                            );
+                          })()}
                         </div>
                         {/* Embedded video player */}
                         {m.uploadStatus === "UPLOADED" && m.readUrl && m.mediaType === "VIDEO" && (
@@ -818,6 +837,42 @@ export default function Submissions() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      {/* Image lightbox */}
+      <Dialog open={lightboxUrls.length > 0} onOpenChange={(open) => { if (!open) setLightboxUrls([]); }}>
+        <DialogContent className="max-w-4xl w-full p-0 bg-black border-border overflow-hidden">
+          {lightboxUrls.length > 0 && (
+            <div className="relative flex items-center justify-center min-h-[60vh] max-h-[85vh]">
+              <img
+                src={lightboxUrls[lightboxIndex]}
+                alt={`Image ${lightboxIndex + 1} of ${lightboxUrls.length}`}
+                className="max-w-full max-h-[85vh] object-contain"
+              />
+              {lightboxUrls.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    onClick={() => setLightboxIndex((prev) => (prev - 1 + lightboxUrls.length) % lightboxUrls.length)}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    onClick={() => setLightboxIndex((prev) => (prev + 1) % lightboxUrls.length)}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+                    {lightboxIndex + 1} / {lightboxUrls.length}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation dialog for review actions */}
       <AlertDialog open={confirmAction !== null} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>

@@ -71,12 +71,13 @@ const COLLECTION_TYPE_ICON: Record<string, string> = {
   AUDIO: "🎙️",
 };
 
-type TabId = "drafts" | "needs_action" | "under_review" | "completed";
+type TabId = "drafts" | "needs_action" | "under_review" | "rejected" | "completed";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "drafts", label: "Drafts" },
   { id: "needs_action", label: "Needs Action" },
   { id: "under_review", label: "Under Review" },
+  { id: "rejected", label: "Rejected" },
   { id: "completed", label: "Completed" },
 ];
 
@@ -91,14 +92,17 @@ export default function SubmissionsScreen() {
       ? "drafts"
       : tabParam === "needs_action"
         ? "needs_action"
-        : tabParam === "completed"
-          ? "completed"
-          : "under_review"
+        : tabParam === "rejected"
+          ? "rejected"
+          : tabParam === "completed"
+            ? "completed"
+            : "under_review"
   );
 
   useEffect(() => {
     if (tabParam === "drafts") setActiveTab("drafts");
     else if (tabParam === "needs_action") setActiveTab("needs_action");
+    else if (tabParam === "rejected") setActiveTab("rejected");
     else if (tabParam === "completed") setActiveTab("completed");
     else if (tabParam === "under_review") setActiveTab("under_review");
   }, [tabParam]);
@@ -121,8 +125,11 @@ export default function SubmissionsScreen() {
   const underReview = submissions.filter((s) =>
     (["UPLOADING", "UNDER_REVIEW"] as SubmissionStatus[]).includes(s.status)
   );
+  const rejected = submissions.filter((s) =>
+    (["REJECTED"] as SubmissionStatus[]).includes(s.status)
+  );
   const completed = submissions.filter((s) =>
-    (["APPROVED", "REJECTED", "UPLOAD_FAILED"] as SubmissionStatus[]).includes(s.status)
+    (["APPROVED", "UPLOAD_FAILED"] as SubmissionStatus[]).includes(s.status)
   );
 
   async function handleRefresh() {
@@ -448,6 +455,48 @@ export default function SubmissionsScreen() {
         />
       )}
 
+      {/* Rejected tab */}
+      {activeTab === "rejected" && (
+        <FlatList
+          data={rejected}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          renderItem={({ item }) => (
+            <SubmissionCard item={item} styles={styles} colors={colors} />
+          )}
+          ListHeaderComponent={
+            isLoading ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={styles.empty}>
+                <Feather
+                  name="x-circle"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
+                <Text style={styles.emptyText}>No rejected submissions</Text>
+                <Text style={styles.emptySubtext}>
+                  Submissions declined by admin appear here
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+      )}
+
       {/* Completed tab */}
       {activeTab === "completed" && (
         <FlatList
@@ -482,7 +531,7 @@ export default function SubmissionsScreen() {
                 />
                 <Text style={styles.emptyText}>No completed submissions</Text>
                 <Text style={styles.emptySubtext}>
-                  Approved and rejected submissions appear here
+                  Approved submissions appear here
                 </Text>
               </View>
             ) : null

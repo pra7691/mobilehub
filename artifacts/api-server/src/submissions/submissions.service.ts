@@ -633,7 +633,11 @@ export class SubmissionsService {
     if (params.dateFrom || params.dateTo) {
       where.createdAt = {};
       if (params.dateFrom) where.createdAt.gte = new Date(params.dateFrom);
-      if (params.dateTo) where.createdAt.lte = new Date(params.dateTo);
+      if (params.dateTo) {
+        const endOfDay = new Date(params.dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endOfDay;
+      }
     }
     if (params.search) {
       where.OR = [
