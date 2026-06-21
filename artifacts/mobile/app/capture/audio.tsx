@@ -180,12 +180,18 @@ export default function AudioCaptureScreen() {
         (recordingStateRef.current === "recording" ||
           recordingStateRef.current === "paused")
       ) {
+        // Short-circuit if another stop is already in flight
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setRecordingState("stopping");
+        recordingStateRef.current = "stopping";
         void (async () => {
           try {
             await recorder.stop();
           } catch {
             // Recorder may already be stopped/released — ignore
           } finally {
+            busyRef.current = false;
             setRecordingState("idle");
             recordingStateRef.current = "idle";
             setElapsed(0);
@@ -341,6 +347,9 @@ export default function AudioCaptureScreen() {
       setRecordingState("paused");
       recordingStateRef.current = "paused";
     } catch (err) {
+      setError("Audio recording failed. Please try again.");
+      setRecordingState("error");
+      recordingStateRef.current = "error";
       reportAudioError("pause", err, {
         screen: "audio",
         audioState: "recording",
@@ -447,6 +456,14 @@ export default function AudioCaptureScreen() {
 
   const handleClose = useCallback(() => {
     const state = recordingStateRef.current;
+
+    // Block close entirely while an async audio operation is in flight.
+    // Navigating away during preparing/stopping would orphan the in-progress
+    // recorder.prepareToRecordAsync() or recorder.stop() call.
+    if (state === "preparing" || state === "stopping" || busyRef.current) {
+      return;
+    }
+
     if (state === "recording" || state === "paused") {
       Alert.alert(
         "Stop Recording?",
@@ -457,7 +474,7 @@ export default function AudioCaptureScreen() {
             text: "Discard",
             style: "destructive",
             onPress: async () => {
-              // Guard: only call stop if not already stopping
+              // Re-check after Alert completes — state may have changed
               if (busyRef.current || recordingStateRef.current === "stopping") {
                 router.back();
                 return;
