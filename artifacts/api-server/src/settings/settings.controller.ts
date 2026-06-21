@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Body,
   Param,
@@ -10,6 +11,7 @@ import {
 import { SettingsService } from './settings.service';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   IsOptional,
   IsString,
@@ -19,6 +21,9 @@ import {
   IsInt,
   Min,
   IsIn,
+  IsNotEmpty,
+  Matches,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -150,5 +155,41 @@ export class PublicLegalController {
     } catch {
       return { available: false, message: 'This content is not currently available.' };
     }
+  }
+}
+
+class PublicDeletionRequestDto {
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^(\+?91)?[6-9]\d{9}$/)
+  phoneNumber!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+@Controller('public/account')
+export class PublicAccountController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  @Post('delete-request')
+  async createDeletionRequest(@Body() dto: PublicDeletionRequestDto) {
+    const stripped = dto.phoneNumber.replace(/[\s\-()]/g, '').replace(/^\+/, '');
+    const phoneNumber = stripped.length === 10 ? '+91' + stripped : '+' + stripped;
+
+    await this.prisma.accountDeletionRequest.create({
+      data: {
+        phoneNumber,
+        reason: dto.reason?.trim() ?? null,
+      },
+    });
+
+    return {
+      ok: true,
+      message:
+        'Your request has been received. If a Tarzi account is registered to this number, it will be processed within 30 days.',
+    };
   }
 }

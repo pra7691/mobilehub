@@ -28,6 +28,7 @@ import PayoutsPage from "@/pages/payouts";
 import ReferralsPage from "@/pages/referrals";
 import BannersPage from "@/pages/banners";
 import PublicPage from "@/pages/public-page";
+import DeleteAccountPage from "@/pages/delete-account-page";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ function Router() {
     <Switch>
       <Route path="/privacy-policy" component={PublicPage} />
       <Route path="/terms-and-conditions" component={PublicPage} />
+      <Route path="/delete-account" component={DeleteAccountPage} />
       <Route path="/login">
         {isAuthenticated ? <Redirect to="/" /> : <Login />}
       </Route>
@@ -77,7 +79,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider defaultTheme="dark" storageKey="capto-theme">
+        <ThemeProvider defaultTheme="dark" storageKey="tarzi-theme">
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />

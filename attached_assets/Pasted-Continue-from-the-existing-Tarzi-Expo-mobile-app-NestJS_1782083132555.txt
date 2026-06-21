@@ -1,0 +1,389 @@
+Continue from the existing Tarzi Expo mobile app, NestJS backend, and Replit deployment.
+
+Do not rebuild product modules. Complete the remaining production-release work, create public Privacy Policy and Terms pages with real content, and prepare/generate the Android Google Play Store upload package.
+
+Production details:
+
+* App name: Tarzi
+* Expo slug: tarzi
+* Android package name: com.verbosetechlabs.tarzi
+* Production API base URL: https://mobile-data-hub.replit.app/api
+* Production health URL: https://mobile-data-hub.replit.app/api/healthz
+* Public website base URL: https://mobile-data-hub.replit.app
+* Support email: [support@verbosetechlabs.com](mailto:support@verbosetechlabs.com)
+* Country: India only
+* Phone authentication: +91 mobile number OTP
+* Currency: INR / ₹
+* Initial Android version: 1.0.0
+* Initial Android versionCode: 1
+* Google Play release target: Production
+* Required build artifact: Android App Bundle (.aab)
+
+Important:
+
+* Keep the existing account-deletion flow and public deletion-request page intact.
+* Do not remove the current hard-coded OTP in this task, but isolate it as a clearly marked temporary testing/reviewer configuration only.
+* It must not be shown in app UI, logs, screenshots, or public documentation.
+* Create clear TODO comments/settings for replacing it with a real SMS OTP provider before broad public rollout.
+
+## 1. Verify Production Deployment
+
+First verify:
+
+* `https://mobile-data-hub.replit.app/api/healthz` returns HTTP 200.
+* The mobile API client uses:
+  `https://mobile-data-hub.replit.app/api`
+* No localhost, emulator IP, Replit development URL, or test API URL remains in production configuration.
+* Public routes work without login.
+* Existing production database contains current master data needed by mobile:
+  categories, subcategories, tasks, settings, FAQ, banners, support settings, referral settings, payout settings, and legal content.
+
+If any production configuration is missing, fix it before preparing the Android build.
+
+## 2. Create and Publish Privacy Policy
+
+Create or populate the Admin Settings → Legal → Privacy Policy editor with the following production Privacy Policy content.
+
+Set:
+
+* Title: Privacy Policy
+* Version: 1.0
+* Status: Published
+* Last updated date: current date
+
+Use this text as the initial policy:
+
+# Privacy Policy
+
+Tarzi (“we”, “us”, “our”) provides a mobile application that allows users to complete assigned data-collection tasks, including image, video, and audio submissions.
+
+## Information We Collect
+
+We may collect:
+
+* Mobile phone number for OTP-based account login and account management.
+* Language preference and account settings.
+* Images, videos, audio recordings, and related submission details uploaded by users while completing assigned tasks.
+* Task metadata, submission timestamps, duration, file details, device/app diagnostics, and error reports needed to operate and improve the service.
+* Wallet, referral, payout, and transaction records.
+* UPI ID submitted by a user for manual payout processing.
+* Support messages or account-related requests sent to us.
+
+## How We Use Information
+
+We use collected information to:
+
+* Create and manage user accounts.
+* Provide assigned data-collection tasks.
+* Receive, review, validate, and manage task submissions.
+* Calculate approved earnings, wallet balances, referral rewards, and payout requests.
+* Process manual UPI payout requests.
+* Prevent misuse, fraud, duplicate submissions, and unauthorized access.
+* Improve app reliability, troubleshoot technical issues, and provide support.
+* Comply with applicable legal obligations.
+
+## Media and Task Submissions
+
+When users submit image, video, or audio content for an assigned task, that content may be reviewed by authorized administrators for quality review, task approval, operational purposes, and delivery connected with the applicable data-collection task.
+
+Users should only submit content they are authorized to record, upload, and share.
+
+## Sharing of Information
+
+We may share information only when necessary with service providers that help operate the Tarzi platform, such as hosting, database, storage, security, analytics, and technical-support providers.
+
+We may also disclose information where required by law, legal process, or to protect users, Tarzi, or others from fraud, misuse, or security threats.
+
+We do not sell personal information.
+
+## Data Security
+
+We use reasonable technical and organizational measures to protect user information. However, no online service can guarantee absolute security.
+
+## Data Retention
+
+We retain information for as long as needed to operate the service, manage task submissions and payments, meet legal obligations, resolve disputes, and enforce agreements.
+
+## Account Deletion
+
+Users can request deletion of their Tarzi account through the account-deletion option available in the app or through the public account-deletion request page.
+
+Some information may be retained where required for legal, payment, fraud-prevention, security, or record-keeping purposes.
+
+## Children
+
+Tarzi is not intended for children below the age permitted under applicable law to use the service independently.
+
+## Changes to This Policy
+
+We may update this Privacy Policy from time to time. The latest version will be available in the Tarzi app and at the public Privacy Policy webpage.
+
+## Contact Us
+
+For privacy, account, or support questions, contact:
+
+[support@verbosetechlabs.com](mailto:support@verbosetechlabs.com)
+
+Create a public route:
+
+* https://mobile-data-hub.replit.app/privacy-policy
+
+Requirements:
+
+* Must be accessible without login.
+* Must return HTTP 200.
+* Must render published content from Admin Settings → Legal.
+* Must not show admin navigation, login UI, debug data, or unpublished drafts.
+* Must work on direct browser open, refresh, mobile browser, and incognito mode.
+* Show title, version, last updated date, and support email.
+* Use Tarzi branding.
+
+## 3. Create and Publish Terms and Conditions
+
+Create or populate Admin Settings → Legal → Terms and Conditions editor with the following production Terms content.
+
+Set:
+
+* Title: Terms and Conditions
+* Version: 1.0
+* Status: Published
+* Last updated date: current date
+
+Use this text as the initial Terms and Conditions:
+
+# Terms and Conditions
+
+These Terms and Conditions govern your use of the Tarzi mobile application and related services.
+
+## Eligibility and Account Use
+
+You must provide accurate information when using Tarzi. You are responsible for keeping access to your account secure and for activities performed through your account.
+
+Tarzi may suspend, disable, or restrict an account where there is suspected misuse, fraud, policy violation, security risk, or operational need.
+
+## Task Participation
+
+Tarzi may make image, video, audio, or other data-collection tasks available to eligible users.
+
+Users must:
+
+* Follow the task instructions provided in the app.
+* Submit only genuine, lawful, and authorized content.
+* Avoid submitting misleading, manipulated, copied, unsafe, illegal, or third-party content without appropriate permission.
+* Respect the privacy, property, and rights of other persons.
+
+Tarzi may reject any submission that does not meet task requirements or quality standards.
+
+## Earnings and Wallet
+
+A user may receive earnings only after a submission is reviewed and approved.
+
+Task amounts shown in the app are expected amounts and are not guaranteed until a submission is approved.
+
+Tarzi may approve, reject, request resubmission, or adjust an approved amount where permitted by the task requirements and applicable law.
+
+## Payout Requests
+
+Users may request withdrawal of available wallet balance using a valid UPI ID.
+
+Payouts are processed manually. Submission of a payout request does not guarantee immediate payment.
+
+Tarzi may reject, delay, cancel, or hold a payout request where there is an error, suspected fraud, invalid payment information, compliance concern, or other valid operational reason.
+
+## Referral Program
+
+Referral rewards, if enabled, are subject to the referral rules displayed in the app.
+
+Referral rewards may be credited only after the referred user completes the qualifying activity defined by Tarzi. Tarzi may change, pause, or discontinue the referral program.
+
+## User Content
+
+By submitting content for an assigned task, you confirm that you have the right to submit it and grant Tarzi the right to store, review, process, use, reproduce, and deliver that content as necessary for operating the task and related data-collection services.
+
+## Prohibited Conduct
+
+Users must not:
+
+* Create multiple accounts to exploit rewards, referrals, tasks, or payouts.
+* Submit fraudulent, copied, altered, or misleading content.
+* Attempt to interfere with app security, payment systems, review processes, or other users.
+* Use the service for illegal or harmful purposes.
+
+## Suspension and Termination
+
+Tarzi may suspend or terminate access where these Terms are violated or where necessary to protect the platform, users, or operations.
+
+## Disclaimer
+
+Tarzi provides the app and available tasks on an “as available” basis. Task availability, approval, earnings, and payout timelines may vary.
+
+## Changes to These Terms
+
+Tarzi may update these Terms from time to time. Continued use of the app after updated Terms are published indicates acceptance of the revised Terms.
+
+## Contact Us
+
+For support or questions about these Terms, contact:
+
+[support@verbosetechlabs.com](mailto:support@verbosetechlabs.com)
+
+Create a public route:
+
+* https://mobile-data-hub.replit.app/terms-and-conditions
+
+Use the same public-routing, availability, security, responsive-design, and published-content rules as the Privacy Policy page.
+
+## 4. Account Deletion Link Verification
+
+Verify the existing public account-deletion page.
+
+Requirements:
+
+* Confirm the exact public URL.
+* Ensure it is accessible without login.
+* Ensure users can submit an account-deletion request.
+* Add its URL into the Privacy Policy under Account Deletion.
+* Do not remove existing in-app deletion flow.
+
+If no valid public route exists, create:
+
+* https://mobile-data-hub.replit.app/delete-account
+
+The public page should:
+
+* Explain that users may request account and associated data deletion.
+* Ask for registered mobile number.
+* Ask for a short reason optionally.
+* Avoid exposing whether a phone number exists.
+* Show a safe confirmation message after submission.
+* Send the request into existing admin/support workflow.
+
+## 5. Android / Expo Production Configuration
+
+Update app config and EAS configuration.
+
+Required app values:
+
+* name: Tarzi
+* slug: tarzi
+* android.package: com.verbosetechlabs.tarzi
+* version: 1.0.0
+* android.versionCode: 1
+* orientation: portrait
+* production API URL:
+  `EXPO_PUBLIC_API_BASE_URL=https://mobile-data-hub.replit.app/api`
+
+Ensure:
+
+* App uses final Tarzi name everywhere, not Capto.
+* Existing +91, INR, and Indian formatting remain unchanged.
+* No hard-coded `$`, USD, localhost, emulator IP, debug API URL, or developer credentials remain.
+* The app does not expose raw red error screens, raw API JSON, stack traces, or console diagnostics to users.
+* Existing safe-area fixes are preserved.
+* Final app icon and splash image configuration locations are clearly identified.
+* Do not create a production build with placeholder icons/splash unless I explicitly approve it.
+
+Create or update `eas.json` with:
+
+* development profile
+* preview profile
+* production profile
+
+Production profile requirements:
+
+* Android App Bundle output for Google Play.
+* Store distribution.
+* Auto-increment version code for future production builds where supported.
+* Use EAS-managed Android signing credentials unless an existing keystore is already configured.
+
+## 6. Build the Android AAB
+
+First run pre-build validation:
+
+* Mobile TypeScript/typecheck passes.
+* API typecheck passes.
+* Admin typecheck passes.
+* Production API health check passes.
+* Privacy Policy and Terms pages return HTTP 200.
+* Package name is valid and unique in project configuration.
+* Final icon and splash assets are present, or clearly report them as blockers.
+* No test credentials are embedded in app code.
+* No development URL remains in production app config.
+
+Then generate the Play Store bundle.
+
+Use/prepare this exact command:
+
+`eas build --platform android --profile production`
+
+If EAS login, Expo account linking, project ID, or signing-credential permission is required:
+
+* Ask me only for the required login/authorization step.
+* Do not ask me to manually create configuration files.
+* Create all project files and configuration automatically.
+* Use EAS-managed credentials by default.
+* After successful build, provide the downloadable `.aab` artifact link or exact build page link.
+* Clearly confirm that the result is an Android App Bundle suitable for Google Play Console upload.
+
+Also provide optional internal device-test APK command/profile only if useful, but do not confuse it with the Play Store AAB.
+
+## 7. Play Store Listing Draft
+
+Prepare this draft content.
+
+App category:
+
+* Productivity
+
+Short description:
+Complete data collection tasks and earn rewards for approved submissions.
+
+Full description:
+Tarzi is a task-based data collection app that lets eligible users complete assigned image, video, and audio tasks from their mobile device.
+
+Users can browse available tasks, follow task instructions, capture submissions within the app, upload them for review, track approval status, view wallet earnings, request manual UPI payouts, and invite others using referral codes where available.
+
+Key features:
+
+* Browse image, video, and audio data-collection tasks
+* Capture and upload task submissions securely
+* Track submissions under review and completed tasks
+* View earnings and wallet statement
+* Request manual UPI payouts
+* Refer eligible users with a referral code
+* Use the app in English or Hindi
+
+Support:
+[support@verbosetechlabs.com](mailto:support@verbosetechlabs.com)
+
+Privacy Policy:
+https://mobile-data-hub.replit.app/privacy-policy
+
+Terms and Conditions:
+https://mobile-data-hub.replit.app/terms-and-conditions
+
+Do not claim:
+
+* Guaranteed earnings
+* Instant payouts
+* Automatic payouts
+* Guaranteed task availability
+* Guaranteed referral reward
+
+## 8. Final Report
+
+At the end provide:
+
+* Confirmed production API URL
+* Health-check result
+* Final Privacy Policy URL
+* Final Terms and Conditions URL
+* Exact account-deletion public URL
+* Files created/updated
+* EAS configuration summary
+* Android package name
+* Exact AAB build command used
+* AAB artifact/build link
+* Whether final app icon/splash assets are still blocking release
+* Any remaining Play Store blockers
+* A short step-by-step list of exactly what I must do manually in Google Play Console after receiving the AAB

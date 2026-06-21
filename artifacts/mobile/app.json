@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Capto",
-    "slug": "capto",
+    "name": "Tarzi",
+    "slug": "tarzi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "capto",
+    "scheme": "tarzi",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.capto.app",
+      "bundleIdentifier": "com.verbosetechlabs.tarzi",
       "infoPlist": {
-        "NSCameraUsageDescription": "Capto needs camera access to capture photo and video evidence for tasks.",
-        "NSMicrophoneUsageDescription": "Capto needs microphone access to record audio evidence and video with sound for tasks."
+        "NSCameraUsageDescription": "Tarzi needs camera access to capture photo and video evidence for tasks.",
+        "NSMicrophoneUsageDescription": "Tarzi needs microphone access to record audio evidence and video with sound for tasks."
       }
     },
     "android": {
@@ -26,7 +26,8 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0a0a0a"
       },
-      "package": "com.capto.app",
+      "package": "com.verbosetechlabs.tarzi",
+      "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -57,7 +58,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://mobile-data-hub.replit.app"
         }
       ],
       "expo-font",
@@ -73,15 +74,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Capto needs camera access to capture photo and video evidence for tasks.",
-          "microphonePermission": "Capto needs microphone access to record video with sound for tasks.",
+          "cameraPermission": "Tarzi needs camera access to capture photo and video evidence for tasks.",
+          "microphonePermission": "Tarzi needs microphone access to record video with sound for tasks.",
           "recordAudioAndroid": true
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Capto needs microphone access to record audio evidence for tasks."
+          "microphonePermission": "Tarzi needs microphone access to record audio evidence for tasks."
         }
       ]
     ],

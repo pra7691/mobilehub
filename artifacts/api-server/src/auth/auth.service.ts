@@ -187,8 +187,14 @@ export class AuthService {
       },
     });
 
-    // In production: send SMS via your gateway
+    // TODO: Integrate a real SMS gateway before broad public rollout.
+    // Replace this section with a call to your SMS provider (e.g., MSG91, Kaleyra, Twilio, AWS SNS).
+    // The test OTP (configured via Admin → OTP Settings → Test Mode) is ONLY for:
+    //   - Internal testing and Google Play Store reviewer access.
+    // Disable test mode in Admin → OTP Settings before releasing to real end-users.
+    // IMPORTANT: Never log or expose OTP values in production logs or UI.
     if (process.env.NODE_ENV !== 'production') {
+      // DEV-ONLY: Log OTP to console. This branch is never reached in production.
       console.log(`[DEV] OTP for ${phoneNumber}: ${otp}`);
     }
 

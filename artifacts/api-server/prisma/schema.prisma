@@ -699,3 +699,15 @@ model Banner {
   @@index([deletedAt])
   @@map("banners")
 }
+
+model AccountDeletionRequest {
+  id          String   @id @default(cuid())
+  phoneNumber String
+  reason      String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("account_deletion_requests")
+}

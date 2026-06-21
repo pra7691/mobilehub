@@ -540,14 +540,82 @@ const TASKS = [
 
 const FAQS = [
   {
-    question: 'test',
-    answer: 'test test test test test test test test test test test test test ',
-    questionEn: null,
-    answerEn: null,
-    questionHi: null,
-    answerHi: null,
+    question: 'How do I earn money on Tarzi?',
+    answer:
+      'Browse available tasks in the app, follow the instructions, and submit your work. Once an admin reviews and approves your submission, the task payment is credited to your wallet.',
+    questionEn: 'How do I earn money on Tarzi?',
+    answerEn:
+      'Browse available tasks in the app, follow the instructions, and submit your work. Once an admin reviews and approves your submission, the task payment is credited to your wallet.',
+    questionHi: 'Tarzi पर पैसे कैसे कमाएं?',
+    answerHi:
+      'ऐप में उपलब्ध कार्य देखें, निर्देशों का पालन करें और अपना काम सबमिट करें। एडमिन द्वारा समीक्षा और अनुमोदन के बाद कार्य का भुगतान आपके वॉलेट में जमा हो जाता है।',
     isActive: true,
-    displayOrder: 0,
+    displayOrder: 1,
+  },
+  {
+    question: 'How do I withdraw my earnings?',
+    answer:
+      'Go to your Profile, add your UPI ID under Payment Details, then tap Withdraw to request a payout. Payouts are processed manually and may take a few business days.',
+    questionEn: 'How do I withdraw my earnings?',
+    answerEn:
+      'Go to your Profile, add your UPI ID under Payment Details, then tap Withdraw to request a payout. Payouts are processed manually and may take a few business days.',
+    questionHi: 'मैं अपनी कमाई कैसे निकालूं?',
+    answerHi:
+      'अपने प्रोफाइल में जाएं, Payment Details में अपना UPI ID जोड़ें, फिर निकासी के लिए Withdraw टैप करें। भुगतान मैन्युअल रूप से प्रोसेस किया जाता है और कुछ कार्यदिवस लग सकते हैं।',
+    isActive: true,
+    displayOrder: 2,
+  },
+  {
+    question: 'What types of tasks are available?',
+    answer:
+      'Tarzi offers photography, audio recording, video collection, and data verification tasks. Available tasks depend on current active campaigns.',
+    questionEn: 'What types of tasks are available?',
+    answerEn:
+      'Tarzi offers photography, audio recording, video collection, and data verification tasks. Available tasks depend on current active campaigns.',
+    questionHi: 'कौन से प्रकार के कार्य उपलब्ध हैं?',
+    answerHi:
+      'Tarzi में फोटोग्राफी, ऑडियो रिकॉर्डिंग, वीडियो संग्रह और डेटा सत्यापन के कार्य उपलब्ध हैं। उपलब्ध कार्य वर्तमान सक्रिय अभियानों पर निर्भर करते हैं।',
+    isActive: true,
+    displayOrder: 3,
+  },
+  {
+    question: 'What happens if my submission is rejected?',
+    answer:
+      'If a submission is rejected, you will see the reason in your Submissions screen. Depending on the task, you may be allowed to resubmit. Follow the task instructions carefully to avoid rejection.',
+    questionEn: 'What happens if my submission is rejected?',
+    answerEn:
+      'If a submission is rejected, you will see the reason in your Submissions screen. Depending on the task, you may be allowed to resubmit. Follow the task instructions carefully to avoid rejection.',
+    questionHi: 'अगर मेरा सबमिशन अस्वीकार हो जाए तो क्या होगा?',
+    answerHi:
+      'यदि सबमिशन अस्वीकार होता है, तो आप Submissions स्क्रीन में कारण देख सकते हैं। कार्य के आधार पर आप पुनः सबमिट कर सकते हैं। अस्वीकृति से बचने के लिए कार्य निर्देशों का ध्यानपूर्वक पालन करें।',
+    isActive: true,
+    displayOrder: 4,
+  },
+  {
+    question: 'How does OTP login work?',
+    answer:
+      'Enter your registered Indian mobile number. You will receive a one-time password (OTP) via SMS. Enter the OTP to log in securely — no password required.',
+    questionEn: 'How does OTP login work?',
+    answerEn:
+      'Enter your registered Indian mobile number. You will receive a one-time password (OTP) via SMS. Enter the OTP to log in securely — no password required.',
+    questionHi: 'OTP लॉगिन कैसे काम करता है?',
+    answerHi:
+      'अपना भारतीय मोबाइल नंबर (+91) दर्ज करें। आपको SMS के माध्यम से एक बार का पासवर्ड (OTP) प्राप्त होगा। सुरक्षित रूप से लॉग इन करने के लिए OTP दर्ज करें — किसी पासवर्ड की आवश्यकता नहीं।',
+    isActive: true,
+    displayOrder: 5,
+  },
+  {
+    question: 'How do I delete my account?',
+    answer:
+      'You can request account deletion from the app (Profile → Account Info → Delete Account) or through our public account deletion page at https://mobile-data-hub.replit.app/delete-account. Your data will be removed within 30 days, subject to legal and payment retention requirements.',
+    questionEn: 'How do I delete my account?',
+    answerEn:
+      'You can request account deletion from the app (Profile → Account Info → Delete Account) or through our public account deletion page at https://mobile-data-hub.replit.app/delete-account. Your data will be removed within 30 days, subject to legal and payment retention requirements.',
+    questionHi: 'मैं अपना खाता कैसे हटाऊं?',
+    answerHi:
+      'आप ऐप (Profile → Account Info → Delete Account) से या https://mobile-data-hub.replit.app/delete-account पर जाकर खाता हटाने का अनुरोध कर सकते हैं। कानूनी और भुगतान प्रतिधारण आवश्यकताओं के अधीन आपका डेटा 30 दिनों के भीतर हटा दिया जाएगा।',
+    isActive: true,
+    displayOrder: 6,
   },
 ];
 
@@ -592,18 +660,161 @@ const APP_SETTINGS = [
   { key: 'PAYOUT_MESSAGE', value: '' },
 ];
 
+const PRIVACY_POLICY_CONTENT = `Privacy Policy
+
+Tarzi ("we", "us", "our") provides a mobile application that allows users to complete assigned data-collection tasks, including image, video, and audio submissions.
+
+Information We Collect
+
+We may collect:
+
+- Mobile phone number for OTP-based account login and account management.
+- Language preference and account settings.
+- Images, videos, audio recordings, and related submission details uploaded by users while completing assigned tasks.
+- Task metadata, submission timestamps, duration, file details, device/app diagnostics, and error reports needed to operate and improve the service.
+- Wallet, referral, payout, and transaction records.
+- UPI ID submitted by a user for manual payout processing.
+- Support messages or account-related requests sent to us.
+
+How We Use Information
+
+We use collected information to:
+
+- Create and manage user accounts.
+- Provide assigned data-collection tasks.
+- Receive, review, validate, and manage task submissions.
+- Calculate approved earnings, wallet balances, referral rewards, and payout requests.
+- Process manual UPI payout requests.
+- Prevent misuse, fraud, duplicate submissions, and unauthorized access.
+- Improve app reliability, troubleshoot technical issues, and provide support.
+- Comply with applicable legal obligations.
+
+Media and Task Submissions
+
+When users submit image, video, or audio content for an assigned task, that content may be reviewed by authorized administrators for quality review, task approval, operational purposes, and delivery connected with the applicable data-collection task.
+
+Users should only submit content they are authorized to record, upload, and share.
+
+Sharing of Information
+
+We may share information only when necessary with service providers that help operate the Tarzi platform, such as hosting, database, storage, security, analytics, and technical-support providers.
+
+We may also disclose information where required by law, legal process, or to protect users, Tarzi, or others from fraud, misuse, or security threats.
+
+We do not sell personal information.
+
+Data Security
+
+We use reasonable technical and organizational measures to protect user information. However, no online service can guarantee absolute security.
+
+Data Retention
+
+We retain information for as long as needed to operate the service, manage task submissions and payments, meet legal obligations, resolve disputes, and enforce agreements.
+
+Account Deletion
+
+Users can request deletion of their Tarzi account through the account-deletion option available in the app or through the public account-deletion request page at https://mobile-data-hub.replit.app/delete-account.
+
+Some information may be retained where required for legal, payment, fraud-prevention, security, or record-keeping purposes.
+
+Children
+
+Tarzi is not intended for children below the age permitted under applicable law to use the service independently.
+
+Changes to This Policy
+
+We may update this Privacy Policy from time to time. The latest version will be available in the Tarzi app and at the public Privacy Policy webpage.
+
+Contact Us
+
+For privacy, account, or support questions, contact: support@verbosetechlabs.com`;
+
+const TERMS_CONTENT = `Terms and Conditions
+
+These Terms and Conditions govern your use of the Tarzi mobile application and related services.
+
+Eligibility and Account Use
+
+You must provide accurate information when using Tarzi. You are responsible for keeping access to your account secure and for activities performed through your account.
+
+Tarzi may suspend, disable, or restrict an account where there is suspected misuse, fraud, policy violation, security risk, or operational need.
+
+Task Participation
+
+Tarzi may make image, video, audio, or other data-collection tasks available to eligible users.
+
+Users must:
+
+- Follow the task instructions provided in the app.
+- Submit only genuine, lawful, and authorized content.
+- Avoid submitting misleading, manipulated, copied, unsafe, illegal, or third-party content without appropriate permission.
+- Respect the privacy, property, and rights of other persons.
+
+Tarzi may reject any submission that does not meet task requirements or quality standards.
+
+Earnings and Wallet
+
+A user may receive earnings only after a submission is reviewed and approved.
+
+Task amounts shown in the app are expected amounts and are not guaranteed until a submission is approved.
+
+Tarzi may approve, reject, request resubmission, or adjust an approved amount where permitted by the task requirements and applicable law.
+
+Payout Requests
+
+Users may request withdrawal of available wallet balance using a valid UPI ID.
+
+Payouts are processed manually. Submission of a payout request does not guarantee immediate payment.
+
+Tarzi may reject, delay, cancel, or hold a payout request where there is an error, suspected fraud, invalid payment information, compliance concern, or other valid operational reason.
+
+Referral Program
+
+Referral rewards, if enabled, are subject to the referral rules displayed in the app.
+
+Referral rewards may be credited only after the referred user completes the qualifying activity defined by Tarzi. Tarzi may change, pause, or discontinue the referral program.
+
+User Content
+
+By submitting content for an assigned task, you confirm that you have the right to submit it and grant Tarzi the right to store, review, process, use, reproduce, and deliver that content as necessary for operating the task and related data-collection services.
+
+Prohibited Conduct
+
+Users must not:
+
+- Create multiple accounts to exploit rewards, referrals, tasks, or payouts.
+- Submit fraudulent, copied, altered, or misleading content.
+- Attempt to interfere with app security, payment systems, review processes, or other users.
+- Use the service for illegal or harmful purposes.
+
+Suspension and Termination
+
+Tarzi may suspend or terminate access where these Terms are violated or where necessary to protect the platform, users, or operations.
+
+Disclaimer
+
+Tarzi provides the app and available tasks on an "as available" basis. Task availability, approval, earnings, and payout timelines may vary.
+
+Changes to These Terms
+
+Tarzi may update these Terms from time to time. Continued use of the app after updated Terms are published indicates acceptance of the revised Terms.
+
+Contact Us
+
+For support or questions about these Terms, contact: support@verbosetechlabs.com`;
+
 const LEGAL_SETTINGS = [
   {
     key: 'PRIVACY_POLICY',
     title: 'Privacy Policy',
-    content: 'This is our privacy policy content.',
+    content: PRIVACY_POLICY_CONTENT,
     isPublished: true,
-    version: 2,
+    version: 1,
   },
   {
     key: 'TERMS_AND_CONDITIONS',
-    title: 'Terms & Conditions',
-    content: 'These are our terms.',
+    title: 'Terms and Conditions',
+    content: TERMS_CONTENT,
     isPublished: true,
     version: 1,
   },
