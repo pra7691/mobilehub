@@ -2,10 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotificationEntityType } from '@prisma/client';
+import { resolveText } from '../categories/categories.service';
 
 interface ListParams { page?: number; limit?: number; isActive?: boolean }
-interface CreateDto { title: string; content: string; isActive?: boolean; startsAt?: string; endsAt?: string }
-interface UpdateDto { title?: string; content?: string; isActive?: boolean; startsAt?: string | null; endsAt?: string | null }
+interface CreateDto { title: string; content: string; titleEn?: string; titleHi?: string; contentEn?: string; contentHi?: string; isActive?: boolean; startsAt?: string; endsAt?: string }
+interface UpdateDto { title?: string; content?: string; titleEn?: string; titleHi?: string; contentEn?: string; contentHi?: string; isActive?: boolean; startsAt?: string | null; endsAt?: string | null }
+
+type NoticeRow = { id: string; title: string; content: string; titleEn: string | null; titleHi: string | null; contentEn: string | null; contentHi: string | null; isActive: boolean; startsAt: Date | null; endsAt: Date | null; createdAt: Date; updatedAt: Date };
 
 @Injectable()
 export class NoticesService {
@@ -27,9 +30,9 @@ export class NoticesService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async listPublicActive() {
+  async listPublicActive(language?: string) {
     const now = new Date();
-    return this.prisma.notice.findMany({
+    const notices = await this.prisma.notice.findMany({
       where: {
         deletedAt: null,
         isActive: true,
@@ -37,6 +40,15 @@ export class NoticesService {
         AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
       },
       orderBy: { createdAt: 'desc' },
+    });
+    if (!language) return notices;
+    return notices.map((n) => {
+      const row = n as NoticeRow;
+      return {
+        ...row,
+        title: resolveText(row.titleEn, row.title, row.titleHi, language),
+        content: resolveText(row.contentEn, row.content, row.contentHi, language),
+      };
     });
   }
 
@@ -49,10 +61,16 @@ export class NoticesService {
   async create(dto: CreateDto) {
     const now = new Date();
     const startsAt = dto.startsAt ? new Date(dto.startsAt) : null;
+    const titleEn = dto.titleEn?.trim() || dto.title;
+    const contentEn = dto.contentEn?.trim() || dto.content;
     const notice = await this.prisma.notice.create({
       data: {
-        title: dto.title,
-        content: dto.content,
+        title: titleEn,
+        content: contentEn,
+        titleEn,
+        titleHi: dto.titleHi?.trim() || null,
+        contentEn,
+        contentHi: dto.contentHi?.trim() || null,
         isActive: dto.isActive ?? true,
         startsAt,
         endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
@@ -76,14 +94,14 @@ export class NoticesService {
 
   async update(id: string, dto: UpdateDto) {
     const existing = await this.findOne(id);
-    const updated = await this.prisma.notice.update({
-      where: { id },
-      data: {
-        ...dto,
-        startsAt: dto.startsAt !== undefined ? (dto.startsAt ? new Date(dto.startsAt) : null) : undefined,
-        endsAt: dto.endsAt !== undefined ? (dto.endsAt ? new Date(dto.endsAt) : null) : undefined,
-      },
-    });
+    const updateData: Record<string, unknown> = {
+      ...dto,
+      startsAt: dto.startsAt !== undefined ? (dto.startsAt ? new Date(dto.startsAt) : null) : undefined,
+      endsAt: dto.endsAt !== undefined ? (dto.endsAt ? new Date(dto.endsAt) : null) : undefined,
+    };
+    if (dto.titleEn !== undefined) updateData.title = dto.titleEn.trim() || existing.title;
+    if (dto.contentEn !== undefined) updateData.content = dto.contentEn.trim() || existing.content;
+    const updated = await this.prisma.notice.update({ where: { id }, data: updateData });
     const justActivated = dto.isActive === true && !existing.isActive;
     if (justActivated) {
       setImmediate(() => {

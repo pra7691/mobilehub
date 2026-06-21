@@ -6,6 +6,10 @@ import { IsString, IsOptional, IsBoolean } from 'class-validator';
 class CreateNoticeBody {
   @IsString() title!: string;
   @IsString() content!: string;
+  @IsOptional() @IsString() titleEn?: string;
+  @IsOptional() @IsString() titleHi?: string;
+  @IsOptional() @IsString() contentEn?: string;
+  @IsOptional() @IsString() contentHi?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsString() startsAt?: string;
   @IsOptional() @IsString() endsAt?: string;
@@ -14,6 +18,10 @@ class CreateNoticeBody {
 class UpdateNoticeBody {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() content?: string;
+  @IsOptional() @IsString() titleEn?: string;
+  @IsOptional() @IsString() titleHi?: string;
+  @IsOptional() @IsString() contentEn?: string;
+  @IsOptional() @IsString() contentHi?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsString() startsAt?: string | null;
   @IsOptional() @IsString() endsAt?: string | null;
@@ -45,5 +53,5 @@ export class NoticesController {
 @Controller('public/notices')
 export class PublicNoticesController {
   constructor(private service: NoticesService) {}
-  @Get() list() { return this.service.listPublicActive(); }
+  @Get() list(@Query('language') language?: string) { return this.service.listPublicActive(language); }
 }

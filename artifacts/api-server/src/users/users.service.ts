@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { UserStatus } from '@prisma/client';
@@ -21,6 +21,7 @@ export class UsersService {
     id: string;
     phoneNumber: string;
     name: string | null;
+    preferredLanguage: string;
     status: UserStatus;
     createdAt: Date;
     updatedAt: Date;
@@ -36,6 +37,7 @@ export class UsersService {
       id: user.id,
       phoneNumber: user.phoneNumber,
       name: user.name,
+      preferredLanguage: user.preferredLanguage,
       status: user.status,
       totalEarnings,
       totalSubmissions,
@@ -92,6 +94,20 @@ export class UsersService {
       include: { submissions: { select: { paymentAmountSnapshot: true } } },
     });
     return this.toResponse(user);
+  }
+
+  async updateLanguage(id: string, preferredLanguage: string) {
+    if (!['en', 'hi'].includes(preferredLanguage)) {
+      throw new BadRequestException('preferredLanguage must be "en" or "hi"');
+    }
+    const user = await this.prisma.user.findFirst({ where: { id, deletedAt: null } });
+    if (!user) throw new NotFoundException('User not found');
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { preferredLanguage },
+      include: { submissions: { select: { paymentAmountSnapshot: true } } },
+    });
+    return this.toResponse(updated);
   }
 
   async updateStatus(

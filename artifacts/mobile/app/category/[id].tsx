@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Act
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useListSubcategories, type Subcategory } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 function SubcategoryCard({ sub, onPress }: { sub: Subcategory; onPress: () => void }) {
   return (
@@ -16,9 +17,10 @@ function SubcategoryCard({ sub, onPress }: { sub: Subcategory; onPress: () => vo
 export default function CategoryScreen() {
   const { id, name, icon } = useLocalSearchParams<{ id: string; name: string; icon: string }>();
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data, isLoading, refetch } = useListSubcategories({ categoryId: id, isActive: true, limit: 50 });
+  const { data, isLoading, refetch } = useListSubcategories({ categoryId: id, isActive: true, limit: 50, language: language as any });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -63,7 +65,7 @@ export default function CategoryScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>📂</Text>
-              <Text style={styles.emptyText}>No subcategories</Text>
+              <Text style={styles.emptyText}>{t("category.noSubcategories")}</Text>
             </View>
           }
         />

@@ -1,20 +1,41 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface ListParams { page?: number; limit?: number; search?: string; isActive?: boolean }
-interface CreateDto { name: string; description?: string; icon?: string; coverImageUrl?: string; displayOrder?: number; isActive?: boolean }
-interface UpdateDto { name?: string; description?: string; icon?: string; coverImageUrl?: string; displayOrder?: number; isActive?: boolean }
+export function resolveText(enField: string | null | undefined, fallback: string, hiField: string | null | undefined, lang?: string): string {
+  if (!lang) return fallback;
+  if (lang === 'hi') return hiField?.trim() || enField?.trim() || fallback;
+  return enField?.trim() || fallback;
+}
+
+export function resolveOptional(enField: string | null | undefined, fallback: string | null, hiField: string | null | undefined, lang?: string): string | null {
+  if (!lang) return fallback;
+  if (!fallback && !enField && !hiField) return null;
+  if (lang === 'hi') return hiField?.trim() || enField?.trim() || fallback || null;
+  return enField?.trim() || fallback || null;
+}
+
+interface ListParams { page?: number; limit?: number; search?: string; isActive?: boolean; language?: string }
+interface CreateDto { name: string; description?: string; nameEn?: string; nameHi?: string; descriptionEn?: string; descriptionHi?: string; icon?: string; coverImageUrl?: string; displayOrder?: number; isActive?: boolean }
+interface UpdateDto { name?: string; description?: string; nameEn?: string; nameHi?: string; descriptionEn?: string; descriptionHi?: string; icon?: string; coverImageUrl?: string; displayOrder?: number; isActive?: boolean }
+
+type CatRow = { id: string; name: string; description: string | null; nameEn: string | null; nameHi: string | null; descriptionEn: string | null; descriptionHi: string | null; icon: string | null; coverImageUrl: string | null; displayOrder: number; isActive: boolean; createdAt: Date; updatedAt: Date };
 
 @Injectable()
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  private async toResponse(cat: { id: string; name: string; description: string | null; icon: string | null; coverImageUrl: string | null; displayOrder: number; isActive: boolean; createdAt: Date; updatedAt: Date }) {
+  private async toResponse(cat: CatRow, language?: string) {
     const [subcategoryCount, taskCount] = await Promise.all([
       this.prisma.subcategory.count({ where: { categoryId: cat.id, deletedAt: null } }),
       this.prisma.task.count({ where: { categoryId: cat.id, deletedAt: null } }),
     ]);
-    return { ...cat, subcategoryCount, taskCount };
+    return {
+      ...cat,
+      name: resolveText(cat.nameEn, cat.name, cat.nameHi, language),
+      description: resolveOptional(cat.descriptionEn, cat.description, cat.descriptionHi, language),
+      subcategoryCount,
+      taskCount,
+    };
   }
 
   async list(params: ListParams) {
@@ -28,25 +49,46 @@ export class CategoriesService {
       this.prisma.category.count({ where }),
       this.prisma.category.findMany({ where, skip, take: limit, orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }] }),
     ]);
-    const enriched = await Promise.all(data.map((c) => this.toResponse(c)));
+    const enriched = await Promise.all(data.map((c) => this.toResponse(c as CatRow, params.language)));
     return { data: enriched, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, language?: string) {
     const cat = await this.prisma.category.findFirst({ where: { id, deletedAt: null } });
     if (!cat) throw new NotFoundException('Category not found');
-    return this.toResponse(cat);
+    return this.toResponse(cat as CatRow, language);
   }
 
   async create(dto: CreateDto) {
-    const cat = await this.prisma.category.create({ data: { ...dto, isActive: dto.isActive ?? true, displayOrder: dto.displayOrder ?? 0 } });
-    return this.toResponse(cat);
+    const nameEn = dto.nameEn?.trim() || dto.name;
+    const cat = await this.prisma.category.create({
+      data: {
+        name: nameEn,
+        description: dto.description,
+        nameEn,
+        nameHi: dto.nameHi?.trim() || null,
+        descriptionEn: dto.descriptionEn?.trim() || dto.description || null,
+        descriptionHi: dto.descriptionHi?.trim() || null,
+        icon: dto.icon,
+        coverImageUrl: dto.coverImageUrl,
+        displayOrder: dto.displayOrder ?? 0,
+        isActive: dto.isActive ?? true,
+      },
+    });
+    return this.toResponse(cat as CatRow);
   }
 
   async update(id: string, dto: UpdateDto) {
-    await this.findOne(id);
-    const cat = await this.prisma.category.update({ where: { id }, data: dto });
-    return this.toResponse(cat);
+    const existing = await this.findOne(id);
+    const updateData: Record<string, unknown> = { ...dto };
+    if (dto.nameEn !== undefined) {
+      updateData.name = dto.nameEn.trim() || existing.name;
+    }
+    if (dto.name !== undefined && dto.nameEn === undefined) {
+      updateData.nameEn = dto.name;
+    }
+    const cat = await this.prisma.category.update({ where: { id }, data: updateData });
+    return this.toResponse(cat as CatRow);
   }
 
   async remove(id: string) {

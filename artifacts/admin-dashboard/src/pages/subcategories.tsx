@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,8 +28,10 @@ export default function Subcategories() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [nameHi, setNameHi] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
+  const [descriptionHi, setDescriptionHi] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [displayOrder, setDisplayOrder] = useState(0);
   const [isActive, setIsActive] = useState(true);
@@ -42,20 +45,33 @@ export default function Subcategories() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListSubcategoriesQueryKey() });
 
   const openCreate = () => {
-    setEditingId(null); setName(""); setDescription(""); setCategoryId(""); setDisplayOrder(0); setIsActive(true);
+    setEditingId(null); setNameEn(""); setNameHi(""); setDescriptionEn(""); setDescriptionHi("");
+    setCategoryId(""); setDisplayOrder(0); setIsActive(true);
     setDialogOpen(true);
   };
 
   const openEdit = (sub: Subcategory) => {
-    setEditingId(sub.id); setName(sub.name); setDescription(sub.description ?? "");
+    setEditingId(sub.id);
+    setNameEn((sub as any).nameEn ?? sub.name);
+    setNameHi((sub as any).nameHi ?? "");
+    setDescriptionEn((sub as any).descriptionEn ?? sub.description ?? "");
+    setDescriptionHi((sub as any).descriptionHi ?? "");
     setCategoryId(sub.categoryId); setDisplayOrder(sub.displayOrder); setIsActive(sub.isActive);
     setDialogOpen(true);
   };
 
   const handleSave = () => {
-    if (!name.trim()) { toast.error("Name is required"); return; }
+    if (!nameEn.trim()) { toast.error("English name is required"); return; }
     if (!categoryId) { toast.error("Category is required"); return; }
-    const payload = { name: name.trim(), description: description || undefined, categoryId, displayOrder, isActive };
+    const payload = {
+      name: nameEn.trim(),
+      nameEn: nameEn.trim(),
+      nameHi: nameHi.trim() || undefined,
+      description: descriptionEn || undefined,
+      descriptionEn: descriptionEn.trim() || undefined,
+      descriptionHi: descriptionHi.trim() || undefined,
+      categoryId, displayOrder, isActive,
+    };
     if (editingId) {
       updateMutation.mutate({ id: editingId, data: payload }, {
         onSuccess: () => { invalidate(); setDialogOpen(false); toast.success("Subcategory updated"); },
@@ -119,8 +135,8 @@ export default function Subcategories() {
           <TableHeader>
             <TableRow className="border-gray-800 hover:bg-transparent">
               <TableHead className="text-gray-400">Category</TableHead>
-              <TableHead className="text-gray-400">Name</TableHead>
-              <TableHead className="text-gray-400">Description</TableHead>
+              <TableHead className="text-gray-400">Name (EN)</TableHead>
+              <TableHead className="text-gray-400">Hindi</TableHead>
               <TableHead className="text-gray-400 text-center">Order</TableHead>
               <TableHead className="text-gray-400 text-center">Tasks</TableHead>
               <TableHead className="text-gray-400">Status</TableHead>
@@ -146,8 +162,8 @@ export default function Subcategories() {
                     <span className="text-gray-300">{sub.category?.name ?? sub.categoryId}</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium text-white">{sub.name}</TableCell>
-                <TableCell className="text-gray-400 text-sm max-w-xs truncate">{sub.description || "—"}</TableCell>
+                <TableCell className="font-medium text-white">{(sub as any).nameEn ?? sub.name}</TableCell>
+                <TableCell className="text-gray-400 text-sm">{(sub as any).nameHi || "—"}</TableCell>
                 <TableCell className="text-center text-gray-400">{sub.displayOrder}</TableCell>
                 <TableCell className="text-center"><Badge variant="outline" className="border-gray-600 text-gray-300">{sub.taskCount}</Badge></TableCell>
                 <TableCell>
@@ -183,7 +199,7 @@ export default function Subcategories() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-md">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Subcategory" : "New Subcategory"}</DialogTitle>
           </DialogHeader>
@@ -201,14 +217,34 @@ export default function Subcategories() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label>Name <span className="text-red-400">*</span></Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Product Photography" className="bg-gray-800 border-gray-700 text-white" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Capture retail product images from multiple angles..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={3} />
-            </div>
+
+            <Tabs defaultValue="en">
+              <TabsList className="bg-gray-800 border border-gray-700">
+                <TabsTrigger value="en" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇬🇧 English</TabsTrigger>
+                <TabsTrigger value="hi" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇮🇳 हिंदी</TabsTrigger>
+              </TabsList>
+              <TabsContent value="en" className="space-y-3 mt-3">
+                <div className="space-y-1.5">
+                  <Label>Name (English) <span className="text-red-400">*</span></Label>
+                  <Input value={nameEn} onChange={e => setNameEn(e.target.value)} placeholder="Product Photography" className="bg-gray-800 border-gray-700 text-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Description (English)</Label>
+                  <Textarea value={descriptionEn} onChange={e => setDescriptionEn(e.target.value)} placeholder="Capture retail product images from multiple angles..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={3} />
+                </div>
+              </TabsContent>
+              <TabsContent value="hi" className="space-y-3 mt-3">
+                <div className="space-y-1.5">
+                  <Label>नाम (हिंदी)</Label>
+                  <Input dir="auto" value={nameHi} onChange={e => setNameHi(e.target.value)} placeholder="प्रोडक्ट फोटोग्राफी" className="bg-gray-800 border-gray-700 text-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>विवरण (हिंदी)</Label>
+                  <Textarea dir="auto" value={descriptionHi} onChange={e => setDescriptionHi(e.target.value)} placeholder="कई कोणों से खुदरा उत्पाद की छवियां कैप्चर करें..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={3} />
+                </div>
+              </TabsContent>
+            </Tabs>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Display Order</Label>

@@ -331,6 +331,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+  /users/me/language:
+    patch:
+      operationId: updateMyLanguage
+      tags: [users]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLanguageRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
   /categories:
     get:
       operationId: listCategories
@@ -345,6 +365,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [en, hi]
       responses:
         "200":
           description: OK
@@ -379,6 +404,11 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [en, hi]
       responses:
         "200":
           description: OK
@@ -435,6 +465,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [en, hi]
       responses:
         "200":
           description: OK
@@ -469,6 +504,11 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [en, hi]
       responses:
         "200":
           description: OK
@@ -535,6 +575,11 @@ paths:
           schema:
             type: string
             enum: [VIDEO, IMAGE, AUDIO]
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [en, hi]
       responses:
         "200":
           description: OK
@@ -569,6 +614,11 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/IdParam"
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [en, hi]
       responses:
         "200":
           description: OK
@@ -1565,6 +1615,9 @@ paths:
         - in: query
           name: search
           schema: { type: string }
+        - in: query
+          name: language
+          schema: { type: string, enum: [en, hi] }
       responses:
         "200":
           description: OK
@@ -1579,6 +1632,10 @@ paths:
     get:
       operationId: getPublicSupport
       tags: [public-support]
+      parameters:
+        - in: query
+          name: language
+          schema: { type: string, enum: [en, hi] }
       responses:
         "200":
           description: OK
@@ -1596,6 +1653,9 @@ paths:
           name: slug
           required: true
           schema: { type: string }
+        - in: query
+          name: language
+          schema: { type: string, enum: [en, hi] }
       responses:
         "200":
           description: OK
@@ -1608,6 +1668,10 @@ paths:
     get:
       operationId: getPublicNotices
       tags: [public-notices]
+      parameters:
+        - in: query
+          name: language
+          schema: { type: string, enum: [en, hi] }
       responses:
         "200":
           description: OK
@@ -2499,6 +2563,10 @@ components:
           type: string
         name:
           type: string
+        preferredLanguage:
+          type: string
+          enum: [en, hi]
+          default: en
         status:
           type: string
           enum: [active, inactive, suspended, disabled]
@@ -2512,7 +2580,15 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, phoneNumber, status, totalEarnings, totalSubmissions, createdAt, updatedAt]
+      required: [id, phoneNumber, status, preferredLanguage, totalEarnings, totalSubmissions, createdAt, updatedAt]
+
+    UpdateLanguageRequest:
+      type: object
+      properties:
+        preferredLanguage:
+          type: string
+          enum: [en, hi]
+      required: [preferredLanguage]
 
     UpdateUserRequest:
       type: object

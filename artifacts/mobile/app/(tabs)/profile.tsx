@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { useGetMe, useGetMyWallet, useListMySubmissions, useGetAppSettings } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/contexts/LanguageContext";
 import Constants from "expo-constants";
 
 interface User {
@@ -40,6 +41,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
   const router = useRouter();
+  const { t, language } = useLanguage();
 
   const { data: user, isLoading: loadingUser } = useGetMe() as { data: User | undefined; isLoading: boolean };
   const { data: wallet } = useGetMyWallet() as { data: Wallet | undefined };
@@ -52,12 +54,13 @@ export default function ProfileScreen() {
   const approvedCount = approvedSubs?.meta?.total ?? 0;
   const pendingCount = pendingSubs?.meta?.total ?? 0;
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const currentLanguageLabel = language === "hi" ? "हिंदी" : "English";
 
   async function handleLogout() {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("profile.logoutTitle"), t("profile.logoutConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Log out",
+        text: t("profile.logout"),
         style: "destructive",
         onPress: async () => {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -89,8 +92,8 @@ export default function ProfileScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>Account</Text>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerLabel}>{t("profile.myAccount")}</Text>
+        <Text style={styles.headerTitle}>{t("profile.title")}</Text>
       </View>
 
       {/* Avatar */}
@@ -104,15 +107,15 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>₹{Number(wallet.availableBalance).toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Available</Text>
+            <Text style={styles.statLabel}>{t("wallet.available")}</Text>
           </View>
           <View style={[styles.statBox, styles.statBoxCenter]}>
             <Text style={styles.statValue}>₹{Number(wallet.lifetimeEarnings).toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Lifetime</Text>
+            <Text style={styles.statLabel}>{t("wallet.lifetime")}</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>{totalSubmissions}</Text>
-            <Text style={styles.statLabel}>Uploads</Text>
+            <Text style={styles.statLabel}>{t("submissions.title")}</Text>
           </View>
         </View>
       )}
@@ -122,7 +125,7 @@ export default function ProfileScreen() {
         <View style={styles.pendingBanner}>
           <Feather name="clock" size={13} color="#f59e0b" />
           <Text style={styles.pendingText}>
-            ₹{Number(wallet.pendingBalance).toFixed(2)} pending review
+            ₹{Number(wallet.pendingBalance).toFixed(2)} {t("wallet.pending").toLowerCase()}
           </Text>
         </View>
       )}
@@ -135,7 +138,7 @@ export default function ProfileScreen() {
           activeOpacity={0.7}
         >
           <Feather name="list" size={14} color={colors.primary} />
-          <Text style={styles.statementBtnText}>View Wallet Statement</Text>
+          <Text style={styles.statementBtnText}>{t("wallet.viewStatement")}</Text>
           <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
         </TouchableOpacity>
       )}
@@ -144,35 +147,43 @@ export default function ProfileScreen() {
       <View style={styles.subRow}>
         <View style={styles.subStat}>
           <Text style={styles.subNum}>{totalSubmissions}</Text>
-          <Text style={styles.subLabel}>Total</Text>
+          <Text style={styles.subLabel}>{t("submissions.all")}</Text>
         </View>
         <View style={[styles.subStat, styles.subStatCenter]}>
           <Text style={[styles.subNum, { color: "#10b981" }]}>{approvedCount}</Text>
-          <Text style={styles.subLabel}>Approved</Text>
+          <Text style={styles.subLabel}>{t("submissions.approved")}</Text>
         </View>
         <View style={styles.subStat}>
           <Text style={[styles.subNum, { color: "#f59e0b" }]}>{pendingCount}</Text>
-          <Text style={styles.subLabel}>Pending</Text>
+          <Text style={styles.subLabel}>{t("submissions.underReview")}</Text>
         </View>
       </View>
 
       {/* Settings */}
       <Text style={styles.sectionTitle}>Settings</Text>
       <View style={styles.card}>
-        <MenuRow icon="user" label="Account Info" onPress={() => router.push("/account-info" as never)} colors={colors} />
-        <MenuRow icon="credit-card" label="Payment Details" onPress={() => router.push("/payment-details" as never)} colors={colors} />
-        <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} last />
+        <MenuRow icon="user" label={t("profile.title")} onPress={() => router.push("/account-info" as never)} colors={colors} />
+        <MenuRow icon="credit-card" label={t("profile.paymentDetails")} onPress={() => router.push("/payment-details" as never)} colors={colors} />
+        <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} />
+        <MenuRow
+          icon="globe"
+          label={t("profile.language")}
+          sublabel={currentLanguageLabel}
+          onPress={() => router.push("/language-settings" as never)}
+          colors={colors}
+          last
+        />
       </View>
 
       {/* Help & Legal */}
-      <Text style={styles.sectionTitle}>Help & Legal</Text>
+      <Text style={styles.sectionTitle}>{t("support.title")} & Legal</Text>
       <View style={styles.card}>
-        <MenuRow icon="headphones" label="Support" onPress={() => router.push("/support" as never)} colors={colors} />
-        <MenuRow icon="help-circle" label="FAQ" onPress={() => router.push("/faq" as never)} colors={colors} />
+        <MenuRow icon="headphones" label={t("support.title")} onPress={() => router.push("/support" as never)} colors={colors} />
+        <MenuRow icon="help-circle" label={t("faq.title")} onPress={() => router.push("/faq" as never)} colors={colors} />
         {appSettings?.legal?.privacyPolicy && (
           <MenuRow
             icon="shield"
-            label="Privacy Policy"
+            label={t("legal.privacyPolicy")}
             onPress={() => router.push({ pathname: "/legal-content", params: { slug: "privacy-policy" } } as never)}
             colors={colors}
           />
@@ -180,18 +191,18 @@ export default function ProfileScreen() {
         {appSettings?.legal?.termsAndConditions && (
           <MenuRow
             icon="file-text"
-            label="Terms & Conditions"
+            label={t("legal.terms")}
             onPress={() => router.push({ pathname: "/legal-content", params: { slug: "terms-and-conditions" } } as never)}
             colors={colors}
           />
         )}
-        <MenuRow icon="info" label={`App Version ${appVersion}`} onPress={() => {}} colors={colors} chevron={false} last />
+        <MenuRow icon="info" label={t("profile.version", { version: appVersion })} onPress={() => {}} colors={colors} chevron={false} last />
       </View>
 
       {/* Logout */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} testID="button-logout" activeOpacity={0.7}>
         <Feather name="log-out" size={18} color="#ef4444" />
-        <Text style={styles.logoutText}>Log out</Text>
+        <Text style={styles.logoutText}>{t("profile.logout")}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -199,24 +210,33 @@ export default function ProfileScreen() {
 
 
 function MenuRow({
-  icon, label, onPress, colors, chevron = true, muted = false, last = false,
-}: { icon: string; label: string; onPress: () => void; colors: ReturnType<typeof useColors>; chevron?: boolean; muted?: boolean; last?: boolean }) {
+  icon, label, sublabel, onPress, colors, chevron = true, muted = false, last = false,
+}: {
+  icon: string; label: string; sublabel?: string; onPress: () => void;
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
+  chevron?: boolean; muted?: boolean; last?: boolean;
+}) {
   const s = StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.border },
     iconBox: { width: 34, height: 34, borderRadius: 9, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" },
-    lbl: { flex: 1, fontSize: 14, color: muted ? colors.mutedForeground : colors.foreground, fontFamily: "Inter_500Medium" },
+    labelBlock: { flex: 1 },
+    lbl: { fontSize: 14, color: muted ? colors.mutedForeground : colors.foreground, fontFamily: "Inter_500Medium" },
+    sub: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 1 },
   });
   return (
     <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.6}>
       <View style={s.iconBox}><Feather name={icon as "phone"} size={15} color={muted ? colors.mutedForeground : colors.primary} /></View>
-      <Text style={s.lbl}>{label}</Text>
+      <View style={s.labelBlock}>
+        <Text style={s.lbl}>{label}</Text>
+        {sublabel && <Text style={s.sub}>{sublabel}</Text>}
+      </View>
       {chevron && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
     </TouchableOpacity>
   );
 }
 
 
-function makeStyles(colors: ReturnType<typeof useColors>) {
+function makeStyles(colors: ReturnType<typeof import("@/hooks/useColors").useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     scrollContent: { paddingBottom: 120 },

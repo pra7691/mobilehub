@@ -7,6 +7,10 @@ class CreatePageBody {
   @IsString() title!: string;
   @IsString() slug!: string;
   @IsString() content!: string;
+  @IsOptional() @IsString() titleEn?: string;
+  @IsOptional() @IsString() titleHi?: string;
+  @IsOptional() @IsString() contentEn?: string;
+  @IsOptional() @IsString() contentHi?: string;
   @IsOptional() @IsBoolean() isPublished?: boolean;
 }
 
@@ -14,6 +18,10 @@ class UpdatePageBody {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() slug?: string;
   @IsOptional() @IsString() content?: string;
+  @IsOptional() @IsString() titleEn?: string;
+  @IsOptional() @IsString() titleHi?: string;
+  @IsOptional() @IsString() contentEn?: string;
+  @IsOptional() @IsString() contentHi?: string;
   @IsOptional() @IsBoolean() isPublished?: boolean;
 }
 
@@ -34,5 +42,7 @@ export class PagesController {
 @Controller('public/pages')
 export class PublicPagesController {
   constructor(private service: PagesService) {}
-  @Get(':slug') findBySlug(@Param('slug') slug: string) { return this.service.findBySlugPublic(slug); }
+  @Get(':slug') findBySlug(@Param('slug') slug: string, @Query('language') language?: string) {
+    return this.service.findBySlugPublic(slug, language);
+  }
 }

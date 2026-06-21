@@ -3,14 +3,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CollectionType, CameraPreference, LensPreference, OrientationRequirement, TaskStatus, NotificationType, NotificationEntityType } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { resolveText, resolveOptional } from '../categories/categories.service';
 
 interface ListParams {
   page?: number; limit?: number; search?: string; categoryId?: string;
   subcategoryId?: string; status?: TaskStatus; collectionType?: CollectionType;
+  language?: string;
 }
 
 interface TaskDto {
   title?: string; description?: string; detailedInstructions?: string;
+  titleEn?: string; titleHi?: string; shortDescriptionEn?: string; shortDescriptionHi?: string;
+  detailedInstructionsEn?: string; detailedInstructionsHi?: string;
+  dosEn?: string[]; dosHi?: string[]; dontsEn?: string[]; dontsHi?: string[];
   dos?: string[]; donts?: string[]; categoryId?: string; subcategoryId?: string;
   collectionType?: CollectionType; paymentAmount?: number; currency?: string;
   sampleMediaUrl?: string; minimumDurationSeconds?: number; maximumDurationSeconds?: number;
@@ -23,6 +28,10 @@ interface TaskDto {
 
 type TaskRow = {
   id: string; title: string; description: string | null; detailedInstructions: string | null;
+  titleEn: string | null; titleHi: string | null;
+  shortDescriptionEn: string | null; shortDescriptionHi: string | null;
+  detailedInstructionsEn: string | null; detailedInstructionsHi: string | null;
+  dosEn: string[]; dosHi: string[]; dontsEn: string[]; dontsHi: string[];
   dos: string[]; donts: string[]; categoryId: string; subcategoryId: string | null;
   collectionType: CollectionType; paymentAmount: Decimal; currency: string;
   sampleMediaUrl: string | null; minimumDurationSeconds: number | null; maximumDurationSeconds: number | null;
@@ -34,6 +43,12 @@ type TaskRow = {
   createdAt: Date; updatedAt: Date; deletedAt: Date | null;
 };
 
+function resolveArray(enArr: string[], hiArr: string[], lang?: string): string[] {
+  if (!lang || lang === 'en') return enArr.length ? enArr : [];
+  if (lang === 'hi') return hiArr.length ? hiArr : enArr;
+  return enArr;
+}
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -41,7 +56,7 @@ export class TasksService {
     private notificationsService: NotificationsService,
   ) {}
 
-  private async toResponse(task: TaskRow) {
+  private async toResponse(task: TaskRow, language?: string) {
     const [submissionCount, category, subcategory] = await Promise.all([
       this.prisma.submission.count({ where: { taskId: task.id } }),
       this.prisma.category.findUnique({ where: { id: task.categoryId }, select: { id: true, name: true, icon: true, isActive: true } }),
@@ -49,6 +64,11 @@ export class TasksService {
     ]);
     return {
       ...task,
+      title: resolveText(task.titleEn, task.title, task.titleHi, language),
+      description: resolveOptional(task.shortDescriptionEn, task.description, task.shortDescriptionHi, language),
+      detailedInstructions: resolveOptional(task.detailedInstructionsEn, task.detailedInstructions, task.detailedInstructionsHi, language),
+      dos: language ? resolveArray(task.dosEn, task.dosHi, language) : task.dos,
+      donts: language ? resolveArray(task.dontsEn, task.dontsHi, language) : task.donts,
       paymentAmount: Number(task.paymentAmount),
       submissionCount,
       category,
@@ -71,14 +91,14 @@ export class TasksService {
       this.prisma.task.count({ where }),
       this.prisma.task.findMany({ where, skip, take: limit, orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }] }),
     ]);
-    const enriched = await Promise.all(data.map((t) => this.toResponse(t as TaskRow)));
+    const enriched = await Promise.all(data.map((t) => this.toResponse(t as TaskRow, params.language)));
     return { data: enriched, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, language?: string) {
     const task = await this.prisma.task.findFirst({ where: { id, deletedAt: null } });
     if (!task) throw new NotFoundException('Task not found');
-    return this.toResponse(task as TaskRow);
+    return this.toResponse(task as TaskRow, language);
   }
 
   async create(dto: TaskDto & { title: string; categoryId: string }) {
@@ -88,13 +108,24 @@ export class TasksService {
       const sub = await this.prisma.subcategory.findFirst({ where: { id: dto.subcategoryId, deletedAt: null, categoryId: dto.categoryId } });
       if (!sub) throw new BadRequestException('Subcategory not found or does not belong to this category');
     }
+    const titleEn = dto.titleEn?.trim() || dto.title;
     const task = await this.prisma.task.create({
       data: {
-        title: dto.title,
-        description: dto.description,
-        detailedInstructions: dto.detailedInstructions,
-        dos: dto.dos ?? [],
-        donts: dto.donts ?? [],
+        title: titleEn,
+        description: dto.shortDescriptionEn?.trim() || dto.description,
+        detailedInstructions: dto.detailedInstructionsEn?.trim() || dto.detailedInstructions,
+        titleEn,
+        titleHi: dto.titleHi?.trim() || null,
+        shortDescriptionEn: dto.shortDescriptionEn?.trim() || dto.description || null,
+        shortDescriptionHi: dto.shortDescriptionHi?.trim() || null,
+        detailedInstructionsEn: dto.detailedInstructionsEn?.trim() || dto.detailedInstructions || null,
+        detailedInstructionsHi: dto.detailedInstructionsHi?.trim() || null,
+        dos: dto.dosEn?.length ? dto.dosEn : (dto.dos ?? []),
+        donts: dto.dontsEn?.length ? dto.dontsEn : (dto.donts ?? []),
+        dosEn: dto.dosEn ?? dto.dos ?? [],
+        dosHi: dto.dosHi ?? [],
+        dontsEn: dto.dontsEn ?? dto.donts ?? [],
+        dontsHi: dto.dontsHi ?? [],
         categoryId: dto.categoryId,
         subcategoryId: dto.subcategoryId,
         collectionType: dto.collectionType ?? CollectionType.IMAGE,
@@ -133,6 +164,12 @@ export class TasksService {
     const updateData: Record<string, unknown> = { ...dto };
     if (dto.startDate) updateData.startDate = new Date(dto.startDate);
     if (dto.endDate) updateData.endDate = new Date(dto.endDate);
+    if (dto.titleEn !== undefined) updateData.title = dto.titleEn.trim() || existing.title;
+    if (dto.shortDescriptionEn !== undefined) updateData.description = dto.shortDescriptionEn.trim() || null;
+    if (dto.detailedInstructionsEn !== undefined) updateData.detailedInstructions = dto.detailedInstructionsEn.trim() || null;
+    if (dto.dosEn !== undefined) updateData.dos = dto.dosEn;
+    if (dto.dontsEn !== undefined) updateData.donts = dto.dontsEn;
+
     const task = await this.prisma.task.update({ where: { id }, data: updateData });
     const result = await this.toResponse(task as TaskRow);
 

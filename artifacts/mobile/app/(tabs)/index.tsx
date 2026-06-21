@@ -4,8 +4,11 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useListCategories, useGetPublicNotices, type Category, type Notice } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-function CategoryCard({ category, onPress }: { category: Category; onPress: () => void }) {
+function CategoryCard({ category, onPress, subcategoriesLabel, tasksLabel }: {
+  category: Category; onPress: () => void; subcategoriesLabel: string; tasksLabel: string;
+}) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardIconContainer}>
@@ -18,10 +21,10 @@ function CategoryCard({ category, onPress }: { category: Category; onPress: () =
         ) : null}
         <View style={styles.cardMeta}>
           <View style={styles.metaBadge}>
-            <Text style={styles.metaText}>{category.subcategoryCount} subcategories</Text>
+            <Text style={styles.metaText}>{category.subcategoryCount} {subcategoriesLabel}</Text>
           </View>
           <View style={[styles.metaBadge, styles.metaBadgeTasks]}>
-            <Text style={[styles.metaText, styles.metaTextCyan]}>{category.taskCount} tasks</Text>
+            <Text style={[styles.metaText, styles.metaTextCyan]}>{category.taskCount} {tasksLabel}</Text>
           </View>
         </View>
       </View>
@@ -47,11 +50,12 @@ function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: (id: s
 
 export default function CategoriesScreen() {
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(new Set());
 
-  const { data, isLoading, refetch } = useListCategories({ isActive: true, limit: 50 });
-  const { data: notices = [] } = useGetPublicNotices() as { data: Notice[] };
+  const { data, isLoading, refetch } = useListCategories({ isActive: true, limit: 50, language: language as any });
+  const { data: notices = [] } = useGetPublicNotices({ language: language as any }) as { data: Notice[] };
 
   const visibleNotices = notices.filter(n => n.isActive && !dismissedNotices.has(n.id));
 
@@ -72,7 +76,7 @@ export default function CategoriesScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Capto</Text>
-          <Text style={styles.headerSubtitle}>Choose a task category</Text>
+          <Text style={styles.headerSubtitle}>{t("home.browseCategories")}</Text>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator color="#06b6d4" size="large" />
@@ -85,7 +89,7 @@ export default function CategoriesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Capto</Text>
-        <Text style={styles.headerSubtitle}>Choose a task category</Text>
+        <Text style={styles.headerSubtitle}>{t("home.browseCategories")}</Text>
       </View>
 
       {visibleNotices.length > 0 && (
@@ -104,14 +108,16 @@ export default function CategoriesScreen() {
         renderItem={({ item }) => (
           <CategoryCard
             category={item}
+            subcategoriesLabel={t("category.subcategories")}
+            tasksLabel={t("category.tasks")}
             onPress={() => router.push({ pathname: "/category/[id]", params: { id: item.id, name: item.name, icon: item.icon ?? "📁" } })}
           />
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📂</Text>
-            <Text style={styles.emptyText}>No categories available</Text>
-            <Text style={styles.emptySubtext}>Check back soon for new data collection tasks.</Text>
+            <Text style={styles.emptyText}>{t("home.noCategories")}</Text>
+            <Text style={styles.emptySubtext}>{t("home.noCategoriesSubtitle")}</Text>
           </View>
         }
       />
@@ -127,16 +133,9 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   noticesList: { paddingHorizontal: 16, paddingBottom: 8, gap: 6 },
   noticeBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#422006",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#92400e",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 6,
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: "#422006", borderRadius: 10, borderWidth: 1, borderColor: "#92400e",
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 6,
   },
   noticeTextBlock: { flex: 1 },
   noticeTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fbbf24" },

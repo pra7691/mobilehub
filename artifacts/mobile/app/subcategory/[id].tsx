@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Act
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useListTasks, type Task } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; icon: string }> = {
   VIDEO: { bg: "#2d1b69", text: "#c4b5fd", icon: "🎥" },
@@ -59,6 +60,7 @@ function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
 export default function SubcategoryScreen() {
   const { id, name, categoryName, categoryIcon } = useLocalSearchParams<{ id: string; name: string; categoryName: string; categoryIcon: string }>();
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [activeTypeFilter, setActiveTypeFilter] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -67,6 +69,7 @@ export default function SubcategoryScreen() {
     status: "active" as any,
     collectionType: activeTypeFilter as any ?? undefined,
     limit: 50,
+    language: language as any,
   });
 
   const onRefresh = useCallback(async () => {

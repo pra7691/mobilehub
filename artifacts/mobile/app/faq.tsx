@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useGetPublicFaq } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -33,12 +34,13 @@ export default function FaqScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { language, t } = useLanguage();
 
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: faqs = [], isLoading, isError } = useGetPublicFaq(
-    search ? { search } : {},
+    { ...(search ? { search } : {}), language: language as any },
   ) as { data: FaqItem[]; isLoading: boolean; isError: boolean };
 
   function toggleItem(id: string) {
@@ -54,7 +56,7 @@ export default function FaqScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>FAQ</Text>
+        <Text style={styles.topBarTitle}>{t("faq.title")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -62,7 +64,7 @@ export default function FaqScreen() {
         <Feather name="search" size={16} color={colors.mutedForeground} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search questions…"
+          placeholder={t("faq.searchPlaceholder")}
           placeholderTextColor={colors.mutedForeground}
           value={search}
           onChangeText={setSearch}
@@ -83,7 +85,7 @@ export default function FaqScreen() {
       ) : isError ? (
         <View style={styles.centered}>
           <Feather name="alert-circle" size={40} color={colors.mutedForeground} />
-          <Text style={styles.emptyText}>Could not load FAQs.</Text>
+          <Text style={styles.emptyText}>{t("errors.loadFailed")}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -91,7 +93,7 @@ export default function FaqScreen() {
             <View style={styles.centered}>
               <Feather name="help-circle" size={40} color={colors.mutedForeground} />
               <Text style={styles.emptyText}>
-                {search ? `No results for "${search}"` : "No FAQs available yet."}
+                {search ? `No results for "${search}"` : t("faq.empty")}
               </Text>
             </View>
           ) : (

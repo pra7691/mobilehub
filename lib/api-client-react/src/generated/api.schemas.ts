@@ -107,6 +107,14 @@ export interface AdminUserListResponse {
   meta: PaginationMeta;
 }
 
+export type UserPreferredLanguage = typeof UserPreferredLanguage[keyof typeof UserPreferredLanguage];
+
+
+export const UserPreferredLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
 export type UserStatus = typeof UserStatus[keyof typeof UserStatus];
 
 
@@ -121,11 +129,24 @@ export interface User {
   id: string;
   phoneNumber: string;
   name?: string;
+  preferredLanguage: UserPreferredLanguage;
   status: UserStatus;
   totalEarnings: number;
   totalSubmissions: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export type UpdateLanguageRequestPreferredLanguage = typeof UpdateLanguageRequestPreferredLanguage[keyof typeof UpdateLanguageRequestPreferredLanguage];
+
+
+export const UpdateLanguageRequestPreferredLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export interface UpdateLanguageRequest {
+  preferredLanguage: UpdateLanguageRequestPreferredLanguage;
 }
 
 export type UpdateUserRequestStatus = typeof UpdateUserRequestStatus[keyof typeof UpdateUserRequestStatus];
@@ -1476,7 +1497,28 @@ page?: PageParamParameter;
 limit?: LimitParamParameter;
 search?: SearchParamParameter;
 isActive?: boolean;
+language?: ListCategoriesLanguage;
 };
+
+export type ListCategoriesLanguage = typeof ListCategoriesLanguage[keyof typeof ListCategoriesLanguage];
+
+
+export const ListCategoriesLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetCategoryParams = {
+language?: GetCategoryLanguage;
+};
+
+export type GetCategoryLanguage = typeof GetCategoryLanguage[keyof typeof GetCategoryLanguage];
+
+
+export const GetCategoryLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
 
 export type ListSubcategoriesParams = {
 /**
@@ -1491,7 +1533,28 @@ limit?: LimitParamParameter;
 search?: SearchParamParameter;
 categoryId?: string;
 isActive?: boolean;
+language?: ListSubcategoriesLanguage;
 };
+
+export type ListSubcategoriesLanguage = typeof ListSubcategoriesLanguage[keyof typeof ListSubcategoriesLanguage];
+
+
+export const ListSubcategoriesLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetSubcategoryParams = {
+language?: GetSubcategoryLanguage;
+};
+
+export type GetSubcategoryLanguage = typeof GetSubcategoryLanguage[keyof typeof GetSubcategoryLanguage];
+
+
+export const GetSubcategoryLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
 
 export type ListTasksParams = {
 /**
@@ -1508,6 +1571,7 @@ categoryId?: string;
 subcategoryId?: string;
 status?: ListTasksStatus;
 collectionType?: ListTasksCollectionType;
+language?: ListTasksLanguage;
 };
 
 export type ListTasksStatus = typeof ListTasksStatus[keyof typeof ListTasksStatus];
@@ -1526,6 +1590,26 @@ export const ListTasksCollectionType = {
   VIDEO: 'VIDEO',
   IMAGE: 'IMAGE',
   AUDIO: 'AUDIO',
+} as const;
+
+export type ListTasksLanguage = typeof ListTasksLanguage[keyof typeof ListTasksLanguage];
+
+
+export const ListTasksLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetTaskParams = {
+language?: GetTaskLanguage;
+};
+
+export type GetTaskLanguage = typeof GetTaskLanguage[keyof typeof GetTaskLanguage];
+
+
+export const GetTaskLanguage = {
+  en: 'en',
+  hi: 'hi',
 } as const;
 
 export type ListMySubmissionsParams = {
@@ -1691,7 +1775,52 @@ isActive?: boolean;
 
 export type GetPublicFaqParams = {
 search?: string;
+language?: GetPublicFaqLanguage;
 };
+
+export type GetPublicFaqLanguage = typeof GetPublicFaqLanguage[keyof typeof GetPublicFaqLanguage];
+
+
+export const GetPublicFaqLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetPublicSupportParams = {
+language?: GetPublicSupportLanguage;
+};
+
+export type GetPublicSupportLanguage = typeof GetPublicSupportLanguage[keyof typeof GetPublicSupportLanguage];
+
+
+export const GetPublicSupportLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetPublicPageParams = {
+language?: GetPublicPageLanguage;
+};
+
+export type GetPublicPageLanguage = typeof GetPublicPageLanguage[keyof typeof GetPublicPageLanguage];
+
+
+export const GetPublicPageLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetPublicNoticesParams = {
+language?: GetPublicNoticesLanguage;
+};
+
+export type GetPublicNoticesLanguage = typeof GetPublicNoticesLanguage[keyof typeof GetPublicNoticesLanguage];
+
+
+export const GetPublicNoticesLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
 
 export type DeleteNotificationsUnregisterDeviceParams = {
 token: string;

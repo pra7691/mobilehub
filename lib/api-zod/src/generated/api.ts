@@ -166,11 +166,14 @@ export const ListUsersQueryParams = zod.object({
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']).optional()
 })
 
+export const listUsersResponseDataItemPreferredLanguageDefault = `en`;
+
 export const ListUsersResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(listUsersResponseDataItemPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -190,10 +193,13 @@ export const GetUserParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getUserResponsePreferredLanguageDefault = `en`;
+
 export const GetUserResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(getUserResponsePreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -211,10 +217,13 @@ export const UpdateUserBody = zod.object({
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']).optional()
 })
 
+export const updateUserResponsePreferredLanguageDefault = `en`;
+
 export const UpdateUserResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(updateUserResponsePreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -236,10 +245,13 @@ export const UpdateUserStatusBody = zod.object({
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled'])
 })
 
+export const updateUserStatusResponsePreferredLanguageDefault = `en`;
+
 export const UpdateUserStatusResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(updateUserStatusResponsePreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -248,10 +260,32 @@ export const UpdateUserStatusResponse = zod.object({
 })
 
 
+export const getMeResponsePreferredLanguageDefault = `en`;
+
 export const GetMeResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(getMeResponsePreferredLanguageDefault),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
+  "totalEarnings": zod.number(),
+  "totalSubmissions": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const UpdateMyLanguageBody = zod.object({
+  "preferredLanguage": zod.enum(['en', 'hi'])
+})
+
+export const updateMyLanguageResponsePreferredLanguageDefault = `en`;
+
+export const UpdateMyLanguageResponse = zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(updateMyLanguageResponsePreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -271,7 +305,8 @@ export const ListCategoriesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listCategoriesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listCategoriesQueryLimitMax).default(listCategoriesQueryLimitDefault),
   "search": zod.coerce.string().optional(),
-  "isActive": zod.coerce.boolean().optional()
+  "isActive": zod.coerce.boolean().optional(),
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const ListCategoriesResponse = zod.object({
@@ -309,6 +344,10 @@ export const CreateCategoryBody = zod.object({
 
 export const GetCategoryParams = zod.object({
   "id": zod.coerce.string()
+})
+
+export const GetCategoryQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const GetCategoryResponse = zod.object({
@@ -371,7 +410,8 @@ export const ListSubcategoriesQueryParams = zod.object({
   "limit": zod.coerce.number().min(1).max(listSubcategoriesQueryLimitMax).default(listSubcategoriesQueryLimitDefault),
   "search": zod.coerce.string().optional(),
   "categoryId": zod.coerce.string().optional(),
-  "isActive": zod.coerce.boolean().optional()
+  "isActive": zod.coerce.boolean().optional(),
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const ListSubcategoriesResponse = zod.object({
@@ -412,6 +452,10 @@ export const CreateSubcategoryBody = zod.object({
 
 export const GetSubcategoryParams = zod.object({
   "id": zod.coerce.string()
+})
+
+export const GetSubcategoryQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const GetSubcategoryResponse = zod.object({
@@ -483,7 +527,8 @@ export const ListTasksQueryParams = zod.object({
   "categoryId": zod.coerce.string().optional(),
   "subcategoryId": zod.coerce.string().optional(),
   "status": zod.enum(['active', 'inactive', 'draft']).optional(),
-  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']).optional()
+  "collectionType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']).optional(),
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const ListTasksResponse = zod.object({
@@ -575,6 +620,10 @@ export const CreateTaskBody = zod.object({
 
 export const GetTaskParams = zod.object({
   "id": zod.coerce.string()
+})
+
+export const GetTaskQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const GetTaskResponse = zod.object({
@@ -764,6 +813,8 @@ export const ListMySubmissionsQueryParams = zod.object({
   "status": zod.enum(['DRAFT', 'UPLOADING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'RESUBMISSION_REQUIRED', 'UPLOAD_FAILED']).optional()
 })
 
+export const listMySubmissionsResponseDataItemUserPreferredLanguageDefault = `en`;
+
 export const ListMySubmissionsResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
@@ -818,6 +869,7 @@ export const ListMySubmissionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(listMySubmissionsResponseDataItemUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -883,6 +935,8 @@ export const GetMySubmissionParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getMySubmissionResponseUserPreferredLanguageDefault = `en`;
+
 export const GetMySubmissionResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -936,6 +990,7 @@ export const GetMySubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(getMySubmissionResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1001,6 +1056,8 @@ export const MarkUploadCompleteBody = zod.object({
 }))
 })
 
+export const markUploadCompleteResponseUserPreferredLanguageDefault = `en`;
+
 export const MarkUploadCompleteResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -1054,6 +1111,7 @@ export const MarkUploadCompleteResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(markUploadCompleteResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1117,6 +1175,8 @@ export const MarkUploadFailedBody = zod.object({
   "failedMediaIds": zod.array(zod.string()).optional()
 })
 
+export const markUploadFailedResponseUserPreferredLanguageDefault = `en`;
+
 export const MarkUploadFailedResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -1170,6 +1230,7 @@ export const MarkUploadFailedResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(markUploadFailedResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1251,6 +1312,8 @@ export const AdminListSubmissionsQueryParams = zod.object({
   "search": zod.coerce.string().optional()
 })
 
+export const adminListSubmissionsResponseDataItemUserPreferredLanguageDefault = `en`;
+
 export const AdminListSubmissionsResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
@@ -1305,6 +1368,7 @@ export const AdminListSubmissionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(adminListSubmissionsResponseDataItemUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1370,6 +1434,8 @@ export const AdminGetSubmissionParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const adminGetSubmissionResponseUserPreferredLanguageDefault = `en`;
+
 export const AdminGetSubmissionResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -1423,6 +1489,7 @@ export const AdminGetSubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(adminGetSubmissionResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1490,6 +1557,8 @@ export const AdminApproveSubmissionBody = zod.object({
   "adminNote": zod.string().optional()
 })
 
+export const adminApproveSubmissionResponseUserPreferredLanguageDefault = `en`;
+
 export const AdminApproveSubmissionResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -1543,6 +1612,7 @@ export const AdminApproveSubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(adminApproveSubmissionResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1606,6 +1676,8 @@ export const AdminRejectSubmissionBody = zod.object({
   "adminNote": zod.string().optional()
 })
 
+export const adminRejectSubmissionResponseUserPreferredLanguageDefault = `en`;
+
 export const AdminRejectSubmissionResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -1659,6 +1731,7 @@ export const AdminRejectSubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(adminRejectSubmissionResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1721,6 +1794,8 @@ export const AdminRequestResubmissionBody = zod.object({
   "resubmissionReason": zod.string()
 })
 
+export const adminRequestResubmissionResponseUserPreferredLanguageDefault = `en`;
+
 export const AdminRequestResubmissionResponse = zod.object({
   "id": zod.string(),
   "taskId": zod.string(),
@@ -1774,6 +1849,7 @@ export const AdminRequestResubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(adminRequestResubmissionResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1853,6 +1929,8 @@ export const ListMyWalletTransactionsQueryParams = zod.object({
   "type": zod.enum(['CREDIT', 'DEBIT', 'ADJUSTMENT']).optional()
 })
 
+export const listMyWalletTransactionsResponseDataItemUserPreferredLanguageDefault = `en`;
+
 export const ListMyWalletTransactionsResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
@@ -1862,6 +1940,7 @@ export const ListMyWalletTransactionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(listMyWalletTransactionsResponseDataItemUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1922,6 +2001,8 @@ export const ListWalletTransactionsQueryParams = zod.object({
   "toDate": zod.coerce.string().optional()
 })
 
+export const listWalletTransactionsResponseDataItemUserPreferredLanguageDefault = `en`;
+
 export const ListWalletTransactionsResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
@@ -1931,6 +2012,7 @@ export const ListWalletTransactionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(listWalletTransactionsResponseDataItemUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -1960,6 +2042,8 @@ export const GetWalletTransactionParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getWalletTransactionResponseUserPreferredLanguageDefault = `en`;
+
 export const GetWalletTransactionResponse = zod.object({
   "id": zod.string(),
   "walletId": zod.string(),
@@ -1968,6 +2052,7 @@ export const GetWalletTransactionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
+  "preferredLanguage": zod.enum(['en', 'hi']).default(getWalletTransactionResponseUserPreferredLanguageDefault),
   "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
@@ -2443,7 +2528,8 @@ export const GetAppLegalResponse = zod.object({
 
 
 export const GetPublicFaqQueryParams = zod.object({
-  "search": zod.coerce.string().optional()
+  "search": zod.coerce.string().optional(),
+  "language": zod.enum(['en', 'hi']).optional()
 })
 
 export const GetPublicFaqResponseItem = zod.object({
@@ -2458,6 +2544,10 @@ export const GetPublicFaqResponseItem = zod.object({
 })
 export const GetPublicFaqResponse = zod.array(GetPublicFaqResponseItem)
 
+
+export const GetPublicSupportQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
+})
 
 export const GetPublicSupportResponse = zod.object({
   "id": zod.string(),
@@ -2474,6 +2564,10 @@ export const GetPublicPageParams = zod.object({
   "slug": zod.coerce.string()
 })
 
+export const GetPublicPageQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
+})
+
 export const GetPublicPageResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -2485,6 +2579,10 @@ export const GetPublicPageResponse = zod.object({
   "updatedAt": zod.coerce.date()
 })
 
+
+export const GetPublicNoticesQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
+})
 
 export const GetPublicNoticesResponseItem = zod.object({
   "id": zod.string(),

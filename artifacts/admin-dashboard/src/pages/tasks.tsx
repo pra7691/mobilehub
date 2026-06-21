@@ -45,8 +45,11 @@ const STATUS_COLORS: Record<string, string> = {
 const COLLECTION_ICONS = { VIDEO: Video, IMAGE: Image, AUDIO: Mic };
 
 type FormData = {
-  title: string; description: string; detailedInstructions: string;
+  title: string; titleHi: string;
+  description: string; descriptionHi: string;
+  detailedInstructions: string; detailedInstructionsHi: string;
   dos: string[]; donts: string[];
+  dosHi: string[]; dontsHi: string[];
   categoryId: string; subcategoryId: string;
   collectionType: string; paymentAmount: string; currency: string;
   sampleMediaUrl: string;
@@ -61,7 +64,9 @@ type FormData = {
 };
 
 const defaultForm = (): FormData => ({
-  title: "", description: "", detailedInstructions: "", dos: [], donts: [],
+  title: "", titleHi: "", description: "", descriptionHi: "",
+  detailedInstructions: "", detailedInstructionsHi: "",
+  dos: [], donts: [], dosHi: [], dontsHi: [],
   categoryId: "", subcategoryId: "", collectionType: "IMAGE", paymentAmount: "0", currency: "INR",
   sampleMediaUrl: "", minimumDurationSeconds: "", maximumDurationSeconds: "",
   minimumImageCount: "", maximumImageCount: "", preferredFps: "", minimumFps: "",
@@ -73,8 +78,16 @@ const defaultForm = (): FormData => ({
 
 function taskToForm(t: Task): FormData {
   return {
-    title: t.title, description: t.description ?? "", detailedInstructions: t.detailedInstructions ?? "",
-    dos: t.dos ?? [], donts: t.donts ?? [],
+    title: (t as any).titleEn ?? t.title,
+    titleHi: (t as any).titleHi ?? "",
+    description: (t as any).descriptionEn ?? t.description ?? "",
+    descriptionHi: (t as any).descriptionHi ?? "",
+    detailedInstructions: (t as any).detailedInstructionsEn ?? t.detailedInstructions ?? "",
+    detailedInstructionsHi: (t as any).detailedInstructionsHi ?? "",
+    dos: (t as any).dosEn ?? t.dos ?? [],
+    donts: (t as any).dontsEn ?? t.donts ?? [],
+    dosHi: (t as any).dosHi ?? [],
+    dontsHi: (t as any).dontsHi ?? [],
     categoryId: t.categoryId, subcategoryId: t.subcategoryId ?? "",
     collectionType: t.collectionType, paymentAmount: String(t.paymentAmount),
     currency: t.currency, sampleMediaUrl: t.sampleMediaUrl ?? "",
@@ -98,8 +111,15 @@ function formToPayload(f: FormData): CreateTaskRequest {
   const opt = (v: string) => v !== "" ? v : undefined;
   const optNum = (v: string) => v !== "" ? Number(v) : undefined;
   return {
-    title: f.title, description: opt(f.description), detailedInstructions: opt(f.detailedInstructions),
+    title: f.title,
+    ...(f.titleHi ? { titleHi: f.titleHi } : {}),
+    description: opt(f.description),
+    ...(f.descriptionHi ? { descriptionHi: f.descriptionHi } : {}),
+    detailedInstructions: opt(f.detailedInstructions),
+    ...(f.detailedInstructionsHi ? { detailedInstructionsHi: f.detailedInstructionsHi } : {}),
     dos: f.dos, donts: f.donts,
+    ...(f.dosHi.length ? { dosHi: f.dosHi } : {}),
+    ...(f.dontsHi.length ? { dontsHi: f.dontsHi } : {}),
     categoryId: f.categoryId, subcategoryId: opt(f.subcategoryId),
     collectionType: f.collectionType as any,
     paymentAmount: Number(f.paymentAmount), currency: f.currency,
@@ -517,17 +537,45 @@ export default function Tasks() {
               </div>
             </TabsContent>
 
-            <TabsContent value="content" className="space-y-4 mt-4">
-              <div className="space-y-1.5">
-                <Label>Short Description</Label>
-                <Textarea value={form.description} onChange={e => setField("description", e.target.value)} placeholder="Brief overview shown in task listings..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={2} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Detailed Instructions</Label>
-                <Textarea value={form.detailedInstructions} onChange={e => setField("detailedInstructions", e.target.value)} placeholder="Step-by-step instructions for field agents..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={5} />
-              </div>
-              <ListEditor label="Dos ✓" items={form.dos} onChange={v => setField("dos", v)} />
-              <ListEditor label="Don'ts ✗" items={form.donts} onChange={v => setField("donts", v)} />
+            <TabsContent value="content" className="mt-4">
+              <Tabs defaultValue="content-en">
+                <TabsList className="bg-gray-700 border border-gray-600 w-full mb-4">
+                  <TabsTrigger value="content-en" className="flex-1 data-[state=active]:bg-cyan-500 data-[state=active]:text-black text-xs">🇬🇧 English</TabsTrigger>
+                  <TabsTrigger value="content-hi" className="flex-1 data-[state=active]:bg-cyan-500 data-[state=active]:text-black text-xs">🇮🇳 हिंदी</TabsTrigger>
+                </TabsList>
+                <TabsContent value="content-en" className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Title (English) <span className="text-red-400">*</span></Label>
+                    <input value={form.title} onChange={e => setField("title", e.target.value)} placeholder="Capture Retail Product Front View" className="flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-sm text-white shadow-sm transition-colors" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Short Description (English)</Label>
+                    <Textarea value={form.description} onChange={e => setField("description", e.target.value)} placeholder="Brief overview shown in task listings..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={2} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Detailed Instructions (English)</Label>
+                    <Textarea value={form.detailedInstructions} onChange={e => setField("detailedInstructions", e.target.value)} placeholder="Step-by-step instructions for field agents..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={5} />
+                  </div>
+                  <ListEditor label="Dos ✓" items={form.dos} onChange={v => setField("dos", v)} />
+                  <ListEditor label="Don'ts ✗" items={form.donts} onChange={v => setField("donts", v)} />
+                </TabsContent>
+                <TabsContent value="content-hi" className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>शीर्षक (हिंदी)</Label>
+                    <input dir="auto" value={form.titleHi} onChange={e => setField("titleHi", e.target.value)} placeholder="रिटेल उत्पाद का फ्रंट व्यू कैप्चर करें" className="flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-sm text-white shadow-sm transition-colors" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>संक्षिप्त विवरण (हिंदी)</Label>
+                    <Textarea dir="auto" value={form.descriptionHi} onChange={e => setField("descriptionHi", e.target.value)} placeholder="कार्य सूची में दिखाया गया संक्षिप्त विवरण..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={2} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>विस्तृत निर्देश (हिंदी)</Label>
+                    <Textarea dir="auto" value={form.detailedInstructionsHi} onChange={e => setField("detailedInstructionsHi", e.target.value)} placeholder="फील्ड एजेंटों के लिए चरण-दर-चरण निर्देश..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={5} />
+                  </div>
+                  <ListEditor label="Dos ✓ (हिंदी)" items={form.dosHi} onChange={v => setField("dosHi", v)} />
+                  <ListEditor label="Don'ts ✗ (हिंदी)" items={form.dontsHi} onChange={v => setField("dontsHi", v)} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             <TabsContent value="limits" className="space-y-4 mt-4">

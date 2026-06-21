@@ -15,6 +15,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useGetPublicSupport } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SupportSettings {
   id: string;
@@ -29,8 +30,9 @@ export default function SupportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { language, t } = useLanguage();
 
-  const { data: support, isLoading, isError } = useGetPublicSupport() as {
+  const { data: support, isLoading, isError } = useGetPublicSupport({ language: language as any }) as {
     data: SupportSettings | undefined;
     isLoading: boolean;
     isError: boolean;
@@ -39,28 +41,28 @@ export default function SupportScreen() {
   function openEmail() {
     if (!support?.email) return;
     Linking.openURL(`mailto:${support.email}`).catch(() => {
-      Alert.alert("Cannot open email client");
+      Alert.alert(t("errors.somethingWentWrong"));
     });
   }
 
   function copyEmail() {
     if (!support?.email) return;
     Clipboard.setString(support.email);
-    Alert.alert("Copied", `${support.email} copied to clipboard`);
+    Alert.alert(t("support.copied"), support.email);
   }
 
   function openWhatsApp() {
     if (!support?.whatsappNumber) return;
     const clean = support.whatsappNumber.replace(/[^0-9]/g, "");
     Linking.openURL(`https://wa.me/${clean}`).catch(() => {
-      Alert.alert("Cannot open WhatsApp");
+      Alert.alert(t("errors.somethingWentWrong"));
     });
   }
 
   function openPhone() {
     if (!support?.phoneNumber) return;
     Linking.openURL(`tel:${support.phoneNumber}`).catch(() => {
-      Alert.alert("Cannot open dialer");
+      Alert.alert(t("errors.somethingWentWrong"));
     });
   }
 
@@ -72,7 +74,7 @@ export default function SupportScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Support</Text>
+        <Text style={styles.topBarTitle}>{t("support.title")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -84,7 +86,7 @@ export default function SupportScreen() {
         ) : isError ? (
           <View style={styles.centered}>
             <Feather name="alert-circle" size={40} color={colors.mutedForeground} />
-            <Text style={styles.errorText}>Could not load support info.</Text>
+            <Text style={styles.errorText}>{t("errors.loadFailed")}</Text>
           </View>
         ) : (
           <>
@@ -92,11 +94,11 @@ export default function SupportScreen() {
               <View style={styles.heroIcon}>
                 <Feather name="headphones" size={28} color={colors.primary} />
               </View>
-              <Text style={styles.heroTitle}>We're here to help</Text>
+              <Text style={styles.heroTitle}>{t("support.contactUs")}</Text>
               {support?.message ? (
                 <Text style={styles.heroSubtitle}>{support.message}</Text>
               ) : (
-                <Text style={styles.heroSubtitle}>Reach out through any of the channels below and we'll get back to you.</Text>
+                <Text style={styles.heroSubtitle}>{t("support.noContact")}</Text>
               )}
               {support?.workingHours && (
                 <View style={styles.hoursRow}>
@@ -106,7 +108,7 @@ export default function SupportScreen() {
               )}
             </View>
 
-            <Text style={styles.sectionLabel}>Contact Channels</Text>
+            <Text style={styles.sectionLabel}>{t("support.contactUs")}</Text>
 
             {support?.email && (
               <View style={styles.card}>
@@ -114,17 +116,17 @@ export default function SupportScreen() {
                   <Feather name="mail" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel}>Email</Text>
+                  <Text style={styles.cardLabel}>{t("support.email")}</Text>
                   <Text style={styles.cardValue}>{support.email}</Text>
                 </View>
                 <View style={styles.cardActions}>
                   <TouchableOpacity style={styles.actionBtn} onPress={openEmail}>
                     <Feather name="external-link" size={15} color={colors.primary} />
-                    <Text style={styles.actionBtnText}>Open</Text>
+                    <Text style={styles.actionBtnText}>{t("support.emailUs")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.actionBtn, { marginLeft: 8 }]} onPress={copyEmail}>
                     <Feather name="copy" size={15} color={colors.mutedForeground} />
-                    <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>Copy</Text>
+                    <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>{t("support.tapToCopy")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -136,7 +138,7 @@ export default function SupportScreen() {
                   <Feather name="message-circle" size={18} color="#10b981" />
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel}>WhatsApp</Text>
+                  <Text style={styles.cardLabel}>{t("support.whatsapp")}</Text>
                   <Text style={styles.cardValue}>{support.whatsappNumber}</Text>
                 </View>
                 <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
@@ -149,7 +151,7 @@ export default function SupportScreen() {
                   <Feather name="phone" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel}>Phone</Text>
+                  <Text style={styles.cardLabel}>{t("support.phone")}</Text>
                   <Text style={styles.cardValue}>{support.phoneNumber}</Text>
                 </View>
                 <Feather name="chevron-right" size={18} color={colors.mutedForeground} />

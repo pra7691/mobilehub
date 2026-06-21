@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -27,8 +28,10 @@ export default function Categories() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [nameEn, setNameEn] = useState("");
+  const [nameHi, setNameHi] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
+  const [descriptionHi, setDescriptionHi] = useState("");
   const [icon, setIcon] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [displayOrder, setDisplayOrder] = useState(0);
@@ -42,19 +45,36 @@ export default function Categories() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
 
   const openCreate = () => {
-    setEditingId(null); setName(""); setDescription(""); setIcon(""); setCoverImageUrl(""); setDisplayOrder(0); setIsActive(true);
+    setEditingId(null); setNameEn(""); setNameHi(""); setDescriptionEn(""); setDescriptionHi("");
+    setIcon(""); setCoverImageUrl(""); setDisplayOrder(0); setIsActive(true);
     setDialogOpen(true);
   };
 
   const openEdit = (cat: Category) => {
-    setEditingId(cat.id); setName(cat.name); setDescription(cat.description ?? ""); setIcon(cat.icon ?? "");
-    setCoverImageUrl(cat.coverImageUrl ?? ""); setDisplayOrder(cat.displayOrder); setIsActive(cat.isActive);
+    setEditingId(cat.id);
+    setNameEn((cat as any).nameEn ?? cat.name);
+    setNameHi((cat as any).nameHi ?? "");
+    setDescriptionEn((cat as any).descriptionEn ?? cat.description ?? "");
+    setDescriptionHi((cat as any).descriptionHi ?? "");
+    setIcon(cat.icon ?? ""); setCoverImageUrl(cat.coverImageUrl ?? "");
+    setDisplayOrder(cat.displayOrder); setIsActive(cat.isActive);
     setDialogOpen(true);
   };
 
   const handleSave = () => {
-    if (!name.trim()) { toast.error("Name is required"); return; }
-    const payload = { name: name.trim(), description: description || undefined, icon: icon || undefined, coverImageUrl: coverImageUrl || undefined, displayOrder, isActive };
+    if (!nameEn.trim()) { toast.error("English name is required"); return; }
+    const payload = {
+      name: nameEn.trim(),
+      nameEn: nameEn.trim(),
+      nameHi: nameHi.trim() || undefined,
+      description: descriptionEn || undefined,
+      descriptionEn: descriptionEn.trim() || undefined,
+      descriptionHi: descriptionHi.trim() || undefined,
+      icon: icon || undefined,
+      coverImageUrl: coverImageUrl || undefined,
+      displayOrder,
+      isActive,
+    };
     if (editingId) {
       updateMutation.mutate({ id: editingId, data: payload }, {
         onSuccess: () => { invalidate(); setDialogOpen(false); toast.success("Category updated"); },
@@ -104,8 +124,8 @@ export default function Categories() {
           <TableHeader>
             <TableRow className="border-gray-800 hover:bg-transparent">
               <TableHead className="text-gray-400">Icon</TableHead>
-              <TableHead className="text-gray-400">Name</TableHead>
-              <TableHead className="text-gray-400">Description</TableHead>
+              <TableHead className="text-gray-400">Name (EN)</TableHead>
+              <TableHead className="text-gray-400">Hindi</TableHead>
               <TableHead className="text-gray-400 text-center">Order</TableHead>
               <TableHead className="text-gray-400 text-center">Subcategories</TableHead>
               <TableHead className="text-gray-400 text-center">Tasks</TableHead>
@@ -130,7 +150,7 @@ export default function Categories() {
               <TableRow key={cat.id} className="border-gray-800 hover:bg-gray-800/50">
                 <TableCell className="text-2xl">{cat.icon || "📁"}</TableCell>
                 <TableCell className="font-medium text-white">{cat.name}</TableCell>
-                <TableCell className="text-gray-400 text-sm max-w-xs truncate">{cat.description || "—"}</TableCell>
+                <TableCell className="text-gray-400 text-sm">{(cat as any).nameHi || "—"}</TableCell>
                 <TableCell className="text-center text-gray-400">{cat.displayOrder}</TableCell>
                 <TableCell className="text-center"><Badge variant="outline" className="border-gray-600 text-gray-300">{cat.subcategoryCount}</Badge></TableCell>
                 <TableCell className="text-center"><Badge variant="outline" className="border-gray-600 text-gray-300">{cat.taskCount}</Badge></TableCell>
@@ -175,7 +195,7 @@ export default function Categories() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-md">
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Category" : "New Category"}</DialogTitle>
           </DialogHeader>
@@ -191,14 +211,34 @@ export default function Categories() {
                 </div>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Name <span className="text-red-400">*</span></Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Photography" className="bg-gray-800 border-gray-700 text-white" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Capture high-quality images for AI datasets..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={3} />
-            </div>
+
+            <Tabs defaultValue="en">
+              <TabsList className="bg-gray-800 border border-gray-700">
+                <TabsTrigger value="en" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇬🇧 English</TabsTrigger>
+                <TabsTrigger value="hi" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇮🇳 हिंदी</TabsTrigger>
+              </TabsList>
+              <TabsContent value="en" className="space-y-3 mt-3">
+                <div className="space-y-1.5">
+                  <Label>Name (English) <span className="text-red-400">*</span></Label>
+                  <Input value={nameEn} onChange={e => setNameEn(e.target.value)} placeholder="Photography" className="bg-gray-800 border-gray-700 text-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Description (English)</Label>
+                  <Textarea value={descriptionEn} onChange={e => setDescriptionEn(e.target.value)} placeholder="Capture high-quality images for AI datasets..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={3} />
+                </div>
+              </TabsContent>
+              <TabsContent value="hi" className="space-y-3 mt-3">
+                <div className="space-y-1.5">
+                  <Label>नाम (हिंदी)</Label>
+                  <Input value={nameHi} onChange={e => setNameHi(e.target.value)} placeholder="फोटोग्राफी" className="bg-gray-800 border-gray-700 text-white" dir="auto" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>विवरण (हिंदी)</Label>
+                  <Textarea value={descriptionHi} onChange={e => setDescriptionHi(e.target.value)} placeholder="AI डेटासेट के लिए उच्च गुणवत्ता वाली छवियां कैप्चर करें..." className="bg-gray-800 border-gray-700 text-white resize-none" rows={3} dir="auto" />
+                </div>
+              </TabsContent>
+            </Tabs>
+
             <div className="space-y-1.5">
               <Label>Cover Image URL</Label>
               <Input value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)} placeholder="https://..." className="bg-gray-800 border-gray-700 text-white" />

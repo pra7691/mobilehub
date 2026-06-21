@@ -7,6 +7,10 @@ import { Type } from 'class-transformer';
 class CreateFaqBody {
   @IsString() question!: string;
   @IsString() answer!: string;
+  @IsOptional() @IsString() questionEn?: string;
+  @IsOptional() @IsString() questionHi?: string;
+  @IsOptional() @IsString() answerEn?: string;
+  @IsOptional() @IsString() answerHi?: string;
   @IsOptional() @IsNumber() @Type(() => Number) displayOrder?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
@@ -14,6 +18,10 @@ class CreateFaqBody {
 class UpdateFaqBody {
   @IsOptional() @IsString() question?: string;
   @IsOptional() @IsString() answer?: string;
+  @IsOptional() @IsString() questionEn?: string;
+  @IsOptional() @IsString() questionHi?: string;
+  @IsOptional() @IsString() answerEn?: string;
+  @IsOptional() @IsString() answerHi?: string;
   @IsOptional() @IsNumber() @Type(() => Number) displayOrder?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
@@ -57,5 +65,7 @@ export class FaqController {
 @Controller('public/faq')
 export class PublicFaqController {
   constructor(private service: FaqService) {}
-  @Get() list(@Query('search') search?: string) { return this.service.listPublic(search); }
+  @Get() list(@Query('search') search?: string, @Query('language') language?: string) {
+    return this.service.listPublic(search, language);
+  }
 }

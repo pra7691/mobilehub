@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveText } from '../categories/categories.service';
 
 interface ListParams { page?: number; limit?: number; search?: string; isActive?: boolean }
-interface CreateDto { question: string; answer: string; displayOrder?: number; isActive?: boolean }
-interface UpdateDto { question?: string; answer?: string; displayOrder?: number; isActive?: boolean }
+interface CreateDto { question: string; answer: string; questionEn?: string; questionHi?: string; answerEn?: string; answerHi?: string; displayOrder?: number; isActive?: boolean }
+interface UpdateDto { question?: string; answer?: string; questionEn?: string; questionHi?: string; answerEn?: string; answerHi?: string; displayOrder?: number; isActive?: boolean }
+
+type FaqRow = { id: string; question: string; answer: string; questionEn: string | null; questionHi: string | null; answerEn: string | null; answerHi: string | null; displayOrder: number; isActive: boolean; createdAt: Date; updatedAt: Date };
 
 @Injectable()
 export class FaqService {
@@ -28,7 +31,7 @@ export class FaqService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async listPublic(search?: string) {
+  async listPublic(search?: string, language?: string) {
     const where: Record<string, unknown> = { deletedAt: null, isActive: true };
     if (search) {
       where.OR = [
@@ -36,7 +39,15 @@ export class FaqService {
         { answer: { contains: search, mode: 'insensitive' } },
       ];
     }
-    return this.prisma.faq.findMany({ where, orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }] });
+    const data = await this.prisma.faq.findMany({ where, orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }] });
+    return data.map((f) => {
+      const row = f as FaqRow;
+      return {
+        ...row,
+        question: resolveText(row.questionEn, row.question, row.questionHi, language),
+        answer: resolveText(row.answerEn, row.answer, row.answerHi, language),
+      };
+    });
   }
 
   async findOne(id: string) {
@@ -46,14 +57,28 @@ export class FaqService {
   }
 
   async create(dto: CreateDto) {
+    const questionEn = dto.questionEn?.trim() || dto.question;
+    const answerEn = dto.answerEn?.trim() || dto.answer;
     return this.prisma.faq.create({
-      data: { ...dto, isActive: dto.isActive ?? true, displayOrder: dto.displayOrder ?? 0 },
+      data: {
+        question: questionEn,
+        answer: answerEn,
+        questionEn,
+        questionHi: dto.questionHi?.trim() || null,
+        answerEn,
+        answerHi: dto.answerHi?.trim() || null,
+        isActive: dto.isActive ?? true,
+        displayOrder: dto.displayOrder ?? 0,
+      },
     });
   }
 
   async update(id: string, dto: UpdateDto) {
-    await this.findOne(id);
-    return this.prisma.faq.update({ where: { id }, data: dto });
+    const existing = await this.findOne(id);
+    const updateData: Record<string, unknown> = { ...dto };
+    if (dto.questionEn !== undefined) updateData.question = dto.questionEn.trim() || existing.question;
+    if (dto.answerEn !== undefined) updateData.answer = dto.answerEn.trim() || existing.answer;
+    return this.prisma.faq.update({ where: { id }, data: updateData });
   }
 
   async remove(id: string) {

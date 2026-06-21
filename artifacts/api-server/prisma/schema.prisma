@@ -127,13 +127,14 @@ model AdminUser {
 }
 
 model User {
-  id          String     @id @default(cuid())
-  phoneNumber String     @unique
-  name        String?
-  status      UserStatus @default(active)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
+  id                String     @id @default(cuid())
+  phoneNumber       String     @unique
+  name              String?
+  preferredLanguage String     @default("en")
+  status            UserStatus @default(active)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
 
   otpSessions        OtpSession[]
   submissions        Submission[]
@@ -182,6 +183,10 @@ model Category {
   id            String    @id @default(cuid())
   name          String
   description   String?
+  nameEn        String?
+  nameHi        String?
+  descriptionEn String?
+  descriptionHi String?
   icon          String?
   coverImageUrl String?
   displayOrder  Int       @default(0)
@@ -198,15 +203,19 @@ model Category {
 }
 
 model Subcategory {
-  id           String    @id @default(cuid())
-  name         String
-  description  String?
-  categoryId   String
-  displayOrder Int       @default(0)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  nameEn        String?
+  nameHi        String?
+  descriptionEn String?
+  descriptionHi String?
+  categoryId    String
+  displayOrder  Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
   category    Category     @relation(fields: [categoryId], references: [id])
   tasks       Task[]
@@ -216,12 +225,22 @@ model Subcategory {
 }
 
 model Task {
-  id                     String                 @id @default(cuid())
-  title                  String
-  description            String?
-  detailedInstructions   String?
-  dos                    String[]
-  donts                  String[]
+  id                       String                 @id @default(cuid())
+  title                    String
+  description              String?
+  detailedInstructions     String?
+  dos                      String[]
+  donts                    String[]
+  titleEn                  String?
+  titleHi                  String?
+  shortDescriptionEn       String?
+  shortDescriptionHi       String?
+  detailedInstructionsEn   String?
+  detailedInstructionsHi   String?
+  dosEn                    String[]
+  dosHi                    String[]
+  dontsEn                  String[]
+  dontsHi                  String[]
   categoryId             String
   subcategoryId          String?
   collectionType         CollectionType         @default(IMAGE)
@@ -402,6 +421,10 @@ model Faq {
   id           String    @id @default(cuid())
   question     String
   answer       String
+  questionEn   String?
+  questionHi   String?
+  answerEn     String?
+  answerHi     String?
   displayOrder Int       @default(0)
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
@@ -416,6 +439,10 @@ model StaticPage {
   title       String
   slug        String   @unique
   content     String
+  titleEn     String?
+  titleHi     String?
+  contentEn   String?
+  contentHi   String?
   isPublished Boolean  @default(false)
   version     Int      @default(1)
   createdAt   DateTime @default(now())
@@ -425,13 +452,15 @@ model StaticPage {
 }
 
 model SupportSettings {
-  id             String   @id @default(cuid())
-  email          String
-  whatsappNumber String
-  phoneNumber    String?
-  workingHours   String?
-  message        String?
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  email            String
+  whatsappNumber   String
+  phoneNumber      String?
+  workingHours     String?
+  message          String?
+  supportMessageEn String?
+  supportMessageHi String?
+  updatedAt        DateTime @updatedAt
 
   @@map("support_settings")
 }
@@ -453,6 +482,10 @@ model Notice {
   id        String    @id @default(cuid())
   title     String
   content   String
+  titleEn   String?
+  titleHi   String?
+  contentEn String?
+  contentHi String?
   isActive  Boolean   @default(true)
   startsAt  DateTime?
   endsAt    DateTime?

@@ -21,6 +21,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
 import { AuthProvider, useAuth, _notifyDisabled, isDisabledError } from "@/contexts/AuthContext";
 import { DraftProvider } from "@/contexts/DraftContext";
+import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
 // Set API base URL from env at module load time
@@ -46,27 +47,34 @@ const queryClient = new QueryClient({
 
 function RootLayoutNav() {
   const { isAuthenticated, isLoading, isDisabled, logout } = useAuth();
+  const { hasSelectedLanguage, isLanguageLoading } = useLanguage();
   const router = useRouter();
   const segments = useSegments();
 
   // Register push token after login (native only)
   useNotifications(Platform.OS !== "web" ? isAuthenticated : false);
 
-  // Notification tap deep-link disabled in Expo Go (expo-notifications not available)
   useEffect(() => {
-    // No-op: push notification deep-link is disabled in this build
-  }, []);
+    if (isLoading || isDisabled || isLanguageLoading) return;
 
-  useEffect(() => {
-    if (isLoading || isDisabled) return;
+    const inLangSelection = segments[0] === "language-selection";
     const inAuth = segments[0] === "(auth)";
+
+    // First-time users: must pick a language before anything else
+    if (!hasSelectedLanguage && !inLangSelection) {
+      router.replace("/language-selection");
+      return;
+    }
+
+    if (!hasSelectedLanguage) return; // waiting on language screen
+
     if (!isAuthenticated && !inAuth) {
       router.replace("/(auth)/login");
     } else if (isAuthenticated && inAuth) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.replace("/(tabs)/" as any);
     }
-  }, [isAuthenticated, isLoading, isDisabled, segments]);
+  }, [isAuthenticated, isLoading, isDisabled, isLanguageLoading, hasSelectedLanguage, segments]);
 
   // Full-screen disabled gate — replaces all navigation
   if (isDisabled) {
@@ -75,6 +83,8 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="language-selection" options={{ animation: "fade" }} />
+      <Stack.Screen name="language-settings" options={{ presentation: "card" }} />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="category/[id]" options={{ presentation: "card" }} />
@@ -130,12 +140,14 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <AuthProvider>
-                <DraftProvider>
-                  <RootLayoutNav />
-                  <OfflineBanner />
-                </DraftProvider>
-              </AuthProvider>
+              <LanguageProvider>
+                <AuthProvider>
+                  <DraftProvider>
+                    <RootLayoutNav />
+                    <OfflineBanner />
+                  </DraftProvider>
+                </AuthProvider>
+              </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

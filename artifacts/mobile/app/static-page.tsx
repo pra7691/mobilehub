@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useGetPublicPage } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StaticPage {
   id: string;
@@ -27,9 +28,10 @@ export default function StaticPageScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { language } = useLanguage();
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
-  const { data: page, isLoading, isError } = useGetPublicPage(slug ?? "") as {
+  const { data: page, isLoading, isError } = useGetPublicPage(slug ?? "", { language: language as any }) as {
     data: StaticPage | undefined;
     isLoading: boolean;
     isError: boolean;

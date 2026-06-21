@@ -26,6 +26,10 @@ class UpdateUserStatusBody {
   @IsEnum(UserStatus) status!: UserStatus;
 }
 
+class UpdateLanguageBody {
+  @IsString() preferredLanguage!: string;
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -34,6 +38,14 @@ export class UsersController {
   @Get('me')
   getMe(@Request() req: { user: { sub: string } }) {
     return this.service.findOne(req.user.sub);
+  }
+
+  @Patch('me/language')
+  updateMyLanguage(
+    @Request() req: { user: { sub: string } },
+    @Body() body: UpdateLanguageBody,
+  ) {
+    return this.service.updateLanguage(req.user.sub, body.preferredLanguage);
   }
 
   @Get()

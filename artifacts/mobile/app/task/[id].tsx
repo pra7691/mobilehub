@@ -10,6 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetTask } from "@workspace/api-client-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
@@ -123,7 +124,8 @@ export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: task, isLoading, error } = useGetTask(id);
+  const { language } = useLanguage();
+  const { data: task, isLoading, error } = useGetTask(id, { language: language as any });
 
   if (isLoading) {
     return (

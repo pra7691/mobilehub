@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Query, UseGuards } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { IsString, IsOptional } from 'class-validator';
@@ -9,6 +9,8 @@ class UpdateSupportBody {
   @IsOptional() @IsString() phoneNumber?: string;
   @IsOptional() @IsString() workingHours?: string;
   @IsOptional() @IsString() message?: string;
+  @IsOptional() @IsString() supportMessageEn?: string;
+  @IsOptional() @IsString() supportMessageHi?: string;
 }
 
 @Controller('admin/support-settings')
@@ -22,5 +24,5 @@ export class SupportController {
 @Controller('public/support')
 export class PublicSupportController {
   constructor(private service: SupportService) {}
-  @Get() get() { return this.service.get(); }
+  @Get() get(@Query('language') language?: string) { return this.service.get(language); }
 }
