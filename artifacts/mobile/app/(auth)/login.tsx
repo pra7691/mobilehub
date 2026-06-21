@@ -107,7 +107,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     inner: { flex: 1, paddingHorizontal: 28, justifyContent: "space-between", paddingBottom: 40 },
-    header: { alignItems: "center", paddingTop: 60 },
+    header: { alignItems: "center", paddingTop: 80 },
     logoMark: {
       width: 56,
       height: 56,
