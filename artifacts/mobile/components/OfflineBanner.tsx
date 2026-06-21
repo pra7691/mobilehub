@@ -1,46 +1,79 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useOfflineBanner } from "@/hooks/useOfflineBanner";
+import { Feather } from "@expo/vector-icons";
+import { useNetworkStatus } from "@/contexts/NetworkContext";
+
+const BANNER_HEIGHT = 36;
 
 export function OfflineBanner() {
-  const { isOffline } = useOfflineBanner();
+  const { isOffline, justCameOnline } = useNetworkStatus();
   const { top } = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(-60)).current;
-  const visible = useRef(false);
+
+  // "offline" | "back-online" | null
+  const [display, setDisplay] = useState<"offline" | "back-online" | null>(null);
+  const translateY = useRef(new Animated.Value(-BANNER_HEIGHT)).current;
+  const stateRef = useRef<"hidden" | "offline" | "back-online">("hidden");
+
+  function slideIn() {
+    Animated.spring(translateY, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 10,
+    }).start();
+  }
+
+  function slideOut(cb?: () => void) {
+    Animated.timing(translateY, {
+      toValue: -BANNER_HEIGHT,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => cb?.());
+  }
 
   useEffect(() => {
-    if (isOffline && !visible.current) {
-      visible.current = true;
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 80,
-        friction: 10,
-      }).start();
-    } else if (!isOffline && visible.current) {
-      Animated.timing(translateY, {
-        toValue: -60,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        visible.current = false;
+    if (isOffline && stateRef.current !== "offline") {
+      stateRef.current = "offline";
+      setDisplay("offline");
+      slideIn();
+    } else if (justCameOnline && stateRef.current === "offline") {
+      stateRef.current = "back-online";
+      setDisplay("back-online");
+      // Stay visible as green for 2 s then slide away
+      setTimeout(() => {
+        slideOut(() => {
+          stateRef.current = "hidden";
+          setDisplay(null);
+        });
+      }, 2000);
+    } else if (!isOffline && !justCameOnline && stateRef.current === "offline") {
+      slideOut(() => {
+        stateRef.current = "hidden";
+        setDisplay(null);
       });
     }
-  }, [isOffline]);
+  }, [isOffline, justCameOnline]);
 
   return (
     <Animated.View
       style={[
         styles.banner,
-        { paddingTop: top + 6, transform: [{ translateY }] },
+        { top },
+        display === "back-online" ? styles.online : styles.offline,
+        { transform: [{ translateY }] },
       ]}
       pointerEvents="none"
     >
-      <View style={styles.row}>
-        <Text style={styles.icon}>📵</Text>
-        <Text style={styles.text}>No internet connection</Text>
-      </View>
+      <Feather
+        name={display === "back-online" ? "wifi" : "wifi-off"}
+        size={13}
+        color="#fff"
+        style={styles.icon}
+      />
+      <Text style={styles.text}>
+        {display === "back-online" ? "Back online" : "No internet connection"}
+      </Text>
     </Animated.View>
   );
 }
@@ -48,27 +81,31 @@ export function OfflineBanner() {
 const styles = StyleSheet.create({
   banner: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#ef4444",
+    height: BANNER_HEIGHT,
     zIndex: 999,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 16,
     gap: 6,
   },
-  icon: {
-    fontSize: 13,
-    marginRight: 2,
+  offline: {
+    backgroundColor: "#1f2937",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#374151",
   },
+  online: {
+    backgroundColor: "#065f46",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#047857",
+  },
+  icon: { marginTop: 1 },
   text: {
     color: "#fff",
     fontSize: 13,
     fontWeight: "600",
+    letterSpacing: 0.1,
   },
 });

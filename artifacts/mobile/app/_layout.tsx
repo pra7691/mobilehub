@@ -17,6 +17,7 @@ import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StartupScreen } from "@/components/StartupScreen";
+import { NetworkProvider } from "@/contexts/NetworkContext";
 import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
@@ -35,6 +36,18 @@ SplashScreen.preventAutoHideAsync();
 
 // QueryClient with global error handler to detect USER_ACCOUNT_DISABLED
 const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,   // served fresh for 5 min — no refetch on focus
+      gcTime: 30 * 60 * 1000,      // kept in memory cache for 30 min (offline fallback)
+      retry: (failureCount, error) => {
+        // Never retry 4xx client errors
+        const status = (error as { status?: number })?.status;
+        if (status !== undefined && status >= 400 && status < 500) return false;
+        return failureCount < 2;
+      },
+    },
+  },
   queryCache: new QueryCache({
     onError: (error) => {
       if (isDisabledError(error)) _notifyDisabled();
@@ -192,22 +205,24 @@ export default function RootLayout() {
   // once auth + language checks both resolve.
   return (
     <SafeAreaProvider>
-      <ErrorBoundary onError={reportRenderError}>
-        <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <KeyboardProvider>
-              <LanguageProvider>
-                <AuthProvider>
-                  <DraftProvider>
-                    <RootLayoutNav onReady={hideSplash} />
-                    <OfflineBanner />
-                  </DraftProvider>
-                </AuthProvider>
-              </LanguageProvider>
-            </KeyboardProvider>
-          </GestureHandlerRootView>
-        </QueryClientProvider>
-      </ErrorBoundary>
+      <NetworkProvider>
+        <ErrorBoundary onError={reportRenderError}>
+          <QueryClientProvider client={queryClient}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <KeyboardProvider>
+                <LanguageProvider>
+                  <AuthProvider>
+                    <DraftProvider>
+                      <RootLayoutNav onReady={hideSplash} />
+                      <OfflineBanner />
+                    </DraftProvider>
+                  </AuthProvider>
+                </LanguageProvider>
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </QueryClientProvider>
+        </ErrorBoundary>
+      </NetworkProvider>
     </SafeAreaProvider>
   );
 }

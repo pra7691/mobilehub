@@ -17,6 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { useVerifyOtp } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useNetworkStatus } from "@/contexts/NetworkContext";
 
 const OTP_LENGTH = 6;
 
@@ -27,6 +28,7 @@ export default function OtpScreen() {
   const { sessionId, phone } = useLocalSearchParams<{ sessionId: string; phone: string }>();
   const { login } = useAuth();
   const verifyOtp = useVerifyOtp();
+  const { isOffline } = useNetworkStatus();
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const inputs = useRef<(TextInput | null)[]>([]);
@@ -55,6 +57,10 @@ export default function OtpScreen() {
 
   async function handleVerify() {
     if (otpStr.length < OTP_LENGTH) return;
+    if (isOffline) {
+      Alert.alert("No internet", "Please check your connection and try again.");
+      return;
+    }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     verifyOtp.mutate(
       { data: { sessionId, otp: otpStr } },
@@ -89,6 +95,13 @@ export default function OtpScreen() {
           We sent a 6-digit code to{"\n"}
           <Text style={styles.phone}>+91 {phone}</Text>
         </Text>
+
+        {isOffline && (
+          <View style={styles.offlineBadge}>
+            <Feather name="wifi-off" size={13} color="#9ca3af" />
+            <Text style={styles.offlineText}>You're offline — reconnect to verify</Text>
+          </View>
+        )}
 
         <View style={styles.otpRow}>
           {otp.map((digit, i) => (
@@ -147,6 +160,23 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: colors.foreground,
     },
     otpBoxFilled: { borderColor: colors.primary, backgroundColor: colors.accent },
+    offlineBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#111827",
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: "#1f2937",
+    },
+    offlineText: {
+      fontSize: 13,
+      color: "#6b7280",
+      fontFamily: "Inter_400Regular",
+      flex: 1,
+    },
     btn: {
       backgroundColor: colors.primary,
       borderRadius: 12,

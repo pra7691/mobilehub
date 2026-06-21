@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useRequestOtp } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { useNetworkStatus } from "@/contexts/NetworkContext";
+import { Feather } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -22,6 +24,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const requestOtp = useRequestOtp();
+  const { isOffline } = useNetworkStatus();
 
   function formatPhone(raw: string) {
     const digits = raw.replace(/\D/g, "");
@@ -29,6 +32,10 @@ export default function LoginScreen() {
   }
 
   async function handleContinue() {
+    if (isOffline) {
+      Alert.alert("No internet", "Please check your connection and try again.");
+      return;
+    }
     const digits = formatPhone(phone);
     if (digits.length < 10) {
       Alert.alert("Invalid number", "Please enter a valid phone number.");
@@ -42,7 +49,7 @@ export default function LoginScreen() {
           router.push({ pathname: "/(auth)/otp", params: { sessionId: result.sessionId, phone: digits } });
         },
         onError: () => {
-          Alert.alert("Error", "Failed to send OTP. Please try again.");
+          Alert.alert("Error", "Failed to send OTP. Please check your connection and try again.");
         },
       }
     );
@@ -63,6 +70,13 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {isOffline && (
+            <View style={styles.offlineBadge}>
+              <Feather name="wifi-off" size={13} color="#9ca3af" />
+              <Text style={styles.offlineText}>You're offline — internet is required to sign in</Text>
+            </View>
+          )}
+
           <Text style={styles.label}>Mobile Number</Text>
           <View style={styles.inputRow}>
             <View style={styles.countryCode}>
@@ -82,9 +96,9 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.btn, requestOtp.isPending && styles.btnDisabled]}
+            style={[styles.btn, (requestOtp.isPending || isOffline) && styles.btnDisabled]}
             onPress={handleContinue}
-            disabled={requestOtp.isPending || phone.replace(/\D/g, "").length < 10}
+            disabled={requestOtp.isPending || isOffline || phone.replace(/\D/g, "").length < 10}
             testID="button-continue"
           >
             {requestOtp.isPending ? (
@@ -118,6 +132,23 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     brand: { fontSize: 32, fontFamily: "Inter_700Bold", color: colors.foreground, letterSpacing: -1 },
     tagline: { fontSize: 15, color: colors.mutedForeground, marginTop: 6, fontFamily: "Inter_400Regular" },
     form: { gap: 14 },
+    offlineBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#111827",
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: "#1f2937",
+    },
+    offlineText: {
+      fontSize: 13,
+      color: "#6b7280",
+      fontFamily: "Inter_400Regular",
+      flex: 1,
+    },
     label: { fontSize: 13, fontFamily: "Inter_500Medium", color: colors.mutedForeground, letterSpacing: 0.5, textTransform: "uppercase" },
     inputRow: { flexDirection: "row", gap: 10 },
     countryCode: {
