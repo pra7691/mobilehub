@@ -132,6 +132,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     countryText: { fontSize: 16, color: colors.foreground, fontFamily: "Inter_500Medium" },
     input: {
       flex: 1,
+      minWidth: 0,
       backgroundColor: colors.muted,
       borderRadius: 12,
       paddingHorizontal: 16,
