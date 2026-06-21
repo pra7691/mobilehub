@@ -140,7 +140,15 @@ export class PublicLegalController {
   constructor(private service: SettingsService) {}
 
   @Get(':slug')
-  getPublicLegal(@Param('slug') slug: string) {
-    return this.service.getLegal(slug as 'privacy-policy' | 'terms-and-conditions');
+  async getPublicLegal(@Param('slug') slug: string) {
+    const knownSlugs = ['privacy-policy', 'terms-and-conditions'];
+    if (!knownSlugs.includes(slug)) {
+      return { available: false, message: 'Unknown legal document.' };
+    }
+    try {
+      return await this.service.getLegal(slug as 'privacy-policy' | 'terms-and-conditions');
+    } catch {
+      return { available: false, message: 'This content is not currently available.' };
+    }
   }
 }

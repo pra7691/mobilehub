@@ -244,17 +244,11 @@
     "upiId": "UPI ID",
     "upiPlaceholder": "yourname@upi",
     "save": "Save UPI ID",
-    "verificationStatus": "Verification Status",
-    "verified": "Verified",
-    "unverified": "Pending Verification",
-    "rejected": "Rejected",
-    "rejectionReason": "Reason: %{reason}",
     "hint": "Add your UPI ID to receive payouts",
     "success": "UPI ID saved successfully",
     "noUpi": "No UPI ID added yet",
     "updateUpi": "Update UPI ID",
-    "upiIdLabel": "Your UPI ID",
-    "pendingVerification": "Your UPI ID is pending admin verification"
+    "upiIdLabel": "Your UPI ID"
   },
   "payout": {
     "title": "Withdraw",
@@ -265,7 +259,7 @@
     "request": "Request Withdrawal",
     "success": "Withdrawal request submitted",
     "noUpi": "UPI ID Required",
-    "noUpiMsg": "Please add and verify your UPI ID before requesting a withdrawal",
+    "noUpiMsg": "Please add your UPI ID before requesting a withdrawal",
     "addUpi": "Add UPI ID",
     "notEnabled": "Withdrawals are currently disabled",
     "pending": "Withdrawal in Progress",

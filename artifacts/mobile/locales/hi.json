@@ -244,17 +244,11 @@
     "upiId": "UPI ID",
     "upiPlaceholder": "yourname@upi",
     "save": "UPI ID सहेजें",
-    "verificationStatus": "सत्यापन स्थिति",
-    "verified": "सत्यापित",
-    "unverified": "सत्यापन लंबित",
-    "rejected": "अस्वीकृत",
-    "rejectionReason": "कारण: %{reason}",
     "hint": "भुगतान प्राप्त करने के लिए अपना UPI ID जोड़ें",
     "success": "UPI ID सफलतापूर्वक सहेजा गया",
     "noUpi": "अभी तक कोई UPI ID नहीं जोड़ा",
     "updateUpi": "UPI ID अपडेट करें",
-    "upiIdLabel": "आपका UPI ID",
-    "pendingVerification": "आपका UPI ID एडमिन सत्यापन के लिए लंबित है"
+    "upiIdLabel": "आपका UPI ID"
   },
   "payout": {
     "title": "निकालें",
@@ -265,7 +259,7 @@
     "request": "निकासी अनुरोध करें",
     "success": "निकासी अनुरोध जमा हुआ",
     "noUpi": "UPI ID आवश्यक",
-    "noUpiMsg": "निकासी अनुरोध करने से पहले कृपया अपना UPI ID जोड़ें और सत्यापित करें",
+    "noUpiMsg": "निकासी अनुरोध करने से पहले कृपया अपना UPI ID जोड़ें",
     "addUpi": "UPI ID जोड़ें",
     "notEnabled": "निकासी अभी अक्षम है",
     "pending": "निकासी प्रक्रिया में है",
