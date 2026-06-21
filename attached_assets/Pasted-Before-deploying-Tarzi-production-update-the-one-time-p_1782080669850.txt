@@ -1,0 +1,69 @@
+Before deploying Tarzi production, update the one-time production seed/sync workflow.
+
+The current seed must copy all required master/configuration data from development to production, not only app settings.
+
+Include safe upsert/copy for:
+
+* Admin user, but do not overwrite an existing production admin password unless explicitly requested
+* Categories
+* Subcategories
+* Tasks
+* FAQ
+* Support settings
+* Privacy Policy content and published state
+* Terms and Conditions content and published state
+* Banners
+* Referral settings and reward amount
+* Payout settings
+* App settings
+* Language/localization content for English and Hindi
+
+Do not copy:
+
+* Mobile users
+* OTP sessions
+* Submissions
+* Submission media
+* Wallet balances
+* Wallet transactions
+* Payout requests
+* Error logs
+* Test referral relationships
+
+Before executing:
+
+1. Create a production database backup.
+2. Show source and target database identifiers in masked form.
+3. Show counts for each source master-data table.
+4. Use idempotent upserts.
+5. Preserve production IDs where possible or remap relationships safely.
+6. Verify category → subcategory → task relationships after import.
+
+Seed endpoint security:
+
+* Do not rely only on ordinary admin JWT protection.
+* Require a temporary environment flag such as `ALLOW_INTERNAL_SEED=true`.
+* Require an additional one-time secret/token stored only in server environment variables.
+* Log seed execution in audit logs.
+* Automatically reject any second execution after success.
+* After successful seed and verification, remove the endpoint/code and deploy again.
+
+Production checks after seed:
+
+* Confirm tasks exist and mobile API returns categories, subcategories, and tasks.
+* Confirm legal pages return published content.
+* Confirm banners, FAQ, support, referral settings, payout settings, and INR settings are present.
+* Confirm no production user/test transaction data was imported.
+
+Also configure Expo production build environment:
+EXPO_PUBLIC_API_BASE_URL=https://mobile-data-hub.replit.app/api
+
+Confirm this value is used by the Android production build profile before building the AAB.
+
+At the end provide:
+
+* Exact tables synced
+* Record counts before/after
+* Seed security safeguards
+* Production verification results
+* Confirmation that the seed endpoint was removed after use

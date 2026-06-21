@@ -36,8 +36,13 @@ try {
   Notifications = null;
 }
 
-// Set API base URL from env at module load time
-if (process.env.EXPO_PUBLIC_DOMAIN) {
+// Set API base URL from env at module load time.
+// Prefer EXPO_PUBLIC_API_BASE_URL (full URL, e.g. https://domain.com/api) when set.
+// Strip the /api suffix because setBaseUrl expects the domain root, not the API path.
+// Fallback to EXPO_PUBLIC_DOMAIN (domain-only, e.g. domain.com) for dev/web mode.
+if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+  setBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/api\/?$/, ''));
+} else if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
 

@@ -15,6 +15,7 @@ import {
   ListTasksCollectionType,
   TaskStatus,
 } from "@workspace/api-client-react";
+import { formatINR } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -330,7 +331,7 @@ export default function Tasks() {
                     <div className="text-gray-300">{t.category?.icon} {t.category?.name ?? t.categoryId}</div>
                     {t.subcategory && <div className="text-gray-500 text-xs">{t.subcategory.name}</div>}
                   </TableCell>
-                  <TableCell className="text-cyan-400 font-medium">₹{t.paymentAmount}</TableCell>
+                  <TableCell className="text-cyan-400 font-medium">{formatINR(Number(t.paymentAmount))}</TableCell>
                   <TableCell><Badge className={STATUS_COLORS[t.status] ?? ""}>{t.status}</Badge></TableCell>
                   <TableCell className="text-center"><Badge variant="outline" className="border-gray-600 text-gray-300">{t.submissionCount}</Badge></TableCell>
                   <TableCell>
@@ -655,7 +656,7 @@ export default function Tasks() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-800 rounded-lg p-3">
                     <div className="text-xs text-gray-400 mb-1">Payment</div>
-                    <div className="text-xl font-bold text-cyan-400">₹{detailTask.paymentAmount}</div>
+                    <div className="text-xl font-bold text-cyan-400">{formatINR(Number(detailTask.paymentAmount))}</div>
                   </div>
                   <div className="bg-gray-800 rounded-lg p-3">
                     <div className="text-xs text-gray-400 mb-1">Submissions</div>

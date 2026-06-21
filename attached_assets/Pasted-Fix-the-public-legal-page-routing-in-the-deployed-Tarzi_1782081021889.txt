@@ -1,0 +1,94 @@
+Fix the public legal-page routing in the deployed Tarzi Replit app.
+
+Current issue:
+
+* `/privacy-policy` shows 404 in browser.
+* `/terms-and-conditions` shows 404 in browser.
+* These URLs must be publicly accessible without login for Google Play Store.
+* They must not redirect to Admin Login.
+* They must not show the admin dashboard shell.
+* They must work on direct browser open, browser refresh, mobile browser, and incognito mode.
+
+Implement public frontend routes:
+
+* `/privacy-policy`
+* `/terms-and-conditions`
+
+Requirements:
+
+1. Routing
+
+* Add these as explicit public routes in the frontend router.
+* They must be outside admin protected routes.
+* They must not require JWT, admin login, or mobile-user login.
+* Ensure server/Vite/Express SPA fallback supports direct access and refresh on these paths.
+* Do not let the generic admin dashboard catch-all route take over these URLs.
+
+2. Content source
+
+* Privacy page must fetch from:
+
+  * `GET /api/public/legal/privacy-policy`
+
+* Terms page must fetch from:
+
+  * `GET /api/public/legal/terms-and-conditions`
+
+* Use published content from Admin Settings → Legal.
+
+* Do not show draft/unpublished content.
+
+* If no published content exists, show a clean page saying:
+
+  * “Privacy Policy is currently unavailable.”
+  * or “Terms and Conditions are currently unavailable.”
+
+* Do not return a browser 404 page for the public route itself.
+
+3. Public webpage design
+
+* Use Tarzi branding.
+* Show page title.
+* Show published version and last updated date where available.
+* Show support email:
+
+  * `support@verbosetechlabs.com`
+* Make it responsive for mobile and desktop.
+* Do not include admin sidebar, admin navigation, login controls, debug output, or protected data.
+
+4. Backend verification
+
+* Confirm these APIs work without authentication:
+
+  * `/api/public/legal/privacy-policy`
+  * `/api/public/legal/terms-and-conditions`
+* If missing, add/fix them.
+* Return only published legal content.
+* Return a safe JSON response when content is unavailable.
+
+5. Deployment verification
+   After deploying, test all of these directly:
+
+* `https://mobile-data-hub.replit.app/privacy-policy`
+* `https://mobile-data-hub.replit.app/terms-and-conditions`
+* `https://mobile-data-hub.replit.app/api/public/legal/privacy-policy`
+* `https://mobile-data-hub.replit.app/api/public/legal/terms-and-conditions`
+
+Confirm:
+
+* Both web pages load with HTTP 200.
+* Both pages are public.
+* Browser refresh works.
+* No redirect to login.
+* No 404.
+* No admin dashboard shell.
+* Published legal text appears.
+
+At the end provide:
+
+* Exact files changed
+* Router changes
+* Backend API verification result
+* Final public Privacy Policy URL
+* Final public Terms and Conditions URL
+* Confirmation that both return HTTP 200 without login
