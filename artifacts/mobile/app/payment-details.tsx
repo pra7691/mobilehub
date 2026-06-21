@@ -169,6 +169,20 @@ export default function PaymentDetailsScreen() {
               Your UPI ID is masked for security. Only the admin can see the full ID during payout processing.
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={styles.historyBtn}
+            onPress={() => router.push("/payout-history")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.historyBtnLeft}>
+              <View style={styles.historyIconBox}>
+                <Feather name="clock" size={16} color={colors.primary} />
+              </View>
+              <Text style={styles.historyBtnText}>Payout History</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </TouchableOpacity>
         </>
       )}
     </ScrollView>
@@ -252,5 +266,21 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       borderColor: colors.border,
     },
     infoText: { flex: 1, fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 18 },
+    historyBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginHorizontal: 20,
+      marginTop: 12,
+      backgroundColor: colors.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    historyBtnLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    historyIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" },
+    historyBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: colors.foreground },
   });
 }
