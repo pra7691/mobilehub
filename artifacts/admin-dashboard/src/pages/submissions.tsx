@@ -93,6 +93,7 @@ export default function Submissions() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
   const [resubmissionReason, setResubmissionReason] = useState("");
+  const [resubmitNote, setResubmitNote] = useState("");
   const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
@@ -127,6 +128,7 @@ export default function Submissions() {
     setRejectionReason("");
     setRejectNote("");
     setResubmissionReason("");
+    setResubmitNote("");
     setReviewSuccess(null);
     setReviewError(null);
   }
@@ -191,6 +193,7 @@ export default function Submissions() {
         id: selectedId,
         data: {
           resubmissionReason: resubmissionReason.trim(),
+          adminNote: resubmitNote.trim() || undefined,
         },
       });
       await queryClient.invalidateQueries({ queryKey: getAdminListSubmissionsQueryKey() });
@@ -525,6 +528,17 @@ export default function Submissions() {
                             value={resubmissionReason}
                             onChange={(e) => setResubmissionReason(e.target.value)}
                             rows={3}
+                            className="bg-card text-sm resize-none"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Admin Note (optional, not shown to user)</Label>
+                          <Textarea
+                            placeholder="Internal note…"
+                            value={resubmitNote}
+                            onChange={(e) => setResubmitNote(e.target.value)}
+                            rows={2}
                             className="bg-card text-sm resize-none"
                             disabled={isSubmitting}
                           />

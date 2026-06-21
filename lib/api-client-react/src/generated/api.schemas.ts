@@ -1904,6 +1904,7 @@ export type AdminRejectSubmissionBody = {
 
 export type AdminRequestResubmissionBody = {
   resubmissionReason: string;
+  adminNote?: string;
 };
 
 export type ListMyWalletTransactionsParams = {

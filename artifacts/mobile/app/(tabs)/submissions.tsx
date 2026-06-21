@@ -44,6 +44,8 @@ interface Submission {
   rejectionReason?: string | null;
   resubmissionReason?: string | null;
   approvedAmount?: number | null;
+  adminNote?: string | null;
+  reviewedAt?: string | null;
 }
 
 const SUBMISSION_STATUS_CONFIG: Record<
@@ -69,10 +71,11 @@ const COLLECTION_TYPE_ICON: Record<string, string> = {
   AUDIO: "🎙️",
 };
 
-type TabId = "drafts" | "under_review" | "completed";
+type TabId = "drafts" | "needs_action" | "under_review" | "completed";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "drafts", label: "Drafts" },
+  { id: "needs_action", label: "Needs Action" },
   { id: "under_review", label: "Under Review" },
   { id: "completed", label: "Completed" },
 ];
@@ -86,13 +89,16 @@ export default function SubmissionsScreen() {
   const [activeTab, setActiveTab] = useState<TabId>(
     tabParam === "drafts"
       ? "drafts"
-      : tabParam === "completed"
-        ? "completed"
-        : "under_review"
+      : tabParam === "needs_action"
+        ? "needs_action"
+        : tabParam === "completed"
+          ? "completed"
+          : "under_review"
   );
 
   useEffect(() => {
     if (tabParam === "drafts") setActiveTab("drafts");
+    else if (tabParam === "needs_action") setActiveTab("needs_action");
     else if (tabParam === "completed") setActiveTab("completed");
     else if (tabParam === "under_review") setActiveTab("under_review");
   }, [tabParam]);
@@ -109,8 +115,11 @@ export default function SubmissionsScreen() {
 
   const { drafts, deleteDraft } = useDrafts();
 
+  const needsAction = submissions.filter((s) =>
+    (["RESUBMISSION_REQUIRED"] as SubmissionStatus[]).includes(s.status)
+  );
   const underReview = submissions.filter((s) =>
-    (["UPLOADING", "UNDER_REVIEW", "RESUBMISSION_REQUIRED"] as SubmissionStatus[]).includes(s.status)
+    (["UPLOADING", "UNDER_REVIEW"] as SubmissionStatus[]).includes(s.status)
   );
   const completed = submissions.filter((s) =>
     (["APPROVED", "REJECTED", "UPLOAD_FAILED"] as SubmissionStatus[]).includes(s.status)
@@ -222,6 +231,11 @@ export default function SubmissionsScreen() {
             {tab.id === "drafts" && drafts.length > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{drafts.length}</Text>
+              </View>
+            )}
+            {tab.id === "needs_action" && needsAction.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: "#b45309" }]}>
+                <Text style={styles.badgeText}>{needsAction.length}</Text>
               </View>
             )}
             {tab.id === "under_review" && underReview.length > 0 && (
@@ -346,6 +360,48 @@ export default function SubmissionsScreen() {
                 Start a task to capture and save a draft
               </Text>
             </View>
+          }
+        />
+      )}
+
+      {/* Needs Action tab */}
+      {activeTab === "needs_action" && (
+        <FlatList
+          data={needsAction}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          renderItem={({ item }) => (
+            <SubmissionCard item={item} styles={styles} colors={colors} />
+          )}
+          ListHeaderComponent={
+            isLoading ? (
+              <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={styles.empty}>
+                <Feather
+                  name="alert-circle"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
+                <Text style={styles.emptyText}>No action needed</Text>
+                <Text style={styles.emptySubtext}>
+                  Submissions requiring resubmission appear here
+                </Text>
+              </View>
+            ) : null
           }
         />
       )}
@@ -494,6 +550,14 @@ function SubmissionCard({
             </Text>
           </View>
         )}
+        {item.status === "APPROVED" && item.reviewedAt && (
+          <View style={styles.dateRow}>
+            <Feather name="check" size={11} color={colors.mutedForeground} />
+            <Text style={styles.dateText}>
+              {new Date(item.reviewedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+            </Text>
+          </View>
+        )}
         {item.status === "UPLOAD_FAILED" && (
           <View style={styles.retryHint}>
             <Feather name="refresh-cw" size={11} color="#f87171" />
@@ -507,10 +571,22 @@ function SubmissionCard({
           <Text style={styles.reasonText} numberOfLines={3}>{item.rejectionReason}</Text>
         </View>
       ) : null}
+      {item.status === "REJECTED" && item.adminNote ? (
+        <View style={[styles.reasonBox, { backgroundColor: "#1a1a2e", borderColor: "#2a2a4a" }]}>
+          <Feather name="info" size={12} color="#94a3b8" />
+          <Text style={[styles.reasonText, { color: "#94a3b8" }]} numberOfLines={2}>{item.adminNote}</Text>
+        </View>
+      ) : null}
       {item.status === "RESUBMISSION_REQUIRED" && item.resubmissionReason ? (
         <View style={styles.reasonBox}>
           <Feather name="alert-circle" size={12} color="#f59e0b" />
           <Text style={[styles.reasonText, { color: "#f59e0b" }]} numberOfLines={3}>{item.resubmissionReason}</Text>
+        </View>
+      ) : null}
+      {item.status === "RESUBMISSION_REQUIRED" && item.adminNote ? (
+        <View style={[styles.reasonBox, { backgroundColor: "#1a1a2e", borderColor: "#2a2a4a" }]}>
+          <Feather name="info" size={12} color="#94a3b8" />
+          <Text style={[styles.reasonText, { color: "#94a3b8" }]} numberOfLines={2}>{item.adminNote}</Text>
         </View>
       ) : null}
       {item.status === "RESUBMISSION_REQUIRED" && item.taskId ? (

@@ -798,7 +798,7 @@ export class SubmissionsService {
   async requestResubmission(
     submissionId: string,
     adminEmail: string,
-    body: { resubmissionReason: string },
+    body: { resubmissionReason: string; adminNote?: string },
   ) {
     const submission = await this.prisma.submission.findUnique({ where: { id: submissionId } });
     if (!submission) throw new NotFoundException('Submission not found');
@@ -813,6 +813,7 @@ export class SubmissionsService {
       data: {
         status: 'RESUBMISSION_REQUIRED',
         resubmissionReason: body.resubmissionReason,
+        adminNote: body.adminNote ?? null,
         reviewedBy: adminEmail,
         reviewedAt: new Date(),
       },

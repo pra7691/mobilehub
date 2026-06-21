@@ -1791,7 +1791,8 @@ export const AdminRequestResubmissionParams = zod.object({
 })
 
 export const AdminRequestResubmissionBody = zod.object({
-  "resubmissionReason": zod.string()
+  "resubmissionReason": zod.string(),
+  "adminNote": zod.string().optional()
 })
 
 export const adminRequestResubmissionResponseUserPreferredLanguageDefault = `en`;

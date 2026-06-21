@@ -46,6 +46,10 @@ class RequestResubmissionDto {
   @IsNotEmpty()
   @IsString()
   resubmissionReason!: string;
+
+  @IsOptional()
+  @IsString()
+  adminNote?: string;
 }
 
 @Controller('admin/submissions')
@@ -91,10 +95,21 @@ export class AdminSubmissionsController {
     @Request() req: { user: { sub: string; email?: string } },
   ) {
     const result = await this.service.approve(id, req.user.email ?? req.user.sub, body);
+    const ctx = { adminId: req.user.sub, adminEmail: req.user.email };
     void this.audit.log(
       'submission.reviewed',
-      { adminId: req.user.sub, adminEmail: req.user.email },
-      { entityType: 'submission', entityId: id, metadata: { action: 'approve', approvedAmount: body.approvedAmount } },
+      ctx,
+      {
+        entityType: 'submission',
+        entityId: id,
+        metadata: {
+          action: 'approve',
+          oldStatus: 'UNDER_REVIEW',
+          newStatus: 'APPROVED',
+          approvedAmount: body.approvedAmount,
+          walletCredited: true,
+        },
+      },
     );
     return result;
   }
@@ -109,7 +124,16 @@ export class AdminSubmissionsController {
     void this.audit.log(
       'submission.reviewed',
       { adminId: req.user.sub, adminEmail: req.user.email },
-      { entityType: 'submission', entityId: id, metadata: { action: 'reject', rejectionReason: body.rejectionReason } },
+      {
+        entityType: 'submission',
+        entityId: id,
+        metadata: {
+          action: 'reject',
+          oldStatus: 'UNDER_REVIEW',
+          newStatus: 'REJECTED',
+          rejectionReason: body.rejectionReason,
+        },
+      },
     );
     return result;
   }
@@ -124,7 +148,16 @@ export class AdminSubmissionsController {
     void this.audit.log(
       'submission.reviewed',
       { adminId: req.user.sub, adminEmail: req.user.email },
-      { entityType: 'submission', entityId: id, metadata: { action: 'request_resubmission', resubmissionReason: body.resubmissionReason } },
+      {
+        entityType: 'submission',
+        entityId: id,
+        metadata: {
+          action: 'request_resubmission',
+          oldStatus: 'UNDER_REVIEW',
+          newStatus: 'RESUBMISSION_REQUIRED',
+          resubmissionReason: body.resubmissionReason,
+        },
+      },
     );
     return result;
   }
