@@ -288,39 +288,44 @@ export default function AudioCaptureScreen() {
   }, [recordingState, pulseAnim, maxDuration, recorder, taskId]);
 
   const startRecording = useCallback(async () => {
+    // Latch busyRef immediately — before any await — so a rapid second tap
+    // is rejected even while the permission or storage preflight is in flight.
     if (busyRef.current) return;
-    if (
-      recordingState !== "idle" &&
-      recordingState !== "error"
-    ) return;
-
-    const permResult = await AudioModule.requestRecordingPermissionsAsync();
-    if (!permResult.granted) return;
-
-    const hasSpace = await hasSufficientStorage();
-    if (!hasSpace) {
-      const confirmed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          "Low Storage",
-          "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
-          [
-            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-            { text: "Record Anyway", onPress: () => resolve(true) },
-          ]
-        );
-      });
-      if (!confirmed) return;
-    }
-
+    if (recordingState !== "idle" && recordingState !== "error") return;
     busyRef.current = true;
-    setError(null);
-    setElapsed(0);
-    elapsedRef.current = 0;
-    setRecordedUri(null);
-    setRecordingState("preparing");
-    recordingStateRef.current = "preparing";
 
     try {
+      const permResult = await AudioModule.requestRecordingPermissionsAsync();
+      if (!permResult.granted) {
+        busyRef.current = false;
+        return;
+      }
+
+      const hasSpace = await hasSufficientStorage();
+      if (!hasSpace) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Low Storage",
+            "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Record Anyway", onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!confirmed) {
+          busyRef.current = false;
+          return;
+        }
+      }
+
+      setError(null);
+      setElapsed(0);
+      elapsedRef.current = 0;
+      setRecordedUri(null);
+      setRecordingState("preparing");
+      recordingStateRef.current = "preparing";
+
       await recorder.prepareToRecordAsync();
       recorder.record();
       setRecordingState("recording");
