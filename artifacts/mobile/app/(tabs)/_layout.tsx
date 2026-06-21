@@ -20,6 +20,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "arrow.up.doc", selected: "arrow.up.doc.fill" }} />
         <Label>My Uploads</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="notifications">
+        <Icon sf={{ default: "bell", selected: "bell.fill" }} />
+        <Label>Alerts</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />
         <Label>Profile</Label>
@@ -83,6 +87,18 @@ function ClassicTabLayout() {
               <SymbolView name="arrow.up.doc" tintColor={color} size={22} />
             ) : (
               <Feather name="upload-cloud" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Alerts",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="bell" tintColor={color} size={22} />
+            ) : (
+              <Feather name="bell" size={22} color={color} />
             ),
         }}
       />
