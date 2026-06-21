@@ -160,7 +160,8 @@ export default function ProfileScreen() {
       <Text style={styles.sectionTitle}>Settings</Text>
       <View style={styles.card}>
         <MenuRow icon="user" label="Account Info" onPress={() => router.push("/account-info" as never)} colors={colors} />
-        <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} last />
+        <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} />
+        <MenuRow icon="trash-2" label="Delete Account" onPress={() => router.push("/support" as never)} colors={colors} muted last />
       </View>
 
       {/* Help & Legal */}
@@ -181,19 +182,6 @@ export default function ProfileScreen() {
           colors={colors}
         />
         <MenuRow icon="info" label={`App Version ${appVersion}`} onPress={() => {}} colors={colors} chevron={false} last />
-      </View>
-
-      {/* Delete account note */}
-      <Text style={styles.sectionTitle}>Account</Text>
-      <View style={styles.card}>
-        <MenuRow
-          icon="message-circle"
-          label="Contact Support to Delete Account"
-          onPress={() => router.push("/support" as never)}
-          colors={colors}
-          muted
-          last
-        />
       </View>
 
       {/* Logout */}
