@@ -1,0 +1,175 @@
+Continue from the existing Capto project. Do not rebuild existing capture, draft, upload, task, submission, or admin functionality.
+
+I tested photo capture on a real phone. After capturing a photo and trying to submit/upload it, the app showed an error-log screen with multiple errors.
+
+First, inspect the existing photo capture-to-submission flow and identify the actual cause. Fix the issue. Do not guess or only hide the error screen.
+
+Then implement reliable client-to-backend error logging so future mobile errors can be reviewed from the admin panel.
+
+1. Investigate and fix photo submission failure
+   Trace the full flow:
+
+* image capture using expo-camera
+* local image URI/path
+* draft creation
+* upload initiation API
+* presigned URL generation
+* direct storage upload
+* upload-complete API
+* submission status update
+
+Check specifically for:
+
+* invalid Expo local file URI handling
+* `file://` URI compatibility
+* incorrect MIME type for captured images
+* missing file name or extension
+* incorrect FormData/fetch upload request
+* presigned URL headers mismatch
+* storage bucket CORS issue
+* expired or invalid upload URL
+* image metadata/file-size lookup errors
+* draft media array shape mismatch
+* missing task/submission ID
+* backend validation rejecting image count or media type
+* API base URL issue on physical phone
+* Android/iOS network restrictions
+* client code trying to display developer error logs instead of user-friendly errors
+
+Fix the root cause and verify photo submission end-to-end on a real device flow.
+
+2. User-facing behavior
+   Remove any raw error-log/debug screen from the mobile user experience.
+
+When upload fails, show a clean screen or modal:
+
+* Title: “Upload failed”
+* Short readable message based on the failure
+* Retry Upload button
+* Save as Draft button, where applicable
+* Cancel button
+
+Never show stack traces, raw JSON errors, console logs, file paths, server exception messages, or developer diagnostics to users.
+
+3. Backend error logging
+   Create a persistent MobileErrorLog model/table.
+
+Fields:
+
+* id
+* userId optional
+* submissionId optional
+* taskId optional
+* localDraftId optional
+* errorType
+* errorCode optional
+* message
+* stackTrace optional
+* endpoint optional
+* httpMethod optional
+* httpStatus optional
+* requestId optional
+* platform
+* deviceModel optional
+* osVersion optional
+* appVersion optional
+* networkState optional
+* collectionType optional
+* metadata JSON
+* createdAt
+* resolvedAt optional
+* resolvedBy optional
+* resolutionNote optional
+
+Do not store access tokens, refresh tokens, passwords, OTPs, presigned URLs, full phone numbers, or cloud credentials in error logs.
+
+4. Mobile error-reporting flow
+   Add a safe centralized mobile error-reporting service.
+
+It should:
+
+* Capture API failures, upload failures, capture failures, file-system failures, permission failures, and unexpected app errors.
+* Send structured error logs to backend when internet is available.
+* Queue logs locally and retry later when offline.
+* Include safe contextual metadata:
+
+  * current screen
+  * task ID
+  * submission ID
+  * collection type
+  * action being performed
+  * platform
+  * app version
+  * non-sensitive device info
+* Sanitize all sensitive values before sending.
+* Avoid logging the same repeated error excessively; add deduplication/rate limiting.
+
+Add authenticated API:
+
+* POST /mobile-error-logs
+
+Add admin-only APIs:
+
+* GET /admin/mobile-error-logs
+* GET /admin/mobile-error-logs/:id
+* PATCH /admin/mobile-error-logs/:id/resolve
+
+5. Admin dashboard
+   Add a new sidebar page: “Error Logs”.
+
+Show:
+
+* Error type
+* Error message
+* User reference, masked mobile number if available
+* Task/submission reference
+* Platform/device
+* App version
+* Date/time
+* Status: Open / Resolved
+
+Add:
+
+* Search
+* Filters for error type, platform, collection type, status, date
+* Error detail drawer/page
+* Safe metadata view
+* Resolve action with resolution note
+* Link to related submission/task/user where available
+
+6. Backend observability
+   Add:
+
+* Request ID middleware/interceptor
+* Structured backend error logging
+* Correlate API errors with request ID
+* Return safe API errors to mobile:
+
+  * code
+  * user-safe message
+  * requestId
+* Do not expose stack traces in production responses.
+
+7. Testing
+   Test these scenarios:
+
+* Successful image capture and upload
+* Invalid/missing local image file
+* Offline during upload
+* Upload URL failure
+* Backend validation failure
+* Storage upload failure
+* App restart with failed draft
+* Retry upload succeeds
+* Error log appears in Admin Error Logs
+* User sees only readable error message, never raw debug output
+
+At the end provide:
+
+* Root cause found for the photo submission error
+* Exact files changed
+* Database migration summary
+* Error logging APIs
+* Admin Error Logs test flow
+* Mobile retry test flow
+* Confirmation that raw error logs are no longer exposed to users

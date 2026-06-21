@@ -1,0 +1,116 @@
+Continue from the existing Capto project. Do not rebuild any existing module.
+
+Implement complete disabled-user access control across Admin Dashboard, NestJS API, and Expo mobile app.
+
+Expected behavior:
+
+* Admin can set a user as Active or Disabled from the Users page.
+* When a user is Disabled, they must not be able to browse any part of the mobile app.
+* They should see only a full-screen blocked state with this exact message:
+
+“Your account is disabled.”
+
+* Do not show “Contact admin.”
+* Do not show Tasks, My Uploads, Profile, wallet, drafts, submissions, or any other app content.
+* The user may only see the disabled message and a Logout button.
+
+Backend requirements:
+
+1. Ensure User has a reliable account status field:
+
+   * ACTIVE
+   * DISABLED
+
+2. Add admin-only user status update API:
+
+   * PATCH /admin/users/:id/status
+   * Accept status ACTIVE or DISABLED.
+   * Record updatedBy and updatedAt in audit logs where audit logging exists.
+
+3. Enforce disabled status in every mobile-user authenticated request:
+
+   * JWT validation must load/check current user status from database.
+   * If user status is DISABLED, return HTTP 403 with a consistent error code such as:
+     USER_ACCOUNT_DISABLED
+   * Return message: “Your account is disabled.”
+   * Do not rely only on frontend checks.
+
+4. OTP/login behavior:
+
+   * A disabled user may enter mobile number and OTP successfully only if current architecture requires it.
+   * But immediately after verification, backend must return USER_ACCOUNT_DISABLED and must not issue usable access/refresh tokens.
+   * Prefer returning 403 before token generation.
+   * Existing logged-in disabled users must also be blocked on their next API call or token refresh.
+
+5. Token/session handling:
+
+   * When an admin disables a user, invalidate or reject that user’s refresh token/session where supported.
+   * Existing access tokens must be rejected by backend because account status is checked on authenticated requests.
+
+Mobile app requirements:
+
+1. Add a global API error/interceptor handler.
+
+2. When any API call returns:
+
+   * HTTP 403
+   * error code USER_ACCOUNT_DISABLED
+     the app must:
+   * clear active navigation stack/state
+   * open a dedicated full-screen Disabled Account screen
+   * block access to all tabs and protected routes
+   * prevent back navigation into the app
+   * clear or hide sensitive cached user data from UI
+
+3. Disabled Account screen:
+
+   * Full-screen, modern Capto dark/cyan style
+   * Clear icon/illustration
+   * Title: “Account Disabled”
+   * Exact body text: “Your account is disabled.”
+   * Logout button only
+   * No retry button
+   * No support/contact-admin text
+   * No task or wallet information visible
+
+4. On Logout:
+
+   * Clear access token and refresh token from secure storage.
+   * Clear session state.
+   * Preserve local recording drafts on device unless explicitly deleted by user.
+   * Redirect to mobile login screen.
+
+5. Reactivation behavior:
+
+   * When admin changes user back to ACTIVE, user can log in again normally.
+   * Do not automatically restore a disabled session without fresh login.
+
+Admin dashboard:
+
+* In Users list, show clear Active/Disabled status badge.
+* Add Disable User / Enable User action with confirmation modal.
+* Disable confirmation should clearly say that the user will immediately lose access to the mobile app.
+* Prevent accidental status toggling with a confirmation step.
+* Show audit/history information if existing audit system supports it.
+
+Testing:
+
+1. Create or choose an active test user.
+2. Confirm they can browse tasks and uploads.
+3. Disable that user from admin.
+4. On the mobile app, trigger any API call or reopen the app.
+5. Confirm only Disabled Account screen appears.
+6. Confirm back button cannot return to tasks.
+7. Confirm logout works.
+8. Re-enable user from admin.
+9. Confirm the user can log in again and access the app.
+10. Confirm disabled users cannot access protected APIs directly using old JWTs.
+
+At the end provide:
+
+* Files changed
+* API route added/updated
+* Exact backend error response format
+* Admin test flow
+* Mobile test flow
+* Confirmation that disabled users are blocked both server-side and client-side

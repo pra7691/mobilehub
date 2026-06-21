@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { setAuthTokenGetter, refreshTokens } from '@workspace/api-client-react';
 
 const ACCESS_KEY = 'capto_admin_token';
 const REFRESH_KEY = 'capto_admin_refresh_token';
-const REFRESH_THRESHOLD_SEC = 60; // refresh when < 60s left
+const REFRESH_BEFORE_EXPIRY_SEC = 60;
 
 interface AuthContextType {
   token: string | null;
@@ -25,59 +25,7 @@ function decodeJwtExp(token: string): number | null {
 
 function isExpired(token: string): boolean {
   const exp = decodeJwtExp(token);
-  if (!exp) return true;
-  return Date.now() / 1000 >= exp;
-}
-
-function isNearExpiry(token: string): boolean {
-  const exp = decodeJwtExp(token);
-  if (!exp) return true;
-  return Date.now() / 1000 >= exp - REFRESH_THRESHOLD_SEC;
-}
-
-// Module-level refresh state to avoid concurrent refresh calls
-let _refreshPromise: Promise<string | null> | null = null;
-
-async function doRefresh(storedRefreshToken: string): Promise<string | null> {
-  if (_refreshPromise) return _refreshPromise;
-  _refreshPromise = (async () => {
-    try {
-      const result = await refreshTokens({ refreshToken: storedRefreshToken });
-      localStorage.setItem(ACCESS_KEY, result.accessToken);
-      localStorage.setItem(REFRESH_KEY, result.refreshToken);
-      return result.accessToken;
-    } catch {
-      localStorage.removeItem(ACCESS_KEY);
-      localStorage.removeItem(REFRESH_KEY);
-      return null;
-    } finally {
-      _refreshPromise = null;
-    }
-  })();
-  return _refreshPromise;
-}
-
-function wireAuthGetter(accessToken: string | null, refreshToken: string | null) {
-  if (!accessToken) {
-    setAuthTokenGetter(null);
-    return;
-  }
-  setAuthTokenGetter(async () => {
-    const currentAccess = localStorage.getItem(ACCESS_KEY);
-    if (!currentAccess || isExpired(currentAccess)) {
-      const rt = localStorage.getItem(REFRESH_KEY);
-      if (!rt) return null;
-      return doRefresh(rt);
-    }
-    if (isNearExpiry(currentAccess)) {
-      const rt = localStorage.getItem(REFRESH_KEY);
-      if (rt) {
-        // refresh in background but return current token immediately
-        void doRefresh(rt);
-      }
-    }
-    return currentAccess;
-  });
+  return !exp || Date.now() / 1000 >= exp;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -86,40 +34,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return stored && !isExpired(stored) ? stored : null;
   });
 
-  // Wire up on initial mount (handles page reload with persisted tokens)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (refreshTimerRef.current !== null) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleRefresh = useCallback((accessToken: string, refreshToken: string) => {
+    clearTimer();
+    const exp = decodeJwtExp(accessToken);
+    if (!exp) return;
+    const msUntilRefresh = Math.max((exp - REFRESH_BEFORE_EXPIRY_SEC) * 1000 - Date.now(), 0);
+
+    refreshTimerRef.current = setTimeout(async () => {
+      try {
+        const result = await refreshTokens({ refreshToken });
+        localStorage.setItem(ACCESS_KEY, result.accessToken);
+        localStorage.setItem(REFRESH_KEY, result.refreshToken);
+        setToken(result.accessToken);
+        setAuthTokenGetter(() => result.accessToken);
+        scheduleRefresh(result.accessToken, result.refreshToken);
+      } catch {
+        localStorage.removeItem(ACCESS_KEY);
+        localStorage.removeItem(REFRESH_KEY);
+        setToken(null);
+        setAuthTokenGetter(null);
+      }
+    }, msUntilRefresh);
+  }, [clearTimer]);
+
+  // On mount: restore session or clear stale tokens
   useEffect(() => {
     const access = localStorage.getItem(ACCESS_KEY);
     const refresh = localStorage.getItem(REFRESH_KEY);
-    if (access && refresh && !isExpired(access)) {
-      wireAuthGetter(access, refresh);
-    } else if (access && refresh && isExpired(access)) {
-      // Access expired but refresh available — try to refresh now
-      void doRefresh(refresh).then((newAccess) => {
-        if (newAccess) {
-          setToken(newAccess);
-          wireAuthGetter(newAccess, localStorage.getItem(REFRESH_KEY));
-        } else {
-          setToken(null);
-        }
-      });
-    } else {
-      wireAuthGetter(null, null);
+
+    if (!access || !refresh) {
+      setAuthTokenGetter(null);
+      return;
     }
-  }, []);
+
+    if (isExpired(access)) {
+      // Try to refresh immediately
+      void (async () => {
+        try {
+          const result = await refreshTokens({ refreshToken: refresh });
+          localStorage.setItem(ACCESS_KEY, result.accessToken);
+          localStorage.setItem(REFRESH_KEY, result.refreshToken);
+          setToken(result.accessToken);
+          setAuthTokenGetter(() => result.accessToken);
+          scheduleRefresh(result.accessToken, result.refreshToken);
+        } catch {
+          localStorage.removeItem(ACCESS_KEY);
+          localStorage.removeItem(REFRESH_KEY);
+          setToken(null);
+          setAuthTokenGetter(null);
+        }
+      })();
+    } else {
+      setAuthTokenGetter(() => access);
+      scheduleRefresh(access, refresh);
+    }
+
+    return clearTimer;
+  }, [scheduleRefresh, clearTimer]);
 
   const login = useCallback((accessToken: string, refreshToken: string) => {
     localStorage.setItem(ACCESS_KEY, accessToken);
     localStorage.setItem(REFRESH_KEY, refreshToken);
     setToken(accessToken);
-    wireAuthGetter(accessToken, refreshToken);
-  }, []);
+    setAuthTokenGetter(() => accessToken);
+    scheduleRefresh(accessToken, refreshToken);
+  }, [scheduleRefresh]);
 
   const logout = useCallback(() => {
+    clearTimer();
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     setToken(null);
     setAuthTokenGetter(null);
-  }, []);
+  }, [clearTimer]);
 
   return (
     <AuthContext.Provider value={{ token, login, logout, isAuthenticated: !!token }}>

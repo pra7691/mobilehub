@@ -1,12 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import {
   usePatchNotificationsPreferences,
   usePostNotificationsRegisterDevice,
 } from "@workspace/api-client-react";
+
+// expo-notifications throws at import time in Expo Go SDK 53+ — use safe require
+let Notifications: typeof import("expo-notifications") | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+  Notifications = require("expo-notifications") as typeof import("expo-notifications");
+} catch {
+  Notifications = null;
+}
 
 export const PREF_STORAGE_KEY = "notification_prefs";
 export const TOKEN_STORAGE_KEY = "expo_push_token";
@@ -37,10 +45,10 @@ export function useNotifications(isAuthenticated: boolean) {
   }, [isAuthenticated]);
 
   async function registerForPush() {
-    if (!Device.isDevice) return; // Simulators don't support push tokens
+    // expo-notifications not available in Expo Go SDK 53+
+    if (!Notifications) return;
+    if (!Device.isDevice) return;
 
-    // NotificationPermissionsStatus extends expo's PermissionResponse which has `granted`
-    // but the type path doesn't always surface it — cast to access it safely
     type PermResult = { granted: boolean };
     const existing = (await Notifications.getPermissionsAsync()) as unknown as PermResult;
     let granted = existing.granted;

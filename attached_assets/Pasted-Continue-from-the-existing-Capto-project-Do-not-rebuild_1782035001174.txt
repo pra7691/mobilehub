@@ -1,0 +1,180 @@
+Continue from the existing Capto project. Do not rebuild authentication, task management, uploads, submissions, wallet, user status controls, or existing mobile navigation.
+
+Replace the current Static Pages system with a centralized Admin Settings module.
+
+Goal:
+
+* Remove hard-coded Privacy Policy and Terms & Conditions entries from the mobile app.
+* Remove the existing Static Pages menu/page from the admin dashboard.
+* Add a new Settings page in admin.
+* Privacy Policy and Terms & Conditions should be managed only from Settings.
+* In mobile Profile, show Privacy Policy and Terms & Conditions only when valid published content exists in Settings.
+* Do not show blank, broken, or hard-coded policy pages.
+
+1. Admin Dashboard Changes
+
+Remove:
+
+* Static Pages menu item
+* Static Pages list page
+* Static Page CRUD UI
+* Any admin navigation links related to generic static pages
+
+Add:
+
+* A new Settings menu item in the admin sidebar.
+* Settings page should have tabs or sections:
+
+  1. General
+  2. Support
+  3. Legal
+
+General section:
+
+* App name
+* App version display field optional
+* Maintenance mode toggle optional, but do not implement enforcement yet
+
+Support section:
+
+* Support email
+* Support WhatsApp number
+* Support phone optional
+* Support message optional
+
+Legal section:
+
+* Privacy Policy editor
+* Terms and Conditions editor
+
+For both Privacy Policy and Terms and Conditions:
+
+* Title
+* Rich text or Markdown content editor
+* Published toggle
+* Version field
+* Last updated date
+* Save button
+* Preview button
+* Clear validation: content is required before publishing
+
+Use a single Settings page. Do not recreate generic static page management.
+
+2. Backend / Database
+
+Remove or deprecate the old generic StaticPage handling safely.
+Do not delete existing data automatically unless it is clearly safe.
+
+Create or update a settings structure that supports:
+
+* key
+* value
+* content
+* isPublished
+* version
+* updatedAt
+* updatedBy
+
+Recommended keys:
+
+* APP_NAME
+* SUPPORT_EMAIL
+* SUPPORT_WHATSAPP
+* SUPPORT_PHONE
+* SUPPORT_MESSAGE
+* PRIVACY_POLICY
+* TERMS_AND_CONDITIONS
+
+Legal content must support:
+
+* title
+* body/content
+* version
+* isPublished
+* updatedAt
+
+APIs:
+Admin-only:
+
+* GET /admin/settings
+* PATCH /admin/settings/general
+* PATCH /admin/settings/support
+* PATCH /admin/settings/legal/privacy-policy
+* PATCH /admin/settings/legal/terms-and-conditions
+
+Mobile/public authenticated APIs:
+
+* GET /app/settings
+* GET /app/legal/privacy-policy
+* GET /app/legal/terms-and-conditions
+
+Rules:
+
+* Public/mobile legal API should return 404 or a clear NOT_PUBLISHED response when content is missing or unpublished.
+* Do not return draft legal content to mobile users.
+* Add Swagger documentation and DTO validation.
+* Add migration if required.
+
+3. Mobile App Changes
+
+Profile screen:
+
+* Remove hard-coded Privacy Policy and Terms & Conditions routes/items.
+* Fetch app settings after user login or when Profile screen opens.
+* Show Privacy Policy menu item only when privacy policy is published and has non-empty content.
+* Show Terms and Conditions menu item only when terms are published and has non-empty content.
+* Do not show either item if unavailable.
+
+Legal page:
+
+* Use one reusable dynamic Legal Content screen.
+* Fetch actual content from API.
+* Display:
+
+  * title
+  * version, if available
+  * last updated date
+  * formatted content
+* Add loading, error, retry, and unavailable states.
+* Do not use placeholder or hard-coded policy content.
+
+Support:
+
+* Continue showing Support only when support settings are available.
+* Fetch support details from the new Settings API, not Static Pages.
+
+4. Migration / Existing Privacy Policy Data
+
+Check whether the existing privacy-policy content created in the old Static Pages system can be migrated safely into:
+
+* Settings → Legal → Privacy Policy
+
+If valid content exists:
+
+* Migrate it automatically.
+* Preserve title, content, publish state, version, and updated date where possible.
+
+If migration cannot be done safely:
+
+* Keep old data untouched but do not expose it in mobile.
+* Clearly mention what needs to be copied manually into Settings.
+
+5. Quality Rules
+
+* Do not break FAQ functionality.
+* Do not break mobile profile, logout, support, or existing APIs.
+* Do not show Privacy Policy or Terms links unless there is valid published content.
+* Do not hard-code legal page content anywhere in mobile.
+* Keep Capto dark/cyan UI consistent.
+* Add clear success/error messages in admin after saving settings.
+
+At the end provide:
+
+* Files/pages removed
+* Files/pages added
+* Settings API route list
+* Database/migration changes
+* Whether existing Privacy Policy content was migrated
+* Exact admin test flow
+* Exact mobile test flow
+* Confirmation that unpublished or empty legal pages do not appear in mobile Profile

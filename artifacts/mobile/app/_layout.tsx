@@ -6,7 +6,6 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as Notifications from "expo-notifications";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -21,19 +20,6 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DraftProvider } from "@/contexts/DraftContext";
 import { useNotifications } from "@/hooks/useNotifications";
-
-// Show notifications in foreground (native only — not supported on web)
-if (Platform.OS !== "web") {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-}
 
 // Set API base URL from env at module load time
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -52,9 +38,8 @@ function RootLayoutNav() {
   // Register push token after login (native only)
   useNotifications(Platform.OS !== "web" ? isAuthenticated : false);
 
-  // Handle notification tap → deep link (native only)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const lastResponse = Platform.OS !== "web" ? Notifications.useLastNotificationResponse() : null;
+  // Notification tap deep-link disabled in Expo Go (expo-notifications not available)
+  const lastResponse = null;
   useEffect(() => {
     if (!lastResponse) return;
     const data = lastResponse.notification.request.content.data as {

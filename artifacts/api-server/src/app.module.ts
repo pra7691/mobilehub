@@ -23,8 +23,8 @@ import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
-    // Rate limiting: 100 req per 60s globally; auth endpoints set tighter limits
-    ThrottlerModule.forRoot([{ name: 'global', ttl: 60000, limit: 100 }]),
+    // Rate limiting: 600 req per 60s globally; auth endpoints set tighter limits
+    ThrottlerModule.forRoot([{ name: 'global', ttl: 60000, limit: 600 }]),
     PrismaModule,
     AuditModule,
     AuthModule,
