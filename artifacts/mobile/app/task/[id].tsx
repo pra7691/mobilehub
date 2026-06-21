@@ -388,7 +388,7 @@ export default function TaskDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
-  backBtn: { paddingHorizontal: 20, paddingVertical: 12 },
+  backBtn: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
   backText: { fontSize: 16, color: "#06b6d4", fontFamily: "Inter_500Medium" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { color: "#9ca3af", fontFamily: "Inter_400Regular", fontSize: 16 },

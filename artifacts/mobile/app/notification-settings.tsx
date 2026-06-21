@@ -118,7 +118,7 @@ function ToggleRow({ label, description, value, onChange, colors, last }: {
 function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    backBtn: { paddingHorizontal: 20, paddingVertical: 12 },
+    backBtn: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
     backText: { fontSize: 16, color: "#06b6d4", fontFamily: "Inter_500Medium" },
     content: { paddingHorizontal: 20, paddingBottom: 40 },
     title: { fontSize: 24, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 20 },

@@ -151,7 +151,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       gap: 14,
       paddingHorizontal: 20,
       paddingBottom: 14,
-      paddingTop: 8,
+      paddingTop: 20,
     },
     backBtn: { padding: 2 },
     headerLabel: {

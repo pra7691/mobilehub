@@ -143,7 +143,7 @@ export default function SubcategoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
-  header: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#1a1a1a" },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#1a1a1a" },
   backBtn: { marginBottom: 10 },
   backText: { fontSize: 16, color: "#06b6d4", fontFamily: "Inter_500Medium" },
   breadcrumb: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },

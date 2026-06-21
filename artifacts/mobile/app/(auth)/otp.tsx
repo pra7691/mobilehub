@@ -78,7 +78,7 @@ export default function OtpScreen() {
   const styles = makeStyles(colors);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <TouchableOpacity style={styles.back} onPress={() => router.back()} testID="button-back">
         <Feather name="arrow-left" size={22} color={colors.foreground} />
       </TouchableOpacity>
