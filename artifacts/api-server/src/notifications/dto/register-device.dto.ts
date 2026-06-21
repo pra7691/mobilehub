@@ -24,6 +24,10 @@ export class RegisterDeviceDto {
   @IsOptional()
   @IsBoolean()
   notifyAppNotices?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyPayoutUpdates?: boolean;
 }
 
 export class UpdatePreferencesDto {
@@ -42,4 +46,8 @@ export class UpdatePreferencesDto {
   @IsOptional()
   @IsBoolean()
   notifyAppNotices?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  notifyPayoutUpdates?: boolean;
 }

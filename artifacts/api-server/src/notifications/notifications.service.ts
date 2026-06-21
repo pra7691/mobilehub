@@ -4,7 +4,7 @@ import { ExpoPushService } from './expo-push.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDeviceDto, UpdatePreferencesDto } from './dto/register-device.dto';
 
-type PreferenceKey = 'notifySubmissionUpdates' | 'notifyNewTasks' | 'notifyAppNotices';
+type PreferenceKey = 'notifySubmissionUpdates' | 'notifyNewTasks' | 'notifyAppNotices' | 'notifyPayoutUpdates';
 
 export interface DispatchPayload {
   userId: string;
@@ -45,6 +45,7 @@ export class NotificationsService {
         notifySubmissionUpdates: dto.notifySubmissionUpdates ?? true,
         notifyNewTasks: dto.notifyNewTasks ?? true,
         notifyAppNotices: dto.notifyAppNotices ?? true,
+        notifyPayoutUpdates: dto.notifyPayoutUpdates ?? true,
         lastSeenAt: new Date(),
       },
       update: {
@@ -54,6 +55,7 @@ export class NotificationsService {
         notifySubmissionUpdates: dto.notifySubmissionUpdates ?? undefined,
         notifyNewTasks: dto.notifyNewTasks ?? undefined,
         notifyAppNotices: dto.notifyAppNotices ?? undefined,
+        notifyPayoutUpdates: dto.notifyPayoutUpdates ?? undefined,
         lastSeenAt: new Date(),
       },
     });
@@ -79,6 +81,7 @@ export class NotificationsService {
         notifySubmissionUpdates: dto.notifySubmissionUpdates ?? undefined,
         notifyNewTasks: dto.notifyNewTasks ?? undefined,
         notifyAppNotices: dto.notifyAppNotices ?? undefined,
+        notifyPayoutUpdates: dto.notifyPayoutUpdates ?? undefined,
         lastSeenAt: new Date(),
       },
     });

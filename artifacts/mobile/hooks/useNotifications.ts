@@ -23,12 +23,14 @@ export interface NotificationPreferences {
   notifySubmissionUpdates: boolean;
   notifyNewTasks: boolean;
   notifyAppNotices: boolean;
+  notifyPayoutUpdates: boolean;
 }
 
 export const DEFAULT_PREFS: NotificationPreferences = {
   notifySubmissionUpdates: true,
   notifyNewTasks: true,
   notifyAppNotices: true,
+  notifyPayoutUpdates: true,
 };
 
 export function useNotifications(isAuthenticated: boolean) {

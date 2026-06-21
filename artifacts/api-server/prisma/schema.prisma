@@ -547,12 +547,15 @@ enum NotificationType {
   RESUBMISSION_REQUIRED
   NEW_TASK
   APP_NOTICE
+  PAYOUT_PAID
+  PAYOUT_REJECTED
 }
 
 enum NotificationEntityType {
   SUBMISSION
   TASK
   NOTICE
+  PAYOUT
 }
 
 model DeviceToken {
@@ -566,6 +569,7 @@ model DeviceToken {
   notifySubmissionUpdates Boolean  @default(true)
   notifyNewTasks          Boolean  @default(true)
   notifyAppNotices        Boolean  @default(true)
+  notifyPayoutUpdates     Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

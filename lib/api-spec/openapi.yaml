@@ -1824,7 +1824,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [SUBMISSION_APPROVED, SUBMISSION_REJECTED, RESUBMISSION_REQUIRED, NEW_TASK, APP_NOTICE]
+            enum: [SUBMISSION_APPROVED, SUBMISSION_REJECTED, RESUBMISSION_REQUIRED, NEW_TASK, APP_NOTICE, PAYOUT_PAID, PAYOUT_REJECTED]
         - name: userId
           in: query
           schema:
@@ -4138,6 +4138,8 @@ components:
           type: boolean
         notifyAppNotices:
           type: boolean
+        notifyPayoutUpdates:
+          type: boolean
       required: [expoPushToken, platform]
 
     UpdatePreferencesRequest:
@@ -4150,6 +4152,8 @@ components:
         notifyNewTasks:
           type: boolean
         notifyAppNotices:
+          type: boolean
+        notifyPayoutUpdates:
           type: boolean
       required: [expoPushToken]
 
@@ -4175,6 +4179,8 @@ components:
           type: boolean
         notifyAppNotices:
           type: boolean
+        notifyPayoutUpdates:
+          type: boolean
         lastSeenAt:
           type: string
           format: date-time
@@ -4184,7 +4190,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, userId, expoPushToken, platform, isActive, notifySubmissionUpdates, notifyNewTasks, notifyAppNotices, lastSeenAt, createdAt, updatedAt]
+      required: [id, userId, expoPushToken, platform, isActive, notifySubmissionUpdates, notifyNewTasks, notifyAppNotices, notifyPayoutUpdates, lastSeenAt, createdAt, updatedAt]
 
     AppNotification:
       type: object
@@ -4199,10 +4205,10 @@ components:
           type: string
         type:
           type: string
-          enum: [SUBMISSION_APPROVED, SUBMISSION_REJECTED, RESUBMISSION_REQUIRED, NEW_TASK, APP_NOTICE]
+          enum: [SUBMISSION_APPROVED, SUBMISSION_REJECTED, RESUBMISSION_REQUIRED, NEW_TASK, APP_NOTICE, PAYOUT_PAID, PAYOUT_REJECTED]
         relatedEntityType:
           type: string
-          enum: [SUBMISSION, TASK, NOTICE]
+          enum: [SUBMISSION, TASK, NOTICE, PAYOUT]
           nullable: true
         relatedEntityId:
           type: string

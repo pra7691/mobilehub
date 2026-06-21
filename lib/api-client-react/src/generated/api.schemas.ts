@@ -928,6 +928,7 @@ export interface RegisterDeviceRequest {
   notifySubmissionUpdates?: boolean;
   notifyNewTasks?: boolean;
   notifyAppNotices?: boolean;
+  notifyPayoutUpdates?: boolean;
 }
 
 export interface UpdatePreferencesRequest {
@@ -935,6 +936,7 @@ export interface UpdatePreferencesRequest {
   notifySubmissionUpdates?: boolean;
   notifyNewTasks?: boolean;
   notifyAppNotices?: boolean;
+  notifyPayoutUpdates?: boolean;
 }
 
 export interface DeviceToken {
@@ -947,6 +949,7 @@ export interface DeviceToken {
   notifySubmissionUpdates: boolean;
   notifyNewTasks: boolean;
   notifyAppNotices: boolean;
+  notifyPayoutUpdates: boolean;
   lastSeenAt: string;
   createdAt: string;
   updatedAt: string;
@@ -961,6 +964,8 @@ export const AppNotificationType = {
   RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
   NEW_TASK: 'NEW_TASK',
   APP_NOTICE: 'APP_NOTICE',
+  PAYOUT_PAID: 'PAYOUT_PAID',
+  PAYOUT_REJECTED: 'PAYOUT_REJECTED',
 } as const;
 
 export type AppNotificationRelatedEntityType = typeof AppNotificationRelatedEntityType[keyof typeof AppNotificationRelatedEntityType] | null;
@@ -970,6 +975,7 @@ export const AppNotificationRelatedEntityType = {
   SUBMISSION: 'SUBMISSION',
   TASK: 'TASK',
   NOTICE: 'NOTICE',
+  PAYOUT: 'PAYOUT',
 } as const;
 
 export interface AppNotification {
@@ -2006,6 +2012,8 @@ export const GetAdminNotificationsType = {
   RESUBMISSION_REQUIRED: 'RESUBMISSION_REQUIRED',
   NEW_TASK: 'NEW_TASK',
   APP_NOTICE: 'APP_NOTICE',
+  PAYOUT_PAID: 'PAYOUT_PAID',
+  PAYOUT_REJECTED: 'PAYOUT_REJECTED',
 } as const;
 
 export type CreateMobileErrorLog201 = {

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PayoutStatus } from '@prisma/client';
 
 const PAYOUT_INCLUDE = {
@@ -80,6 +81,7 @@ export class PayoutsService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    private notifications: NotificationsService,
   ) {}
 
   private async getPayoutSettings() {
@@ -473,6 +475,16 @@ export class PayoutsService {
       metadata: { amount, payoutReferenceId, userId: payout.userId },
     });
 
+    void this.notifications.dispatch({
+      userId: payout.userId,
+      title: 'Withdrawal Paid',
+      body: `Your ₹${amount.toFixed(0)} withdrawal was paid successfully.`,
+      type: 'PAYOUT_PAID',
+      relatedEntityType: 'PAYOUT',
+      relatedEntityId: payoutId,
+      preferenceKey: 'notifyPayoutUpdates',
+    });
+
     return formatPayout(result as PayoutWithMethod, false);
   }
 
@@ -545,6 +557,16 @@ export class PayoutsService {
       entityType: 'PayoutRequest',
       entityId: payoutId,
       metadata: { amount, rejectionReason, userId: payout.userId },
+    });
+
+    void this.notifications.dispatch({
+      userId: payout.userId,
+      title: 'Withdrawal Rejected',
+      body: `Your ₹${amount.toFixed(0)} withdrawal was rejected: ${rejectionReason}`,
+      type: 'PAYOUT_REJECTED',
+      relatedEntityType: 'PAYOUT',
+      relatedEntityId: payoutId,
+      preferenceKey: 'notifyPayoutUpdates',
     });
 
     return formatPayout(result as PayoutWithMethod, false);

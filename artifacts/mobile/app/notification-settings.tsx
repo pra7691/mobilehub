@@ -73,6 +73,13 @@ export default function NotificationSettingsScreen() {
             value={notifPrefs.notifyAppNotices}
             onChange={(v) => void toggleNotifPref("notifyAppNotices", v)}
             colors={colors}
+          />
+          <ToggleRow
+            label="Payout Updates"
+            description="When your withdrawal is paid or rejected"
+            value={notifPrefs.notifyPayoutUpdates}
+            onChange={(v) => void toggleNotifPref("notifyPayoutUpdates", v)}
+            colors={colors}
             last
           />
         </View>

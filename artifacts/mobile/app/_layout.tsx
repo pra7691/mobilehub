@@ -27,6 +27,15 @@ import { DraftProvider } from "@/contexts/DraftContext";
 import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
+// expo-notifications throws at import time in Expo Go SDK 53+ — use safe require
+let Notifications: typeof import("expo-notifications") | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+  Notifications = require("expo-notifications") as typeof import("expo-notifications");
+} catch {
+  Notifications = null;
+}
+
 // Set API base URL from env at module load time
 if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
@@ -79,6 +88,19 @@ function RootLayoutNav({ onReady }: { onReady: () => void }) {
 
   // Register push token after login (native only)
   useNotifications(Platform.OS !== "web" ? isAuthenticated : false);
+
+  // Deep-link: when a payout notification is tapped, navigate to payout-history
+  useEffect(() => {
+    if (!Notifications || !isAuthenticated) return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown> | null;
+      const type = data?.type as string | undefined;
+      if (type === "PAYOUT_PAID" || type === "PAYOUT_REJECTED") {
+        router.push("/payout-history" as never);
+      }
+    });
+    return () => sub.remove();
+  }, [isAuthenticated, router]);
 
   // Hide splash once auth + language checks have resolved
   const readyFired = useRef(false);
@@ -171,6 +193,8 @@ function RootLayoutNav({ onReady }: { onReady: () => void }) {
       <Stack.Screen name="static-page" options={{ presentation: "card", headerShown: false }} />
       <Stack.Screen name="referral-entry" options={{ presentation: "modal", headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="referral" options={{ presentation: "card", headerShown: false }} />
+      <Stack.Screen name="payout-history" options={{ presentation: "card", headerShown: false }} />
+      <Stack.Screen name="notification-settings" options={{ presentation: "card", headerShown: false }} />
     </Stack>
   );
 }

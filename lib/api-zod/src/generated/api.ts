@@ -2611,7 +2611,8 @@ export const PostNotificationsRegisterDeviceBody = zod.object({
   "deviceId": zod.string().optional(),
   "notifySubmissionUpdates": zod.boolean().optional(),
   "notifyNewTasks": zod.boolean().optional(),
-  "notifyAppNotices": zod.boolean().optional()
+  "notifyAppNotices": zod.boolean().optional(),
+  "notifyPayoutUpdates": zod.boolean().optional()
 })
 
 export const PostNotificationsRegisterDeviceResponse = zod.object({
@@ -2624,6 +2625,7 @@ export const PostNotificationsRegisterDeviceResponse = zod.object({
   "notifySubmissionUpdates": zod.boolean(),
   "notifyNewTasks": zod.boolean(),
   "notifyAppNotices": zod.boolean(),
+  "notifyPayoutUpdates": zod.boolean(),
   "lastSeenAt": zod.coerce.date(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2649,7 +2651,8 @@ export const PatchNotificationsPreferencesBody = zod.object({
   "expoPushToken": zod.string(),
   "notifySubmissionUpdates": zod.boolean().optional(),
   "notifyNewTasks": zod.boolean().optional(),
-  "notifyAppNotices": zod.boolean().optional()
+  "notifyAppNotices": zod.boolean().optional(),
+  "notifyPayoutUpdates": zod.boolean().optional()
 })
 
 export const PatchNotificationsPreferencesResponse = zod.object({
@@ -2662,6 +2665,7 @@ export const PatchNotificationsPreferencesResponse = zod.object({
   "notifySubmissionUpdates": zod.boolean(),
   "notifyNewTasks": zod.boolean(),
   "notifyAppNotices": zod.boolean(),
+  "notifyPayoutUpdates": zod.boolean(),
   "lastSeenAt": zod.coerce.date(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -2682,8 +2686,8 @@ export const GetNotificationsMyResponse = zod.object({
   "userId": zod.string(),
   "title": zod.string(),
   "body": zod.string(),
-  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE']),
-  "relatedEntityType": zod.enum(['SUBMISSION', 'TASK', 'NOTICE']).nullish(),
+  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE', 'PAYOUT_PAID', 'PAYOUT_REJECTED']),
+  "relatedEntityType": zod.enum(['SUBMISSION', 'TASK', 'NOTICE', 'PAYOUT']).nullish(),
   "relatedEntityId": zod.string().nullish(),
   "isRead": zod.boolean(),
   "sentAt": zod.coerce.date().nullish(),
@@ -2712,8 +2716,8 @@ export const PatchNotificationsIdReadResponse = zod.object({
   "userId": zod.string(),
   "title": zod.string(),
   "body": zod.string(),
-  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE']),
-  "relatedEntityType": zod.enum(['SUBMISSION', 'TASK', 'NOTICE']).nullish(),
+  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE', 'PAYOUT_PAID', 'PAYOUT_REJECTED']),
+  "relatedEntityType": zod.enum(['SUBMISSION', 'TASK', 'NOTICE', 'PAYOUT']).nullish(),
   "relatedEntityId": zod.string().nullish(),
   "isRead": zod.boolean(),
   "sentAt": zod.coerce.date().nullish(),
@@ -2729,7 +2733,7 @@ export const PatchNotificationsIdReadResponse = zod.object({
 export const GetAdminNotificationsQueryParams = zod.object({
   "page": zod.coerce.number().optional(),
   "limit": zod.coerce.number().optional(),
-  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE']).optional(),
+  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE', 'PAYOUT_PAID', 'PAYOUT_REJECTED']).optional(),
   "userId": zod.coerce.string().optional(),
   "isRead": zod.coerce.boolean().optional(),
   "from": zod.date().optional(),
@@ -2742,8 +2746,8 @@ export const GetAdminNotificationsResponse = zod.object({
   "userId": zod.string(),
   "title": zod.string(),
   "body": zod.string(),
-  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE']),
-  "relatedEntityType": zod.enum(['SUBMISSION', 'TASK', 'NOTICE']).nullish(),
+  "type": zod.enum(['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'RESUBMISSION_REQUIRED', 'NEW_TASK', 'APP_NOTICE', 'PAYOUT_PAID', 'PAYOUT_REJECTED']),
+  "relatedEntityType": zod.enum(['SUBMISSION', 'TASK', 'NOTICE', 'PAYOUT']).nullish(),
   "relatedEntityId": zod.string().nullish(),
   "isRead": zod.boolean(),
   "sentAt": zod.coerce.date().nullish(),
