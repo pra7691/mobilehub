@@ -121,7 +121,7 @@ export default function CategoriesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
+  header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
   headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#ffffff" },
   headerSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", marginTop: 2 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
