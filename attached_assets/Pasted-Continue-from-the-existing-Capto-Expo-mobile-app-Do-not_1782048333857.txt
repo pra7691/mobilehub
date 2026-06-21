@@ -1,0 +1,271 @@
+Continue from the existing Capto Expo mobile app. Do not rebuild existing modules. Fix the following production bugs end-to-end.
+
+There are three issues:
+
+1. Review/submission render crash
+2. Tasks fail or show empty on first app load, then load later
+3. Top safe-area/header text is still being cut or overlapping system UI on some screens
+
+Do not hide errors. Find and fix root causes.
+
+## A. Fix Review Screen Render Error
+
+Current real-device error:
+
+“Calling the ‘constructor’ function has failed → Caused by: Received 2 arguments, but 3 was expected”
+
+The error points to `review.tsx`, around this line:
+
+```ts
+const player = useAudioPlayer(audioUri ?? null);
+```
+
+Requirements:
+
+1. Inspect the exact installed audio package/version and its official API usage.
+2. Do not assume the hook signature.
+3. Fix the incorrect constructor/hook call based on the actual installed package version.
+4. Check whether the audio hook requires:
+
+   * source
+   * configuration/options
+   * status update interval
+   * callback
+   * or another required third argument
+5. Ensure the hook is never called conditionally.
+6. Ensure video/image review does not initialize audio player unnecessarily.
+7. Audio player should initialize only through a safe wrapper/component when collection type is AUDIO and URI is valid.
+8. Handle null/undefined/invalid audio URI safely.
+9. Avoid passing `null` if the installed API does not support it.
+10. Add an error boundary or safe error fallback around media review screen.
+11. User must never see a raw React Native error screen, stack trace, source lines, or “Log 1 of 1” screen.
+
+Expected review behavior:
+
+* Video draft opens video preview.
+* Image draft opens image preview/gallery.
+* Audio draft opens audio playback controls.
+* Missing/corrupt media shows:
+
+  * “This draft file could not be opened.”
+  * Retake button
+  * Delete Draft button
+* No crash.
+
+Also inspect all other use of:
+
+* `useAudioPlayer`
+* audio playback hooks
+* video playback hooks
+* media constructor calls
+
+Fix similar signature errors everywhere.
+
+## B. Fix First Load Task Fetch Failure / False “No Tasks Available”
+
+Current issue:
+
+* On first app launch, task categories/tasks often fail to load or are delayed.
+* UI immediately shows “No tasks available.”
+* On second attempt, refresh, or later load, tasks appear.
+* This suggests first API call, auth/session hydration, API base URL readiness, connectivity initialization, cache hydration, or query timing is wrong.
+
+Investigate the exact root cause. Check:
+
+1. Auth token/session is fully restored before task API requests begin.
+2. API base URL is available before requests start.
+3. Device/emulator network reachability is confirmed before making request.
+4. React Query / query library is not treating initial undefined data as an empty response.
+5. API client is not sending request before access token is attached.
+6. Queries are enabled only when:
+
+   * auth state is hydrated
+   * valid access token exists where required
+   * API configuration is ready
+   * connectivity state is known
+7. Initial request failure is logged with request ID and visible in Admin Error Logs.
+8. Retry behavior is safe and does not create repeated duplicate requests.
+9. Cached data is not incorrectly overriding fresh data.
+10. The categories endpoint is not returning 401/403 due to token race condition.
+11. The mobile API host is reachable from physical devices and emulator, not only localhost.
+
+Implement the correct fix.
+
+### Required UI states for Tasks Home
+
+Do not show “No tasks available” until all of these are true:
+
+* Initial request has completed successfully.
+* No categories/tasks were returned.
+* There is no active loading state.
+* There is no API error.
+
+Use these states:
+
+1. Initial startup:
+
+* Show skeleton cards or centered loader.
+* Text: “Loading tasks…”
+
+2. Network/API retry:
+
+* Text: “Checking for new tasks…”
+* Show subtle loader.
+* Do not show empty-state text during retry.
+
+3. Successful empty response:
+
+* Show:
+
+  * “No tasks available right now.”
+  * “Please check again later.”
+  * Retry button / pull-to-refresh
+
+4. Failed request:
+
+* Show:
+
+  * “Couldn’t load tasks.”
+  * “Check your internet connection and try again.”
+  * Retry button
+* Do not show raw API error details.
+
+5. Cached data available while refreshing:
+
+* Keep showing cached categories.
+* Show small “Updating tasks…” indicator.
+* Do not replace screen with empty state.
+
+Apply the same correct loading/empty/error distinction to:
+
+* Categories
+* Subcategories
+* Task list
+* My Uploads
+* Wallet
+* Referral screen
+* Banners
+
+## C. Fix Safe Area / Cut-Off Top Text Globally
+
+Previous safe-area work is still incomplete.
+
+Problem:
+
+* Some text/header content is still cut off at the top.
+* On iPhone, some headers/back buttons can overlap with time, Dynamic Island, notch, or system areas.
+* On Android, content can overlap status bar/cutout/system notice area.
+
+Requirements:
+
+1. Audit every full-screen route and all shared layout components.
+
+2. Ensure root app is wrapped once with `SafeAreaProvider`.
+
+3. Use `useSafeAreaInsets()` or shared safe-area-aware layout components.
+
+4. Do not depend on fixed values like `paddingTop: 20`, `40`, `50`, etc.
+
+5. Ensure all top UI is below safe-area inset:
+
+   * Language selection
+   * Login
+   * OTP
+   * Home/tasks
+   * Category
+   * Subcategory
+   * Task detail
+   * Camera/capture
+   * Draft review
+   * Upload
+   * My Uploads
+   * Wallet
+   * Payout screens
+   * Referral screen
+   * Profile
+   * FAQ
+   * Support
+   * Legal pages
+   * Error pages
+   * Disabled Account screen
+   * Modals and full-screen routes
+
+6. For camera screens:
+
+* Preview may be edge-to-edge.
+* All controls must use top/bottom insets.
+* Close/back, timer, flash, camera switch must be below Dynamic Island/notch/status bar.
+* Bottom recording controls must clear iPhone home indicator.
+
+7. Fix Expo Router layouts:
+
+* Verify root stack layout.
+* Verify tabs layout.
+* Verify modal/fullscreen presentation routes.
+* Do not mix native headers and custom headers inconsistently.
+* Use one shared header strategy.
+
+8. Add visual test screen or developer checklist to verify safe-area spacing on:
+
+* iPhone Dynamic Island
+* iPhone notch
+* Android cutout
+* Android emulator
+
+## D. Error Logging
+
+Since mobile error logs already exist or are being added:
+
+1. Ensure this exact review-screen crash is logged safely to backend.
+2. Log:
+
+* screen name
+* action
+* collection type
+* task ID
+* draft ID
+* app version
+* platform
+* safe stack/error message
+* request ID if relevant
+
+3. Do not log:
+
+* access token
+* refresh token
+* OTP
+* full UPI ID
+* presigned upload URL
+* cloud credentials
+
+4. Add a link from Admin Error Logs to:
+
+* affected task
+* draft/submission where available
+* user reference
+
+## E. Required Verification
+
+After fixing, test on real device or simulator:
+
+1. Open video draft review.
+2. Open image draft review.
+3. Open audio draft review.
+4. Confirm no render crash.
+5. Launch app cold with cleared app state.
+6. Confirm Tasks screen shows “Loading tasks…” first, not “No tasks available.”
+7. Confirm tasks load on first attempt.
+8. Put network offline and confirm proper offline/error state.
+9. Restore network and confirm Retry loads tasks.
+10. Test every listed screen for top safe-area overlap.
+11. Confirm no raw React Native error screen is shown to a user.
+
+At the end provide:
+
+* Root cause of the `useAudioPlayer` crash
+* Exact file(s) fixed
+* Root cause of first-load task request failure
+* Exact loading-state changes
+* Screens updated for safe area
+* Error-log entry format for this crash
+* Test results for image, video, audio, and first-launch task load
