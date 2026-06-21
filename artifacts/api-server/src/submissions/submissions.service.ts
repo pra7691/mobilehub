@@ -697,8 +697,8 @@ export class SubmissionsService {
     adminEmail: string,
     body: { approvedAmount?: number; adminNote?: string },
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      // Fetch submission data for use in wallet credit and notifications
+    // ── Phase 1: atomic status transition + wallet credit (single transaction) ──
+    const { formatted, submission, amount, taskTitle } = await this.prisma.$transaction(async (tx) => {
       const submission = await tx.submission.findUnique({ where: { id: submissionId } });
       if (!submission) throw new NotFoundException('Submission not found');
 
@@ -710,8 +710,7 @@ export class SubmissionsService {
       const taskTitle =
         (submission.taskSnapshot as Record<string, unknown>)?.title as string ?? submissionId;
 
-      // Atomic conditional status transition — only succeeds if submission is still UNDER_REVIEW.
-      // This prevents double-approval from concurrent requests.
+      // Conditional update prevents double-approval from concurrent requests.
       const { count } = await tx.submission.updateMany({
         where: { id: submissionId, status: 'UNDER_REVIEW' },
         data: {
@@ -736,35 +735,41 @@ export class SubmissionsService {
         taskTitle,
       );
 
-      // Trigger referral reward atomically (on first approved submission of referred user)
-      await this.referralsService.processFirstApprovalReferralReward(
-        tx as Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
-        submission.userId,
-        submissionId,
-      );
-
       const updated = await tx.submission.findUnique({
         where: { id: submissionId },
         include: SUBMISSION_INCLUDE,
       });
       if (!updated) throw new NotFoundException('Submission not found after approval');
 
-      const result = formatSubmission(updated);
-
-      setImmediate(() => {
-        void this.notificationsService.dispatch({
-          userId: submission.userId,
-          title: '✅ Submission Approved',
-          body: `Your submission for "${taskTitle}" has been approved. ${submission.currencySnapshot === 'INR' ? '₹' : submission.currencySnapshot === 'NGN' ? '₦' : '$'}${amount.toFixed(2)} credited to your wallet.`,
-          type: NotificationType.SUBMISSION_APPROVED,
-          relatedEntityType: NotificationEntityType.SUBMISSION,
-          relatedEntityId: submissionId,
-          preferenceKey: 'notifySubmissionUpdates',
-        });
-      });
-
-      return result;
+      return { formatted: formatSubmission(updated), submission, amount, taskTitle };
     });
+
+    // ── Phase 2: non-blocking post-commit side effects ──────────────────────────
+    setImmediate(() => {
+      // Referral reward — fires outside the main transaction so a referral failure
+      // cannot roll back the approval or wallet credit.
+      void this.referralsService
+        .processFirstApprovalReferralReward(
+          this.prisma as unknown as Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+          submission.userId,
+          submissionId,
+        )
+        .catch(() => {
+          // Non-blocking intentionally; logged by the referrals service if needed.
+        });
+
+      void this.notificationsService.dispatch({
+        userId: submission.userId,
+        title: '✅ Submission Approved',
+        body: `Your submission for "${taskTitle}" has been approved. ${submission.currencySnapshot === 'INR' ? '₹' : submission.currencySnapshot === 'NGN' ? '₦' : '$'}${amount.toFixed(2)} credited to your wallet.`,
+        type: NotificationType.SUBMISSION_APPROVED,
+        relatedEntityType: NotificationEntityType.SUBMISSION,
+        relatedEntityId: submissionId,
+        preferenceKey: 'notifySubmissionUpdates',
+      });
+    });
+
+    return formatted;
   }
 
   // ─── Admin: POST /admin/submissions/:id/reject ────────────────────────────

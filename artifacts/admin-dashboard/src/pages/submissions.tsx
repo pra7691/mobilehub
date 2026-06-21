@@ -95,6 +95,12 @@ export default function Submissions() {
   const [collectionFilter, setCollectionFilter] = useState<CollectionTypeValue | "all">("all");
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [userIdInput, setUserIdInput] = useState("");
+  const [userIdFilter, setUserIdFilter] = useState("");
+  const [taskIdInput, setTaskIdInput] = useState("");
+  const [taskIdFilter, setTaskIdFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReviewTab>("approve");
@@ -117,6 +123,10 @@ export default function Submissions() {
     status: statusFilter !== "all" ? statusFilter : undefined,
     collectionType: collectionFilter !== "all" ? collectionFilter : undefined,
     search: search || undefined,
+    userId: userIdFilter || undefined,
+    taskId: taskIdFilter || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   });
 
   const { data: selectedSub, isLoading: detailLoading } = useAdminGetSubmission(
@@ -283,7 +293,65 @@ export default function Submissions() {
             <SelectItem value="AUDIO">Audio</SelectItem>
           </SelectContent>
         </Select>
+      </div>
 
+      {/* Secondary filter row: user, task, date range */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="relative">
+          <Input
+            className="pl-3 pr-3 bg-card w-[170px] text-sm"
+            placeholder="User ID…"
+            value={userIdInput}
+            onChange={(e) => setUserIdInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { setUserIdFilter(userIdInput.trim()); setPage(1); }
+            }}
+            onBlur={() => { if (userIdInput.trim() !== userIdFilter) { setUserIdFilter(userIdInput.trim()); setPage(1); } }}
+          />
+        </div>
+        <div className="relative">
+          <Input
+            className="pl-3 pr-3 bg-card w-[170px] text-sm"
+            placeholder="Task ID…"
+            value={taskIdInput}
+            onChange={(e) => setTaskIdInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { setTaskIdFilter(taskIdInput.trim()); setPage(1); }
+            }}
+            onBlur={() => { if (taskIdInput.trim() !== taskIdFilter) { setTaskIdFilter(taskIdInput.trim()); setPage(1); } }}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            title="From date"
+          />
+          <span className="text-xs text-muted-foreground">–</span>
+          <input
+            type="date"
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            title="To date"
+          />
+        </div>
+        {(userIdFilter || taskIdFilter || dateFrom || dateTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setUserIdInput(""); setUserIdFilter("");
+              setTaskIdInput(""); setTaskIdFilter("");
+              setDateFrom(""); setDateTo("");
+              setPage(1);
+            }}
+          >
+            <X className="h-3.5 w-3.5 mr-1" />Clear filters
+          </Button>
+        )}
         {search && (
           <Button variant="ghost" size="sm" onClick={clearSearch}>
             <X className="h-3.5 w-3.5 mr-1" />Clear search
@@ -676,63 +744,70 @@ export default function Submissions() {
                     {selectedSub.media.map((m: SubmissionMedia & { readUrl?: string }, i: number) => (
                       <div
                         key={m.id}
-                        className="flex items-center gap-3 bg-background border border-border rounded-lg p-3"
+                        className="bg-background border border-border rounded-lg p-3 space-y-2"
                       >
-                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0">
-                          {m.mediaType === "VIDEO" ? (
-                            <Video className="h-4 w-4" />
-                          ) : m.mediaType === "AUDIO" ? (
-                            <Mic className="h-4 w-4" />
-                          ) : (
-                            <Image className="h-4 w-4" />
+                        {/* Metadata row */}
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0">
+                            {m.mediaType === "VIDEO" ? (
+                              <Video className="h-4 w-4" />
+                            ) : m.mediaType === "AUDIO" ? (
+                              <Mic className="h-4 w-4" />
+                            ) : (
+                              <Image className="h-4 w-4" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground">File {i + 1}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {m.mimeType}
+                              {m.fileSize != null && ` · ${(Number(m.fileSize) / (1024 * 1024)).toFixed(1)} MB`}
+                              {m.durationSeconds != null && ` · ${m.durationSeconds}s`}
+                            </p>
+                            <Badge className={
+                              m.uploadStatus === "UPLOADED"
+                                ? "bg-emerald-500/15 text-emerald-500 border-none text-xs mt-1"
+                                : m.uploadStatus === "FAILED"
+                                  ? "bg-red-500/15 text-red-500 border-none text-xs mt-1"
+                                  : "bg-slate-500/15 text-slate-400 border-none text-xs mt-1"
+                            }>
+                              {m.uploadStatus}
+                            </Badge>
+                          </div>
+                          {/* Image: thumbnail linking to full-size */}
+                          {m.uploadStatus === "UPLOADED" && m.readUrl && m.mediaType === "IMAGE" && (
+                            <a
+                              href={m.readUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <img
+                                src={m.readUrl}
+                                alt={`Media ${i + 1}`}
+                                className="w-16 h-16 object-cover rounded border border-border hover:opacity-80 transition-opacity"
+                              />
+                            </a>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground">File {i + 1}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {m.mimeType}
-                            {m.fileSize != null && ` · ${(Number(m.fileSize) / (1024 * 1024)).toFixed(1)} MB`}
-                            {m.durationSeconds != null && ` · ${m.durationSeconds}s`}
-                          </p>
-                          <Badge className={
-                            m.uploadStatus === "UPLOADED"
-                              ? "bg-emerald-500/15 text-emerald-500 border-none text-xs mt-1"
-                              : m.uploadStatus === "FAILED"
-                                ? "bg-red-500/15 text-red-500 border-none text-xs mt-1"
-                                : "bg-slate-500/15 text-slate-400 border-none text-xs mt-1"
-                          }>
-                            {m.uploadStatus}
-                          </Badge>
-                        </div>
-                        {m.uploadStatus === "UPLOADED" && m.readUrl && (
-                          <>
-                            {m.mediaType === "IMAGE" && (
-                              <a
-                                href={m.readUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-shrink-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <img
-                                  src={m.readUrl}
-                                  alt={`Media ${i + 1}`}
-                                  className="w-14 h-14 object-cover rounded border border-border"
-                                />
-                              </a>
-                            )}
-                            {(m.mediaType === "VIDEO" || m.mediaType === "AUDIO") && (
-                              <a
-                                href={m.readUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-foreground flex-shrink-0"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            )}
-                          </>
+                        {/* Embedded video player */}
+                        {m.uploadStatus === "UPLOADED" && m.readUrl && m.mediaType === "VIDEO" && (
+                          <video
+                            src={m.readUrl}
+                            controls
+                            className="w-full rounded max-h-64 bg-black"
+                            preload="metadata"
+                          />
+                        )}
+                        {/* Embedded audio player */}
+                        {m.uploadStatus === "UPLOADED" && m.readUrl && m.mediaType === "AUDIO" && (
+                          <audio
+                            src={m.readUrl}
+                            controls
+                            className="w-full"
+                            preload="metadata"
+                          />
                         )}
                       </div>
                     ))}

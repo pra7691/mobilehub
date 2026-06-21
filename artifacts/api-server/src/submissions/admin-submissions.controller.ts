@@ -126,7 +126,7 @@ export class AdminSubmissionsController {
         metadata: {
           sourceType: 'SUBMISSION',
           sourceId: id,
-          amount: body.approvedAmount,
+          amount: result.approvedAmount ?? undefined,
           walletCredited: true,
         },
       },
