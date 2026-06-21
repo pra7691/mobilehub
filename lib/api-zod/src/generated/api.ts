@@ -3696,29 +3696,29 @@ export const AdminUpdateReferralSettingsResponse = zod.object({
 /**
  * @summary List active banners (mobile)
  */
-export const GetApiBannersQueryParams = zod.object({
+export const GetBannersQueryParams = zod.object({
   "language": zod.enum(['en', 'hi']).optional()
 })
 
-export const GetApiBannersResponseItem = zod.object({
+export const GetBannersResponseItem = zod.object({
   "id": zod.string(),
   "imageUrl": zod.string(),
   "title": zod.string().nullish(),
   "description": zod.string().nullish()
 })
-export const GetApiBannersResponse = zod.array(GetApiBannersResponseItem)
+export const GetBannersResponse = zod.array(GetBannersResponseItem)
 
 
 /**
  * @summary List all banners (admin)
  */
-export const GetApiAdminBannersQueryParams = zod.object({
+export const GetAdminBannersQueryParams = zod.object({
   "page": zod.coerce.number().optional(),
   "limit": zod.coerce.number().optional(),
   "isActive": zod.coerce.boolean().optional()
 })
 
-export const GetApiAdminBannersResponse = zod.object({
+export const GetAdminBannersResponse = zod.object({
   "data": zod.array(zod.object({
   "id": zod.string(),
   "imageUrl": zod.string(),
@@ -3746,7 +3746,7 @@ export const GetApiAdminBannersResponse = zod.object({
 /**
  * @summary Create a banner
  */
-export const PostApiAdminBannersBody = zod.object({
+export const PostAdminBannersBody = zod.object({
   "imageUrl": zod.string(),
   "mobileImageUrl": zod.string().optional(),
   "titleEn": zod.string().optional(),
@@ -3763,7 +3763,7 @@ export const PostApiAdminBannersBody = zod.object({
 /**
  * @summary Reorder banners
  */
-export const PostApiAdminBannersReorderBody = zod.object({
+export const PostAdminBannersReorderBody = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "displayOrder": zod.number()
@@ -3774,11 +3774,11 @@ export const PostApiAdminBannersReorderBody = zod.object({
 /**
  * @summary Get a single banner
  */
-export const GetApiAdminBannersIdParams = zod.object({
+export const GetAdminBannersIdParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const GetApiAdminBannersIdResponse = zod.object({
+export const GetAdminBannersIdResponse = zod.object({
   "id": zod.string(),
   "imageUrl": zod.string(),
   "mobileImageUrl": zod.string().nullish(),
@@ -3798,11 +3798,11 @@ export const GetApiAdminBannersIdResponse = zod.object({
 /**
  * @summary Update a banner
  */
-export const PatchApiAdminBannersIdParams = zod.object({
+export const PatchAdminBannersIdParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const PatchApiAdminBannersIdBody = zod.object({
+export const PatchAdminBannersIdBody = zod.object({
   "imageUrl": zod.string().optional(),
   "mobileImageUrl": zod.string().nullish(),
   "titleEn": zod.string().optional(),
@@ -3815,7 +3815,7 @@ export const PatchApiAdminBannersIdBody = zod.object({
   "endDate": zod.coerce.date().nullish()
 })
 
-export const PatchApiAdminBannersIdResponse = zod.object({
+export const PatchAdminBannersIdResponse = zod.object({
   "id": zod.string(),
   "imageUrl": zod.string(),
   "mobileImageUrl": zod.string().nullish(),
@@ -3835,11 +3835,11 @@ export const PatchApiAdminBannersIdResponse = zod.object({
 /**
  * @summary Soft-delete a banner
  */
-export const DeleteApiAdminBannersIdParams = zod.object({
+export const DeleteAdminBannersIdParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const DeleteApiAdminBannersIdResponse = zod.object({
+export const DeleteAdminBannersIdResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string()
 })
@@ -3848,15 +3848,15 @@ export const DeleteApiAdminBannersIdResponse = zod.object({
 /**
  * @summary Enable or disable a banner
  */
-export const PatchApiAdminBannersIdStatusParams = zod.object({
+export const PatchAdminBannersIdStatusParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const PatchApiAdminBannersIdStatusBody = zod.object({
+export const PatchAdminBannersIdStatusBody = zod.object({
   "isActive": zod.boolean()
 })
 
-export const PatchApiAdminBannersIdStatusResponse = zod.object({
+export const PatchAdminBannersIdStatusResponse = zod.object({
   "id": zod.string(),
   "imageUrl": zod.string(),
   "mobileImageUrl": zod.string().nullish(),
@@ -3876,7 +3876,7 @@ export const PatchApiAdminBannersIdStatusResponse = zod.object({
 /**
  * @summary Get banner settings
  */
-export const GetApiAdminSettingsBannerResponse = zod.object({
+export const GetAdminSettingsBannerResponse = zod.object({
   "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)])
 })
 
@@ -3884,11 +3884,11 @@ export const GetApiAdminSettingsBannerResponse = zod.object({
 /**
  * @summary Update banner settings
  */
-export const PatchApiAdminSettingsBannerBody = zod.object({
+export const PatchAdminSettingsBannerBody = zod.object({
   "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)]).optional()
 })
 
-export const PatchApiAdminSettingsBannerResponse = zod.object({
+export const PatchAdminSettingsBannerResponse = zod.object({
   "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)])
 })
 
@@ -3896,7 +3896,7 @@ export const PatchApiAdminSettingsBannerResponse = zod.object({
 /**
  * @summary Get banner settings (mobile)
  */
-export const GetApiAppSettingsBannerResponse = zod.object({
+export const GetAppSettingsBannerResponse = zod.object({
   "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)])
 })
 

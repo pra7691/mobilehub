@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
-  useGetApiAdminSettingsBanner,
-  usePatchApiAdminSettingsBanner,
+  useGetAdminSettingsBanner,
+  usePatchAdminSettingsBanner,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,8 @@ import { Loader2, Save } from "lucide-react";
 
 export function BannerSettingsTab() {
   const { toast } = useToast();
-  const { data, isLoading } = useGetApiAdminSettingsBanner();
-  const updateMutation = usePatchApiAdminSettingsBanner();
+  const { data, isLoading } = useGetAdminSettingsBanner();
+  const updateMutation = usePatchAdminSettingsBanner();
 
   const [autoSlideSeconds, setAutoSlideSeconds] = useState<"5" | "7">("5");
 

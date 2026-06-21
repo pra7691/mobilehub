@@ -6,7 +6,7 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  useListCategories, useGetPublicNotices, useGetApiBanners, useGetApiAppSettingsBanner,
+  useListCategories, useGetPublicNotices, useGetBanners, useGetAppSettingsBanner,
   type Category, type Notice,
 } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
@@ -204,10 +204,10 @@ export default function CategoriesScreen() {
     isLoading: bannersLoading,
     refetch: refetchBanners,
     isError: bannersError,
-  } = useGetApiBanners({ language: language as any });
+  } = useGetBanners({ language: language as any });
   const banners: PublicBanner[] = bannersError ? [] : ((bannerData as PublicBanner[]) ?? []);
 
-  const { data: bannerSettingsData } = useGetApiAppSettingsBanner();
+  const { data: bannerSettingsData } = useGetAppSettingsBanner();
   const autoSlideSeconds: number = (bannerSettingsData as any)?.autoSlideSeconds ?? 5;
 
   const visibleNotices = (notices as Notice[]).filter((n) => n.isActive && !dismissedNotices.has(n.id));

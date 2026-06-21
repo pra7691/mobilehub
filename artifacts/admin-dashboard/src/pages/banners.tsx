@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import {
-  useGetApiAdminBanners,
-  usePostApiAdminBanners,
-  usePatchApiAdminBannersId,
-  useDeleteApiAdminBannersId,
-  usePatchApiAdminBannersIdStatus,
-  usePostApiAdminBannersReorder,
-  getGetApiAdminBannersQueryKey,
+  useGetAdminBanners,
+  usePostAdminBanners,
+  usePatchAdminBannersId,
+  useDeleteAdminBannersId,
+  usePatchAdminBannersIdStatus,
+  usePostAdminBannersReorder,
+  getGetAdminBannersQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,16 +95,16 @@ export default function BannersPage() {
   const [editing, setEditing] = useState<AdminBanner | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
-  const { data, isLoading } = useGetApiAdminBanners({ limit: 100 });
+  const { data, isLoading } = useGetAdminBanners({ limit: 100 });
   const banners: AdminBanner[] = (data as any)?.data ?? [];
 
-  const createMutation = usePostApiAdminBanners();
-  const updateMutation = usePatchApiAdminBannersId();
-  const statusMutation = usePatchApiAdminBannersIdStatus();
-  const deleteMutation = useDeleteApiAdminBannersId();
-  const reorderMutation = usePostApiAdminBannersReorder();
+  const createMutation = usePostAdminBanners();
+  const updateMutation = usePatchAdminBannersId();
+  const statusMutation = usePatchAdminBannersIdStatus();
+  const deleteMutation = useDeleteAdminBannersId();
+  const reorderMutation = usePostAdminBannersReorder();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetApiAdminBannersQueryKey() });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetAdminBannersQueryKey() });
 
   function openCreate() {
     setEditing(null);

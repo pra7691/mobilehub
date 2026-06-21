@@ -2592,7 +2592,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReferralSettings"
 
-  /api/banners:
+  /banners:
     get:
       summary: List active banners (mobile)
       tags: [Banners]
@@ -2614,7 +2614,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/PublicBanner"
 
-  /api/admin/banners:
+  /admin/banners:
     get:
       summary: List all banners (admin)
       tags: [Admin Banners]
@@ -2659,7 +2659,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminBanner"
 
-  /api/admin/banners/reorder:
+  /admin/banners/reorder:
     post:
       summary: Reorder banners
       tags: [Admin Banners]
@@ -2679,7 +2679,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SuccessMessage"
 
-  /api/admin/banners/{id}:
+  /admin/banners/{id}:
     get:
       summary: Get a single banner
       tags: [Admin Banners]
@@ -2741,7 +2741,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SuccessMessage"
 
-  /api/admin/banners/{id}/status:
+  /admin/banners/{id}/status:
     patch:
       summary: Enable or disable a banner
       tags: [Admin Banners]
@@ -2767,7 +2767,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminBanner"
 
-  /api/admin/settings/banner:
+  /admin/settings/banner:
     get:
       summary: Get banner settings
       tags: [Admin Settings]
@@ -2799,7 +2799,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/BannerSettings"
 
-  /api/app/settings/banner:
+  /app/settings/banner:
     get:
       summary: Get banner settings (mobile)
       tags: [App]

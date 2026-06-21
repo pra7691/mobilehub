@@ -2154,19 +2154,19 @@ export const AdminListReferralsStatus = {
   CANCELLED: 'CANCELLED',
 } as const;
 
-export type GetApiBannersParams = {
-language?: GetApiBannersLanguage;
+export type GetBannersParams = {
+language?: GetBannersLanguage;
 };
 
-export type GetApiBannersLanguage = typeof GetApiBannersLanguage[keyof typeof GetApiBannersLanguage];
+export type GetBannersLanguage = typeof GetBannersLanguage[keyof typeof GetBannersLanguage];
 
 
-export const GetApiBannersLanguage = {
+export const GetBannersLanguage = {
   en: 'en',
   hi: 'hi',
 } as const;
 
-export type GetApiAdminBannersParams = {
+export type GetAdminBannersParams = {
 page?: number;
 limit?: number;
 isActive?: boolean;
