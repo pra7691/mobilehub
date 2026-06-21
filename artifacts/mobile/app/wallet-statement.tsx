@@ -63,10 +63,18 @@ export default function WalletStatementScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerLabel}>ACCOUNT</Text>
           <Text style={styles.headerTitle}>Wallet Statement</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push("/withdraw" as never)}
+          style={{ backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.primaryForeground }}>Withdraw</Text>
+        </TouchableOpacity>
       </View>
 
       {isLoading && page === 1 ? (

@@ -1904,6 +1904,410 @@ paths:
               schema:
                 $ref: "#/components/schemas/MobileErrorLogDetail"
 
+  /payment-methods/me:
+    get:
+      summary: Get my payment methods
+      tags: [payment-methods]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserPaymentMethod"
+
+  /payment-methods/me/full/{id}:
+    get:
+      summary: Get payment method with full UPI ID (owner only)
+      tags: [payment-methods]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPaymentMethodWithFullUpi"
+
+  /payment-methods/upi:
+    post:
+      summary: Add or update UPI payment method
+      tags: [payment-methods]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpiPaymentMethodBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPaymentMethodWithFullUpi"
+
+  /payment-methods/upi/{id}:
+    patch:
+      summary: Update UPI ID
+      tags: [payment-methods]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpiPaymentMethodBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPaymentMethodWithFullUpi"
+
+  /admin/payment-methods/{id}:
+    get:
+      summary: Admin get payment method detail (includes full UPI ID)
+      tags: [admin-payment-methods]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaymentMethodDetail"
+
+  /admin/payment-methods/{id}/verify-upi:
+    post:
+      summary: Admin verify UPI ID
+      tags: [admin-payment-methods]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPaymentMethod"
+
+  /admin/payment-methods/{id}/reject-upi:
+    post:
+      summary: Admin reject UPI ID
+      tags: [admin-payment-methods]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRejectUpiBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPaymentMethod"
+
+  /payouts/my:
+    get:
+      summary: Get my payout requests
+      tags: [payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutRequestListResponse"
+
+  /payouts/my/{id}:
+    get:
+      summary: Get a specific payout request
+      tags: [payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutRequestItem"
+
+  /payouts/request:
+    post:
+      summary: Create a withdrawal request
+      tags: [payouts]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePayoutRequestBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutRequestItem"
+
+  /payouts/{id}/cancel:
+    post:
+      summary: Cancel a payout request (PENDING only)
+      tags: [payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutRequestItem"
+
+  /admin/payouts:
+    get:
+      summary: Admin list all payout requests
+      tags: [admin-payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
+        - name: upiVerificationStatus
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+        - name: toDate
+          in: query
+          schema:
+            type: string
+        - name: minAmount
+          in: query
+          schema:
+            type: number
+        - name: maxAmount
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPayoutListResponse"
+
+  /admin/payouts/{id}:
+    get:
+      summary: Admin get payout request detail
+      tags: [admin-payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: revealUpi
+          in: query
+          schema:
+            type: string
+          description: "Pass true to include full UPI ID"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPayoutDetail"
+
+  /admin/payouts/{id}/start-processing:
+    post:
+      summary: Admin start processing payout
+      tags: [admin-payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPayoutDetail"
+
+  /admin/payouts/{id}/mark-paid:
+    post:
+      summary: Admin mark payout as paid
+      tags: [admin-payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMarkPaidBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPayoutDetail"
+
+  /admin/payouts/{id}/reject:
+    post:
+      summary: Admin reject payout
+      tags: [admin-payouts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRejectPayoutBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPayoutDetail"
+
+  /admin/settings/payout:
+    patch:
+      summary: Admin update payout settings
+      tags: [admin-settings]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePayoutSettingsBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutSettings"
 
 components:
   securitySchemes:
@@ -3693,3 +4097,432 @@ components:
         pages:
           type: number
       required: [items, total, page, limit, pages]
+
+    UserPaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+        upiIdMasked:
+          type: string
+        verificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
+        rejectionReason:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, type, upiIdMasked, verificationStatus, isDefault, createdAt, updatedAt]
+
+    UserPaymentMethodWithFullUpi:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+        upiId:
+          type: string
+        upiIdMasked:
+          type: string
+        verificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
+        rejectionReason:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, type, upiId, upiIdMasked, verificationStatus, isDefault, createdAt, updatedAt]
+
+    AdminPaymentMethodDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+        upiId:
+          type: string
+        upiIdMasked:
+          type: string
+        verificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
+        rejectionReason:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            phoneNumber:
+              type: string
+            name:
+              type: string
+              nullable: true
+          required: [id, phoneNumber]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, type, upiId, upiIdMasked, verificationStatus, isDefault, user, createdAt, updatedAt]
+
+    UpiPaymentMethodBody:
+      type: object
+      properties:
+        upiId:
+          type: string
+          description: "UPI ID e.g. name@upi"
+      required: [upiId]
+
+    AdminRejectUpiBody:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+      required: [rejectionReason]
+
+    PayoutRequestItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        paymentMethodId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
+        upiIdMasked:
+          type: string
+        upiVerificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
+          nullable: true
+        requestedAt:
+          type: string
+          format: date-time
+        processingStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        payoutReferenceId:
+          type: string
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        adminNote:
+          type: string
+          nullable: true
+        walletHoldTransactionId:
+          type: string
+          nullable: true
+        walletCompletionTransactionId:
+          type: string
+          nullable: true
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, paymentMethodId, amount, currency, status, upiIdMasked, requestedAt, createdAt, updatedAt]
+
+    PayoutRequestListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoutRequestItem"
+        meta:
+          type: object
+          properties:
+            total:
+              type: number
+            page:
+              type: number
+            limit:
+              type: number
+            totalPages:
+              type: number
+          required: [total, page, limit, totalPages]
+      required: [data, meta]
+
+    CreatePayoutRequestBody:
+      type: object
+      properties:
+        amount:
+          type: number
+        paymentMethodId:
+          type: string
+      required: [amount, paymentMethodId]
+
+    AdminPayoutItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
+        upiIdMasked:
+          type: string
+        upiVerificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
+        requestedAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        payoutReferenceId:
+          type: string
+          nullable: true
+        processedByAdminId:
+          type: string
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            phoneNumber:
+              type: string
+            name:
+              type: string
+              nullable: true
+          required: [id, phoneNumber]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, amount, currency, status, upiIdMasked, upiVerificationStatus, requestedAt, user, createdAt, updatedAt]
+
+    AdminPayoutDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        paymentMethodId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, PAID, REJECTED, CANCELLED]
+        upiIdMasked:
+          type: string
+        upiId:
+          type: string
+          nullable: true
+          description: "Full UPI ID — only returned when revealUpi=true"
+        upiVerificationStatus:
+          type: string
+          enum: [PENDING_VERIFICATION, VERIFIED, REJECTED]
+        adminNote:
+          type: string
+          nullable: true
+        requestedAt:
+          type: string
+          format: date-time
+        processingStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        payoutReferenceId:
+          type: string
+          nullable: true
+        processedByAdminId:
+          type: string
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        walletHoldTransactionId:
+          type: string
+          nullable: true
+        walletCompletionTransactionId:
+          type: string
+          nullable: true
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            phoneNumber:
+              type: string
+            name:
+              type: string
+              nullable: true
+          required: [id, phoneNumber]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, amount, currency, status, upiIdMasked, upiVerificationStatus, requestedAt, user, createdAt, updatedAt]
+
+    AdminPayoutListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminPayoutItem"
+        meta:
+          type: object
+          properties:
+            total:
+              type: number
+            page:
+              type: number
+            limit:
+              type: number
+            totalPages:
+              type: number
+          required: [total, page, limit, totalPages]
+      required: [data, meta]
+
+    AdminMarkPaidBody:
+      type: object
+      properties:
+        payoutReferenceId:
+          type: string
+          description: "UTR, bank ref, or UPI transaction ID"
+        adminNote:
+          type: string
+      required: [payoutReferenceId]
+
+    AdminRejectPayoutBody:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+        adminNote:
+          type: string
+      required: [rejectionReason]
+
+    PayoutSettings:
+      type: object
+      properties:
+        payoutsEnabled:
+          type: boolean
+        minWithdrawalAmount:
+          type: number
+        maxWithdrawalAmount:
+          type: number
+          nullable: true
+        payoutMessage:
+          type: string
+          nullable: true
+        maxDailyPayoutsPerUser:
+          type: integer
+          nullable: true
+        maxPendingPayoutsPerUser:
+          type: integer
+          nullable: true
+      required: [payoutsEnabled, minWithdrawalAmount]
+
+    UpdatePayoutSettingsBody:
+      type: object
+      properties:
+        payoutsEnabled:
+          type: boolean
+        minWithdrawalAmount:
+          type: number
+        maxWithdrawalAmount:
+          type: number
+          nullable: true
+        payoutMessage:
+          type: string
+          nullable: true
+        maxDailyPayoutsPerUser:
+          type: integer
+          nullable: true
+        maxPendingPayoutsPerUser:
+          type: integer
+          nullable: true

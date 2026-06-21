@@ -77,17 +77,19 @@ export class SettingsService {
   async adminGetAll() {
     await this.migrateOnce();
 
-    const [support, appName, privacyPolicy, termsAndConditions] = await Promise.all([
+    const [support, appName, privacyPolicy, termsAndConditions, payoutSettings] = await Promise.all([
       this.prisma.supportSettings.findFirst(),
       this.prisma.appSetting.findUnique({ where: { key: 'APP_NAME' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'PRIVACY_POLICY' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'TERMS_AND_CONDITIONS' } }),
+      this.getPayoutSettings(),
     ]);
 
     return {
       general: {
         appName: appName?.value ?? 'Capto',
       },
+      payout: payoutSettings,
       support: support
         ? {
             email: support.email,
@@ -188,6 +190,76 @@ export class SettingsService {
       updatedAt: result.updatedAt,
       updatedBy: result.updatedBy,
     };
+  }
+
+  // ─── Admin: GET/PATCH /admin/settings/payout ──────────────────────────────
+  async getPayoutSettings() {
+    const keys = [
+      'PAYOUT_ENABLED',
+      'PAYOUT_MIN_AMOUNT',
+      'PAYOUT_MAX_AMOUNT',
+      'PAYOUT_MESSAGE',
+      'PAYOUT_MAX_DAILY_PER_USER',
+      'PAYOUT_MAX_PENDING_PER_USER',
+    ];
+    const rows = await this.prisma.appSetting.findMany({
+      where: { key: { in: keys } },
+    });
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return {
+      payoutsEnabled: map['PAYOUT_ENABLED'] !== 'false',
+      minWithdrawalAmount: parseFloat(map['PAYOUT_MIN_AMOUNT'] ?? '100'),
+      maxWithdrawalAmount: map['PAYOUT_MAX_AMOUNT'] ? parseFloat(map['PAYOUT_MAX_AMOUNT']) : null,
+      payoutMessage: map['PAYOUT_MESSAGE'] ?? null,
+      maxDailyPayoutsPerUser: map['PAYOUT_MAX_DAILY_PER_USER']
+        ? parseInt(map['PAYOUT_MAX_DAILY_PER_USER'], 10)
+        : null,
+      maxPendingPayoutsPerUser: map['PAYOUT_MAX_PENDING_PER_USER']
+        ? parseInt(map['PAYOUT_MAX_PENDING_PER_USER'], 10)
+        : null,
+    };
+  }
+
+  async updatePayoutSettings(
+    dto: {
+      payoutsEnabled?: boolean;
+      minWithdrawalAmount?: number;
+      maxWithdrawalAmount?: number | null;
+      payoutMessage?: string | null;
+      maxDailyPayoutsPerUser?: number | null;
+      maxPendingPayoutsPerUser?: number | null;
+    },
+    adminEmail?: string,
+  ) {
+    const upserts: Promise<unknown>[] = [];
+    const upsert = (key: string, value: string | null) =>
+      this.prisma.appSetting.upsert({
+        where: { key },
+        update: { value, updatedBy: adminEmail },
+        create: { key, value, updatedBy: adminEmail },
+      });
+
+    if (dto.payoutsEnabled !== undefined) {
+      upserts.push(upsert('PAYOUT_ENABLED', String(dto.payoutsEnabled)));
+    }
+    if (dto.minWithdrawalAmount !== undefined) {
+      upserts.push(upsert('PAYOUT_MIN_AMOUNT', String(dto.minWithdrawalAmount)));
+    }
+    if ('maxWithdrawalAmount' in dto) {
+      upserts.push(upsert('PAYOUT_MAX_AMOUNT', dto.maxWithdrawalAmount != null ? String(dto.maxWithdrawalAmount) : null));
+    }
+    if ('payoutMessage' in dto) {
+      upserts.push(upsert('PAYOUT_MESSAGE', dto.payoutMessage ?? null));
+    }
+    if ('maxDailyPayoutsPerUser' in dto) {
+      upserts.push(upsert('PAYOUT_MAX_DAILY_PER_USER', dto.maxDailyPayoutsPerUser != null ? String(dto.maxDailyPayoutsPerUser) : null));
+    }
+    if ('maxPendingPayoutsPerUser' in dto) {
+      upserts.push(upsert('PAYOUT_MAX_PENDING_PER_USER', dto.maxPendingPayoutsPerUser != null ? String(dto.maxPendingPayoutsPerUser) : null));
+    }
+
+    await Promise.all(upserts);
+    return this.getPayoutSettings();
   }
 
   // ─── App (public-auth): GET /app/settings ─────────────────────────────────

@@ -160,6 +160,7 @@ export default function ProfileScreen() {
       <Text style={styles.sectionTitle}>Settings</Text>
       <View style={styles.card}>
         <MenuRow icon="user" label="Account Info" onPress={() => router.push("/account-info" as never)} colors={colors} />
+        <MenuRow icon="credit-card" label="Payment Details" onPress={() => router.push("/payment-details" as never)} colors={colors} />
         <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} last />
       </View>
 

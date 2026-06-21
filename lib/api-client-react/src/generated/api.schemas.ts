@@ -1140,6 +1140,287 @@ export interface MobileErrorLogListResponse {
   pages: number;
 }
 
+export type UserPaymentMethodVerificationStatus = typeof UserPaymentMethodVerificationStatus[keyof typeof UserPaymentMethodVerificationStatus];
+
+
+export const UserPaymentMethodVerificationStatus = {
+  PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface UserPaymentMethod {
+  id: string;
+  userId: string;
+  type: string;
+  upiIdMasked: string;
+  verificationStatus: UserPaymentMethodVerificationStatus;
+  rejectionReason?: string | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UserPaymentMethodWithFullUpiVerificationStatus = typeof UserPaymentMethodWithFullUpiVerificationStatus[keyof typeof UserPaymentMethodWithFullUpiVerificationStatus];
+
+
+export const UserPaymentMethodWithFullUpiVerificationStatus = {
+  PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface UserPaymentMethodWithFullUpi {
+  id: string;
+  userId: string;
+  type: string;
+  upiId: string;
+  upiIdMasked: string;
+  verificationStatus: UserPaymentMethodWithFullUpiVerificationStatus;
+  rejectionReason?: string | null;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminPaymentMethodDetailVerificationStatus = typeof AdminPaymentMethodDetailVerificationStatus[keyof typeof AdminPaymentMethodDetailVerificationStatus];
+
+
+export const AdminPaymentMethodDetailVerificationStatus = {
+  PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export type AdminPaymentMethodDetailUser = {
+  id: string;
+  phoneNumber: string;
+  name?: string | null;
+};
+
+export interface AdminPaymentMethodDetail {
+  id: string;
+  userId: string;
+  type: string;
+  upiId: string;
+  upiIdMasked: string;
+  verificationStatus: AdminPaymentMethodDetailVerificationStatus;
+  rejectionReason?: string | null;
+  isDefault: boolean;
+  user: AdminPaymentMethodDetailUser;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpiPaymentMethodBody {
+  /** UPI ID e.g. name@upi */
+  upiId: string;
+}
+
+export interface AdminRejectUpiBody {
+  rejectionReason: string;
+}
+
+export type PayoutRequestItemStatus = typeof PayoutRequestItemStatus[keyof typeof PayoutRequestItemStatus];
+
+
+export const PayoutRequestItemStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type PayoutRequestItemUpiVerificationStatus = typeof PayoutRequestItemUpiVerificationStatus[keyof typeof PayoutRequestItemUpiVerificationStatus] | null;
+
+
+export const PayoutRequestItemUpiVerificationStatus = {
+  PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface PayoutRequestItem {
+  id: string;
+  userId: string;
+  paymentMethodId: string;
+  amount: number;
+  currency: string;
+  status: PayoutRequestItemStatus;
+  upiIdMasked: string;
+  upiVerificationStatus?: PayoutRequestItemUpiVerificationStatus;
+  requestedAt: string;
+  processingStartedAt?: string | null;
+  paidAt?: string | null;
+  rejectedAt?: string | null;
+  cancelledAt?: string | null;
+  payoutReferenceId?: string | null;
+  rejectionReason?: string | null;
+  adminNote?: string | null;
+  walletHoldTransactionId?: string | null;
+  walletCompletionTransactionId?: string | null;
+  processedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PayoutRequestListResponseMeta = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export interface PayoutRequestListResponse {
+  data: PayoutRequestItem[];
+  meta: PayoutRequestListResponseMeta;
+}
+
+export interface CreatePayoutRequestBody {
+  amount: number;
+  paymentMethodId: string;
+}
+
+export type AdminPayoutItemStatus = typeof AdminPayoutItemStatus[keyof typeof AdminPayoutItemStatus];
+
+
+export const AdminPayoutItemStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type AdminPayoutItemUpiVerificationStatus = typeof AdminPayoutItemUpiVerificationStatus[keyof typeof AdminPayoutItemUpiVerificationStatus];
+
+
+export const AdminPayoutItemUpiVerificationStatus = {
+  PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export type AdminPayoutItemUser = {
+  id: string;
+  phoneNumber: string;
+  name?: string | null;
+};
+
+export interface AdminPayoutItem {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: AdminPayoutItemStatus;
+  upiIdMasked: string;
+  upiVerificationStatus: AdminPayoutItemUpiVerificationStatus;
+  requestedAt: string;
+  paidAt?: string | null;
+  payoutReferenceId?: string | null;
+  processedByAdminId?: string | null;
+  rejectionReason?: string | null;
+  user: AdminPayoutItemUser;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminPayoutDetailStatus = typeof AdminPayoutDetailStatus[keyof typeof AdminPayoutDetailStatus];
+
+
+export const AdminPayoutDetailStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type AdminPayoutDetailUpiVerificationStatus = typeof AdminPayoutDetailUpiVerificationStatus[keyof typeof AdminPayoutDetailUpiVerificationStatus];
+
+
+export const AdminPayoutDetailUpiVerificationStatus = {
+  PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export type AdminPayoutDetailUser = {
+  id: string;
+  phoneNumber: string;
+  name?: string | null;
+};
+
+export interface AdminPayoutDetail {
+  id: string;
+  userId: string;
+  paymentMethodId?: string;
+  amount: number;
+  currency: string;
+  status: AdminPayoutDetailStatus;
+  upiIdMasked: string;
+  /** Full UPI ID — only returned when revealUpi=true */
+  upiId?: string | null;
+  upiVerificationStatus: AdminPayoutDetailUpiVerificationStatus;
+  adminNote?: string | null;
+  requestedAt: string;
+  processingStartedAt?: string | null;
+  processedAt?: string | null;
+  paidAt?: string | null;
+  rejectedAt?: string | null;
+  cancelledAt?: string | null;
+  payoutReferenceId?: string | null;
+  processedByAdminId?: string | null;
+  rejectionReason?: string | null;
+  walletHoldTransactionId?: string | null;
+  walletCompletionTransactionId?: string | null;
+  user: AdminPayoutDetailUser;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminPayoutListResponseMeta = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export interface AdminPayoutListResponse {
+  data: AdminPayoutItem[];
+  meta: AdminPayoutListResponseMeta;
+}
+
+export interface AdminMarkPaidBody {
+  /** UTR, bank ref, or UPI transaction ID */
+  payoutReferenceId: string;
+  adminNote?: string;
+}
+
+export interface AdminRejectPayoutBody {
+  rejectionReason: string;
+  adminNote?: string;
+}
+
+export interface PayoutSettings {
+  payoutsEnabled: boolean;
+  minWithdrawalAmount: number;
+  maxWithdrawalAmount?: number | null;
+  payoutMessage?: string | null;
+  maxDailyPayoutsPerUser?: number | null;
+  maxPendingPayoutsPerUser?: number | null;
+}
+
+export interface UpdatePayoutSettingsBody {
+  payoutsEnabled?: boolean;
+  minWithdrawalAmount?: number;
+  maxWithdrawalAmount?: number | null;
+  payoutMessage?: string | null;
+  maxDailyPayoutsPerUser?: number | null;
+  maxPendingPayoutsPerUser?: number | null;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -1461,5 +1742,52 @@ userId?: string;
 
 export type AdminResolveMobileErrorLogBody = {
   resolutionNote?: string;
+};
+
+export type GetPayoutsMyParams = {
+page?: number;
+limit?: number;
+status?: GetPayoutsMyStatus;
+};
+
+export type GetPayoutsMyStatus = typeof GetPayoutsMyStatus[keyof typeof GetPayoutsMyStatus];
+
+
+export const GetPayoutsMyStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type GetAdminPayoutsParams = {
+page?: number;
+limit?: number;
+status?: GetAdminPayoutsStatus;
+upiVerificationStatus?: string;
+search?: string;
+fromDate?: string;
+toDate?: string;
+minAmount?: number;
+maxAmount?: number;
+};
+
+export type GetAdminPayoutsStatus = typeof GetAdminPayoutsStatus[keyof typeof GetAdminPayoutsStatus];
+
+
+export const GetAdminPayoutsStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type GetAdminPayoutsIdParams = {
+/**
+ * Pass true to include full UPI ID
+ */
+revealUpi?: string;
 };
 

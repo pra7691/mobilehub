@@ -14,7 +14,12 @@ import {
   IsOptional,
   IsString,
   IsBoolean,
+  IsNumber,
+  IsPositive,
+  IsInt,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 class UpdateGeneralDto {
   @IsOptional() @IsString() appName?: string;
@@ -32,6 +37,15 @@ class UpdateLegalDto {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() content?: string;
   @IsOptional() @IsBoolean() isPublished?: boolean;
+}
+
+class UpdatePayoutSettingsDto {
+  @IsOptional() @IsBoolean() payoutsEnabled?: boolean;
+  @IsOptional() @IsNumber() @IsPositive() @Type(() => Number) minWithdrawalAmount?: number;
+  @IsOptional() @IsNumber() @IsPositive() @Type(() => Number) maxWithdrawalAmount?: number | null;
+  @IsOptional() @IsString() payoutMessage?: string | null;
+  @IsOptional() @IsInt() @Min(1) @Type(() => Number) maxDailyPayoutsPerUser?: number | null;
+  @IsOptional() @IsInt() @Min(1) @Type(() => Number) maxPendingPayoutsPerUser?: number | null;
 }
 
 @Controller('admin/settings')
@@ -58,6 +72,14 @@ export class AdminSettingsController {
     @Request() req: { user: { email?: string; sub: string } },
   ) {
     return this.service.updateSupport(body, req.user.email ?? req.user.sub);
+  }
+
+  @Patch('payout')
+  updatePayoutSettings(
+    @Body() body: UpdatePayoutSettingsDto,
+    @Request() req: { user: { email?: string; sub: string } },
+  ) {
+    return this.service.updatePayoutSettings(body, req.user.email ?? req.user.sub);
   }
 
   @Patch('legal/:slug')

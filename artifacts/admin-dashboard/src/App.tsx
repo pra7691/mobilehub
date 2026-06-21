@@ -24,6 +24,7 @@ import NoticesPage from "@/pages/notices";
 import NotificationsPage from "@/pages/notifications";
 import SettingsPage from "@/pages/settings";
 import ErrorLogsPage from "@/pages/error-logs";
+import PayoutsPage from "@/pages/payouts";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/notifications" component={() => <ProtectedRoute component={NotificationsPage} />} />
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/error-logs" component={() => <ProtectedRoute component={ErrorLogsPage} />} />
+      <Route path="/payouts" component={() => <ProtectedRoute component={PayoutsPage} />} />
       <Route component={NotFound} />
     </Switch>
   );

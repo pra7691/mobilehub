@@ -21,7 +21,17 @@ export type AuditAction =
   | 'notice.created'
   | 'notice.updated'
   | 'notice.deleted'
-  | 'user.status_changed';
+  | 'user.status_changed'
+  | 'payment_method.upi_added'
+  | 'payment_method.upi_updated'
+  | 'payment_method.upi_verified'
+  | 'payment_method.upi_rejected'
+  | 'payout.requested'
+  | 'payout.cancelled'
+  | 'payout.processing_started'
+  | 'payout.mark_paid'
+  | 'payout.rejected'
+  | 'payout_settings.updated';
 
 export interface AuditContext {
   adminId?: string;

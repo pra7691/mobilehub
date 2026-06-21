@@ -22,6 +22,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AuditModule } from './audit/audit.module';
 import { SettingsModule } from './settings/settings.module';
 import { MobileErrorLogsModule } from './mobile-error-logs/mobile-error-logs.module';
+import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
+import { PayoutsModule } from './payouts/payouts.module';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { MobileErrorLogsModule } from './mobile-error-logs/mobile-error-logs.mod
     NotificationsModule,
     SettingsModule,
     MobileErrorLogsModule,
+    PaymentMethodsModule,
+    PayoutsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

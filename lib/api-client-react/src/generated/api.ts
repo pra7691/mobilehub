@@ -27,8 +27,14 @@ import type {
   AdminListPagesParams,
   AdminListSubmissionsParams,
   AdminLoginRequest,
+  AdminMarkPaidBody,
   AdminNotificationListResponse,
+  AdminPaymentMethodDetail,
+  AdminPayoutDetail,
+  AdminPayoutListResponse,
+  AdminRejectPayoutBody,
   AdminRejectSubmissionBody,
+  AdminRejectUpiBody,
   AdminRequestResubmissionBody,
   AdminResolveMobileErrorLogBody,
   AdminSettings,
@@ -45,6 +51,7 @@ import type {
   CreateMobileErrorLog201,
   CreateMobileErrorLogRequest,
   CreateNoticeRequest,
+  CreatePayoutRequestBody,
   CreateStaticPageRequest,
   CreateSubcategoryRequest,
   CreateTaskRequest,
@@ -57,7 +64,10 @@ import type {
   Faq,
   FaqListResponse,
   GetAdminNotificationsParams,
+  GetAdminPayoutsIdParams,
+  GetAdminPayoutsParams,
   GetNotificationsMyParams,
+  GetPayoutsMyParams,
   GetPublicFaqParams,
   HealthStatus,
   InitiateSubmissionRequest,
@@ -78,6 +88,9 @@ import type {
   NotificationListResponse,
   OtpRequestResult,
   OtpSettings,
+  PayoutRequestItem,
+  PayoutRequestListResponse,
+  PayoutSettings,
   RecentActivityResponse,
   RefreshTokenRequest,
   RegisterDeviceRequest,
@@ -100,6 +113,7 @@ import type {
   UpdateLegalRequest,
   UpdateNoticeRequest,
   UpdateOtpSettingsRequest,
+  UpdatePayoutSettingsBody,
   UpdatePreferencesRequest,
   UpdateSettingsSupportRequest,
   UpdateStaticPageRequest,
@@ -108,12 +122,15 @@ import type {
   UpdateTaskRequest,
   UpdateUserRequest,
   UpdateUserStatusRequest,
+  UpiPaymentMethodBody,
   UploadCompleteRequest,
   UploadFailedRequest,
   UploadUrlRequest,
   UploadUrlResponse,
   User,
   UserListResponse,
+  UserPaymentMethod,
+  UserPaymentMethodWithFullUpi,
   VerifyOtpRequest,
   Wallet,
   WalletTransaction,
@@ -6709,5 +6726,1281 @@ export const useAdminUnresolveMobileErrorLog = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAdminUnresolveMobileErrorLogMutationOptions(options));
+    }
+
+export const getGetPaymentMethodsMeUrl = () => {
+
+
+
+
+  return `/api/payment-methods/me`
+}
+
+/**
+ * @summary Get my payment methods
+ */
+export const getPaymentMethodsMe = async ( options?: RequestInit): Promise<UserPaymentMethod[]> => {
+
+  return customFetch<UserPaymentMethod[]>(getGetPaymentMethodsMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentMethodsMeQueryKey = () => {
+    return [
+    `/api/payment-methods/me`
+    ] as const;
+    }
+
+
+export const getGetPaymentMethodsMeQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentMethodsMe>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentMethodsMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentMethodsMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentMethodsMe>>> = ({ signal }) => getPaymentMethodsMe({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentMethodsMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentMethodsMeQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentMethodsMe>>>
+export type GetPaymentMethodsMeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get my payment methods
+ */
+
+export function useGetPaymentMethodsMe<TData = Awaited<ReturnType<typeof getPaymentMethodsMe>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentMethodsMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentMethodsMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPaymentMethodsMeFullIdUrl = (id: string,) => {
+
+
+
+
+  return `/api/payment-methods/me/full/${id}`
+}
+
+/**
+ * @summary Get payment method with full UPI ID (owner only)
+ */
+export const getPaymentMethodsMeFullId = async (id: string, options?: RequestInit): Promise<UserPaymentMethodWithFullUpi> => {
+
+  return customFetch<UserPaymentMethodWithFullUpi>(getGetPaymentMethodsMeFullIdUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentMethodsMeFullIdQueryKey = (id: string,) => {
+    return [
+    `/api/payment-methods/me/full/${id}`
+    ] as const;
+    }
+
+
+export const getGetPaymentMethodsMeFullIdQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentMethodsMeFullIdQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>> = ({ signal }) => getPaymentMethodsMeFullId(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentMethodsMeFullIdQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>>
+export type GetPaymentMethodsMeFullIdQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get payment method with full UPI ID (owner only)
+ */
+
+export function useGetPaymentMethodsMeFullId<TData = Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentMethodsMeFullId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentMethodsMeFullIdQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPostPaymentMethodsUpiUrl = () => {
+
+
+
+
+  return `/api/payment-methods/upi`
+}
+
+/**
+ * @summary Add or update UPI payment method
+ */
+export const postPaymentMethodsUpi = async (upiPaymentMethodBody: UpiPaymentMethodBody, options?: RequestInit): Promise<UserPaymentMethodWithFullUpi> => {
+
+  return customFetch<UserPaymentMethodWithFullUpi>(getPostPaymentMethodsUpiUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      upiPaymentMethodBody,)
+  }
+);}
+
+
+
+
+export const getPostPaymentMethodsUpiMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPaymentMethodsUpi>>, TError,{data: BodyType<UpiPaymentMethodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postPaymentMethodsUpi>>, TError,{data: BodyType<UpiPaymentMethodBody>}, TContext> => {
+
+const mutationKey = ['postPaymentMethodsUpi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPaymentMethodsUpi>>, {data: BodyType<UpiPaymentMethodBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postPaymentMethodsUpi(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostPaymentMethodsUpiMutationResult = NonNullable<Awaited<ReturnType<typeof postPaymentMethodsUpi>>>
+    export type PostPaymentMethodsUpiMutationBody = BodyType<UpiPaymentMethodBody>
+    export type PostPaymentMethodsUpiMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add or update UPI payment method
+ */
+export const usePostPaymentMethodsUpi = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPaymentMethodsUpi>>, TError,{data: BodyType<UpiPaymentMethodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postPaymentMethodsUpi>>,
+        TError,
+        {data: BodyType<UpiPaymentMethodBody>},
+        TContext
+      > => {
+      return useMutation(getPostPaymentMethodsUpiMutationOptions(options));
+    }
+
+export const getPatchPaymentMethodsUpiIdUrl = (id: string,) => {
+
+
+
+
+  return `/api/payment-methods/upi/${id}`
+}
+
+/**
+ * @summary Update UPI ID
+ */
+export const patchPaymentMethodsUpiId = async (id: string,
+    upiPaymentMethodBody: UpiPaymentMethodBody, options?: RequestInit): Promise<UserPaymentMethodWithFullUpi> => {
+
+  return customFetch<UserPaymentMethodWithFullUpi>(getPatchPaymentMethodsUpiIdUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      upiPaymentMethodBody,)
+  }
+);}
+
+
+
+
+export const getPatchPaymentMethodsUpiIdMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchPaymentMethodsUpiId>>, TError,{id: string;data: BodyType<UpiPaymentMethodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchPaymentMethodsUpiId>>, TError,{id: string;data: BodyType<UpiPaymentMethodBody>}, TContext> => {
+
+const mutationKey = ['patchPaymentMethodsUpiId'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchPaymentMethodsUpiId>>, {id: string;data: BodyType<UpiPaymentMethodBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  patchPaymentMethodsUpiId(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PatchPaymentMethodsUpiIdMutationResult = NonNullable<Awaited<ReturnType<typeof patchPaymentMethodsUpiId>>>
+    export type PatchPaymentMethodsUpiIdMutationBody = BodyType<UpiPaymentMethodBody>
+    export type PatchPaymentMethodsUpiIdMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update UPI ID
+ */
+export const usePatchPaymentMethodsUpiId = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchPaymentMethodsUpiId>>, TError,{id: string;data: BodyType<UpiPaymentMethodBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof patchPaymentMethodsUpiId>>,
+        TError,
+        {id: string;data: BodyType<UpiPaymentMethodBody>},
+        TContext
+      > => {
+      return useMutation(getPatchPaymentMethodsUpiIdMutationOptions(options));
+    }
+
+export const getGetAdminPaymentMethodsIdUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${id}`
+}
+
+/**
+ * @summary Admin get payment method detail (includes full UPI ID)
+ */
+export const getAdminPaymentMethodsId = async (id: string, options?: RequestInit): Promise<AdminPaymentMethodDetail> => {
+
+  return customFetch<AdminPaymentMethodDetail>(getGetAdminPaymentMethodsIdUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPaymentMethodsIdQueryKey = (id: string,) => {
+    return [
+    `/api/admin/payment-methods/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdminPaymentMethodsIdQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPaymentMethodsId>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentMethodsId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPaymentMethodsIdQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPaymentMethodsId>>> = ({ signal }) => getAdminPaymentMethodsId(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentMethodsId>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPaymentMethodsIdQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPaymentMethodsId>>>
+export type GetAdminPaymentMethodsIdQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Admin get payment method detail (includes full UPI ID)
+ */
+
+export function useGetAdminPaymentMethodsId<TData = Awaited<ReturnType<typeof getAdminPaymentMethodsId>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPaymentMethodsId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPaymentMethodsIdQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPostAdminPaymentMethodsIdVerifyUpiUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${id}/verify-upi`
+}
+
+/**
+ * @summary Admin verify UPI ID
+ */
+export const postAdminPaymentMethodsIdVerifyUpi = async (id: string, options?: RequestInit): Promise<UserPaymentMethod> => {
+
+  return customFetch<UserPaymentMethod>(getPostAdminPaymentMethodsIdVerifyUpiUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostAdminPaymentMethodsIdVerifyUpiMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPaymentMethodsIdVerifyUpi>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminPaymentMethodsIdVerifyUpi>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['postAdminPaymentMethodsIdVerifyUpi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminPaymentMethodsIdVerifyUpi>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  postAdminPaymentMethodsIdVerifyUpi(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminPaymentMethodsIdVerifyUpiMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminPaymentMethodsIdVerifyUpi>>>
+
+    export type PostAdminPaymentMethodsIdVerifyUpiMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin verify UPI ID
+ */
+export const usePostAdminPaymentMethodsIdVerifyUpi = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPaymentMethodsIdVerifyUpi>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminPaymentMethodsIdVerifyUpi>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPostAdminPaymentMethodsIdVerifyUpiMutationOptions(options));
+    }
+
+export const getPostAdminPaymentMethodsIdRejectUpiUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/payment-methods/${id}/reject-upi`
+}
+
+/**
+ * @summary Admin reject UPI ID
+ */
+export const postAdminPaymentMethodsIdRejectUpi = async (id: string,
+    adminRejectUpiBody: AdminRejectUpiBody, options?: RequestInit): Promise<UserPaymentMethod> => {
+
+  return customFetch<UserPaymentMethod>(getPostAdminPaymentMethodsIdRejectUpiUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRejectUpiBody,)
+  }
+);}
+
+
+
+
+export const getPostAdminPaymentMethodsIdRejectUpiMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPaymentMethodsIdRejectUpi>>, TError,{id: string;data: BodyType<AdminRejectUpiBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminPaymentMethodsIdRejectUpi>>, TError,{id: string;data: BodyType<AdminRejectUpiBody>}, TContext> => {
+
+const mutationKey = ['postAdminPaymentMethodsIdRejectUpi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminPaymentMethodsIdRejectUpi>>, {id: string;data: BodyType<AdminRejectUpiBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  postAdminPaymentMethodsIdRejectUpi(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminPaymentMethodsIdRejectUpiMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminPaymentMethodsIdRejectUpi>>>
+    export type PostAdminPaymentMethodsIdRejectUpiMutationBody = BodyType<AdminRejectUpiBody>
+    export type PostAdminPaymentMethodsIdRejectUpiMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin reject UPI ID
+ */
+export const usePostAdminPaymentMethodsIdRejectUpi = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPaymentMethodsIdRejectUpi>>, TError,{id: string;data: BodyType<AdminRejectUpiBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminPaymentMethodsIdRejectUpi>>,
+        TError,
+        {id: string;data: BodyType<AdminRejectUpiBody>},
+        TContext
+      > => {
+      return useMutation(getPostAdminPaymentMethodsIdRejectUpiMutationOptions(options));
+    }
+
+export const getGetPayoutsMyUrl = (params?: GetPayoutsMyParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/payouts/my?${stringifiedParams}` : `/api/payouts/my`
+}
+
+/**
+ * @summary Get my payout requests
+ */
+export const getPayoutsMy = async (params?: GetPayoutsMyParams, options?: RequestInit): Promise<PayoutRequestListResponse> => {
+
+  return customFetch<PayoutRequestListResponse>(getGetPayoutsMyUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayoutsMyQueryKey = (params?: GetPayoutsMyParams,) => {
+    return [
+    `/api/payouts/my`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPayoutsMyQueryOptions = <TData = Awaited<ReturnType<typeof getPayoutsMy>>, TError = ErrorType<unknown>>(params?: GetPayoutsMyParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutsMy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayoutsMyQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayoutsMy>>> = ({ signal }) => getPayoutsMy(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayoutsMy>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayoutsMyQueryResult = NonNullable<Awaited<ReturnType<typeof getPayoutsMy>>>
+export type GetPayoutsMyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get my payout requests
+ */
+
+export function useGetPayoutsMy<TData = Awaited<ReturnType<typeof getPayoutsMy>>, TError = ErrorType<unknown>>(
+ params?: GetPayoutsMyParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutsMy>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayoutsMyQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPayoutsMyIdUrl = (id: string,) => {
+
+
+
+
+  return `/api/payouts/my/${id}`
+}
+
+/**
+ * @summary Get a specific payout request
+ */
+export const getPayoutsMyId = async (id: string, options?: RequestInit): Promise<PayoutRequestItem> => {
+
+  return customFetch<PayoutRequestItem>(getGetPayoutsMyIdUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayoutsMyIdQueryKey = (id: string,) => {
+    return [
+    `/api/payouts/my/${id}`
+    ] as const;
+    }
+
+
+export const getGetPayoutsMyIdQueryOptions = <TData = Awaited<ReturnType<typeof getPayoutsMyId>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutsMyId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayoutsMyIdQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayoutsMyId>>> = ({ signal }) => getPayoutsMyId(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayoutsMyId>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayoutsMyIdQueryResult = NonNullable<Awaited<ReturnType<typeof getPayoutsMyId>>>
+export type GetPayoutsMyIdQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a specific payout request
+ */
+
+export function useGetPayoutsMyId<TData = Awaited<ReturnType<typeof getPayoutsMyId>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayoutsMyId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayoutsMyIdQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPostPayoutsRequestUrl = () => {
+
+
+
+
+  return `/api/payouts/request`
+}
+
+/**
+ * @summary Create a withdrawal request
+ */
+export const postPayoutsRequest = async (createPayoutRequestBody: CreatePayoutRequestBody, options?: RequestInit): Promise<PayoutRequestItem> => {
+
+  return customFetch<PayoutRequestItem>(getPostPayoutsRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createPayoutRequestBody,)
+  }
+);}
+
+
+
+
+export const getPostPayoutsRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPayoutsRequest>>, TError,{data: BodyType<CreatePayoutRequestBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postPayoutsRequest>>, TError,{data: BodyType<CreatePayoutRequestBody>}, TContext> => {
+
+const mutationKey = ['postPayoutsRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPayoutsRequest>>, {data: BodyType<CreatePayoutRequestBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postPayoutsRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostPayoutsRequestMutationResult = NonNullable<Awaited<ReturnType<typeof postPayoutsRequest>>>
+    export type PostPayoutsRequestMutationBody = BodyType<CreatePayoutRequestBody>
+    export type PostPayoutsRequestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a withdrawal request
+ */
+export const usePostPayoutsRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPayoutsRequest>>, TError,{data: BodyType<CreatePayoutRequestBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postPayoutsRequest>>,
+        TError,
+        {data: BodyType<CreatePayoutRequestBody>},
+        TContext
+      > => {
+      return useMutation(getPostPayoutsRequestMutationOptions(options));
+    }
+
+export const getPostPayoutsIdCancelUrl = (id: string,) => {
+
+
+
+
+  return `/api/payouts/${id}/cancel`
+}
+
+/**
+ * @summary Cancel a payout request (PENDING only)
+ */
+export const postPayoutsIdCancel = async (id: string, options?: RequestInit): Promise<PayoutRequestItem> => {
+
+  return customFetch<PayoutRequestItem>(getPostPayoutsIdCancelUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostPayoutsIdCancelMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPayoutsIdCancel>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postPayoutsIdCancel>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['postPayoutsIdCancel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPayoutsIdCancel>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  postPayoutsIdCancel(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostPayoutsIdCancelMutationResult = NonNullable<Awaited<ReturnType<typeof postPayoutsIdCancel>>>
+
+    export type PostPayoutsIdCancelMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Cancel a payout request (PENDING only)
+ */
+export const usePostPayoutsIdCancel = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPayoutsIdCancel>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postPayoutsIdCancel>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPostPayoutsIdCancelMutationOptions(options));
+    }
+
+export const getGetAdminPayoutsUrl = (params?: GetAdminPayoutsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/payouts?${stringifiedParams}` : `/api/admin/payouts`
+}
+
+/**
+ * @summary Admin list all payout requests
+ */
+export const getAdminPayouts = async (params?: GetAdminPayoutsParams, options?: RequestInit): Promise<AdminPayoutListResponse> => {
+
+  return customFetch<AdminPayoutListResponse>(getGetAdminPayoutsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPayoutsQueryKey = (params?: GetAdminPayoutsParams,) => {
+    return [
+    `/api/admin/payouts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminPayoutsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPayouts>>, TError = ErrorType<unknown>>(params?: GetAdminPayoutsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPayouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPayoutsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPayouts>>> = ({ signal }) => getAdminPayouts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPayouts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPayoutsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPayouts>>>
+export type GetAdminPayoutsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Admin list all payout requests
+ */
+
+export function useGetAdminPayouts<TData = Awaited<ReturnType<typeof getAdminPayouts>>, TError = ErrorType<unknown>>(
+ params?: GetAdminPayoutsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPayouts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPayoutsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAdminPayoutsIdUrl = (id: string,
+    params?: GetAdminPayoutsIdParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/payouts/${id}?${stringifiedParams}` : `/api/admin/payouts/${id}`
+}
+
+/**
+ * @summary Admin get payout request detail
+ */
+export const getAdminPayoutsId = async (id: string,
+    params?: GetAdminPayoutsIdParams, options?: RequestInit): Promise<AdminPayoutDetail> => {
+
+  return customFetch<AdminPayoutDetail>(getGetAdminPayoutsIdUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPayoutsIdQueryKey = (id: string,
+    params?: GetAdminPayoutsIdParams,) => {
+    return [
+    `/api/admin/payouts/${id}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminPayoutsIdQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPayoutsId>>, TError = ErrorType<unknown>>(id: string,
+    params?: GetAdminPayoutsIdParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPayoutsId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPayoutsIdQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPayoutsId>>> = ({ signal }) => getAdminPayoutsId(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPayoutsId>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPayoutsIdQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPayoutsId>>>
+export type GetAdminPayoutsIdQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Admin get payout request detail
+ */
+
+export function useGetAdminPayoutsId<TData = Awaited<ReturnType<typeof getAdminPayoutsId>>, TError = ErrorType<unknown>>(
+ id: string,
+    params?: GetAdminPayoutsIdParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPayoutsId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPayoutsIdQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPostAdminPayoutsIdStartProcessingUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/payouts/${id}/start-processing`
+}
+
+/**
+ * @summary Admin start processing payout
+ */
+export const postAdminPayoutsIdStartProcessing = async (id: string, options?: RequestInit): Promise<AdminPayoutDetail> => {
+
+  return customFetch<AdminPayoutDetail>(getPostAdminPayoutsIdStartProcessingUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostAdminPayoutsIdStartProcessingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdStartProcessing>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdStartProcessing>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['postAdminPayoutsIdStartProcessing'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminPayoutsIdStartProcessing>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  postAdminPayoutsIdStartProcessing(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminPayoutsIdStartProcessingMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminPayoutsIdStartProcessing>>>
+
+    export type PostAdminPayoutsIdStartProcessingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin start processing payout
+ */
+export const usePostAdminPayoutsIdStartProcessing = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdStartProcessing>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminPayoutsIdStartProcessing>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPostAdminPayoutsIdStartProcessingMutationOptions(options));
+    }
+
+export const getPostAdminPayoutsIdMarkPaidUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/payouts/${id}/mark-paid`
+}
+
+/**
+ * @summary Admin mark payout as paid
+ */
+export const postAdminPayoutsIdMarkPaid = async (id: string,
+    adminMarkPaidBody: AdminMarkPaidBody, options?: RequestInit): Promise<AdminPayoutDetail> => {
+
+  return customFetch<AdminPayoutDetail>(getPostAdminPayoutsIdMarkPaidUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminMarkPaidBody,)
+  }
+);}
+
+
+
+
+export const getPostAdminPayoutsIdMarkPaidMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdMarkPaid>>, TError,{id: string;data: BodyType<AdminMarkPaidBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdMarkPaid>>, TError,{id: string;data: BodyType<AdminMarkPaidBody>}, TContext> => {
+
+const mutationKey = ['postAdminPayoutsIdMarkPaid'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminPayoutsIdMarkPaid>>, {id: string;data: BodyType<AdminMarkPaidBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  postAdminPayoutsIdMarkPaid(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminPayoutsIdMarkPaidMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminPayoutsIdMarkPaid>>>
+    export type PostAdminPayoutsIdMarkPaidMutationBody = BodyType<AdminMarkPaidBody>
+    export type PostAdminPayoutsIdMarkPaidMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin mark payout as paid
+ */
+export const usePostAdminPayoutsIdMarkPaid = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdMarkPaid>>, TError,{id: string;data: BodyType<AdminMarkPaidBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminPayoutsIdMarkPaid>>,
+        TError,
+        {id: string;data: BodyType<AdminMarkPaidBody>},
+        TContext
+      > => {
+      return useMutation(getPostAdminPayoutsIdMarkPaidMutationOptions(options));
+    }
+
+export const getPostAdminPayoutsIdRejectUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/payouts/${id}/reject`
+}
+
+/**
+ * @summary Admin reject payout
+ */
+export const postAdminPayoutsIdReject = async (id: string,
+    adminRejectPayoutBody: AdminRejectPayoutBody, options?: RequestInit): Promise<AdminPayoutDetail> => {
+
+  return customFetch<AdminPayoutDetail>(getPostAdminPayoutsIdRejectUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRejectPayoutBody,)
+  }
+);}
+
+
+
+
+export const getPostAdminPayoutsIdRejectMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdReject>>, TError,{id: string;data: BodyType<AdminRejectPayoutBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdReject>>, TError,{id: string;data: BodyType<AdminRejectPayoutBody>}, TContext> => {
+
+const mutationKey = ['postAdminPayoutsIdReject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminPayoutsIdReject>>, {id: string;data: BodyType<AdminRejectPayoutBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  postAdminPayoutsIdReject(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminPayoutsIdRejectMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminPayoutsIdReject>>>
+    export type PostAdminPayoutsIdRejectMutationBody = BodyType<AdminRejectPayoutBody>
+    export type PostAdminPayoutsIdRejectMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin reject payout
+ */
+export const usePostAdminPayoutsIdReject = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminPayoutsIdReject>>, TError,{id: string;data: BodyType<AdminRejectPayoutBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminPayoutsIdReject>>,
+        TError,
+        {id: string;data: BodyType<AdminRejectPayoutBody>},
+        TContext
+      > => {
+      return useMutation(getPostAdminPayoutsIdRejectMutationOptions(options));
+    }
+
+export const getPatchAdminSettingsPayoutUrl = () => {
+
+
+
+
+  return `/api/admin/settings/payout`
+}
+
+/**
+ * @summary Admin update payout settings
+ */
+export const patchAdminSettingsPayout = async (updatePayoutSettingsBody: UpdatePayoutSettingsBody, options?: RequestInit): Promise<PayoutSettings> => {
+
+  return customFetch<PayoutSettings>(getPatchAdminSettingsPayoutUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updatePayoutSettingsBody,)
+  }
+);}
+
+
+
+
+export const getPatchAdminSettingsPayoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchAdminSettingsPayout>>, TError,{data: BodyType<UpdatePayoutSettingsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof patchAdminSettingsPayout>>, TError,{data: BodyType<UpdatePayoutSettingsBody>}, TContext> => {
+
+const mutationKey = ['patchAdminSettingsPayout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof patchAdminSettingsPayout>>, {data: BodyType<UpdatePayoutSettingsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  patchAdminSettingsPayout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PatchAdminSettingsPayoutMutationResult = NonNullable<Awaited<ReturnType<typeof patchAdminSettingsPayout>>>
+    export type PatchAdminSettingsPayoutMutationBody = BodyType<UpdatePayoutSettingsBody>
+    export type PatchAdminSettingsPayoutMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin update payout settings
+ */
+export const usePatchAdminSettingsPayout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof patchAdminSettingsPayout>>, TError,{data: BodyType<UpdatePayoutSettingsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof patchAdminSettingsPayout>>,
+        TError,
+        {data: BodyType<UpdatePayoutSettingsBody>},
+        TContext
+      > => {
+      return useMutation(getPatchAdminSettingsPayoutMutationOptions(options));
     }
 

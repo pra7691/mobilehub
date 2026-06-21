@@ -19,8 +19,9 @@ import {
   useAdminUpdateGeneralSettings,
   useAdminUpdateSettingsSupport,
   useAdminUpdateLegalContent,
+  usePatchAdminSettingsPayout,
 } from "@workspace/api-client-react";
-import { Loader2, Eye, Save, Globe, Headphones, FileText } from "lucide-react";
+import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote } from "lucide-react";
 
 // ─── General Tab ─────────────────────────────────────────────────────────────
 
@@ -381,6 +382,152 @@ function LoadingSpinner() {
   );
 }
 
+// ─── Payout Settings Tab ──────────────────────────────────────────────────────
+
+function PayoutSettingsTab() {
+  const { data, isLoading } = useAdminGetSettings();
+  const updateMutation = usePatchAdminSettingsPayout();
+  const { toast } = useToast();
+
+  const payoutData = (data as unknown as { payout?: { payoutsEnabled?: boolean; minWithdrawalAmount?: number; maxWithdrawalAmount?: number | null; payoutMessage?: string | null; maxDailyPayoutsPerUser?: number | null; maxPendingPayoutsPerUser?: number | null } })?.payout;
+
+  const [payoutsEnabled, setPayoutsEnabled] = React.useState(true);
+  const [minAmount, setMinAmount] = React.useState("100");
+  const [maxAmount, setMaxAmount] = React.useState("");
+  const [message, setMessage] = React.useState("");
+  const [maxDaily, setMaxDaily] = React.useState("");
+  const [maxPending, setMaxPending] = React.useState("");
+
+  React.useEffect(() => {
+    if (payoutData) {
+      setPayoutsEnabled(payoutData.payoutsEnabled !== false);
+      setMinAmount(String(payoutData.minWithdrawalAmount ?? 100));
+      setMaxAmount(payoutData.maxWithdrawalAmount != null ? String(payoutData.maxWithdrawalAmount) : "");
+      setMessage(payoutData.payoutMessage ?? "");
+      setMaxDaily(payoutData.maxDailyPayoutsPerUser != null ? String(payoutData.maxDailyPayoutsPerUser) : "");
+      setMaxPending(payoutData.maxPendingPayoutsPerUser != null ? String(payoutData.maxPendingPayoutsPerUser) : "");
+    }
+  }, [payoutData]);
+
+  function handleSave() {
+    const minVal = parseFloat(minAmount);
+    if (isNaN(minVal) || minVal <= 0) {
+      toast({ title: "Invalid minimum amount", variant: "destructive" });
+      return;
+    }
+    updateMutation.mutate(
+      {
+        data: {
+          payoutsEnabled,
+          minWithdrawalAmount: minVal,
+          maxWithdrawalAmount: maxAmount ? parseFloat(maxAmount) : null,
+          payoutMessage: message.trim() || null,
+          maxDailyPayoutsPerUser: maxDaily ? parseInt(maxDaily, 10) : null,
+          maxPendingPayoutsPerUser: maxPending ? parseInt(maxPending, 10) : null,
+        },
+      },
+      {
+        onSuccess: () => toast({ title: "Payout settings saved" }),
+        onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+      },
+    );
+  }
+
+  if (isLoading) return <LoadingSpinner />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Payout Settings</CardTitle>
+        <CardDescription>Configure withdrawal limits and UPI payout behaviour</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 max-w-lg">
+        {/* Enable toggle */}
+        <div className="flex items-center justify-between rounded-lg border border-border p-4">
+          <div>
+            <p className="text-sm font-medium">Enable withdrawals</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Allow field agents to submit payout requests</p>
+          </div>
+          <Switch checked={payoutsEnabled} onCheckedChange={setPayoutsEnabled} />
+        </div>
+
+        {/* Min / Max amounts */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="minAmount">Minimum withdrawal (₹)</Label>
+            <Input
+              id="minAmount"
+              type="number"
+              min={1}
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="maxAmount">Maximum withdrawal (₹)</Label>
+            <Input
+              id="maxAmount"
+              type="number"
+              min={1}
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+              placeholder="No limit"
+              className="bg-background"
+            />
+          </div>
+        </div>
+
+        {/* Daily / pending caps */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="maxDaily">Max requests per day per user</Label>
+            <Input
+              id="maxDaily"
+              type="number"
+              min={1}
+              value={maxDaily}
+              onChange={(e) => setMaxDaily(e.target.value)}
+              placeholder="No limit"
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="maxPending">Max concurrent pending per user</Label>
+            <Input
+              id="maxPending"
+              type="number"
+              min={1}
+              value={maxPending}
+              onChange={(e) => setMaxPending(e.target.value)}
+              placeholder="No limit"
+              className="bg-background"
+            />
+          </div>
+        </div>
+
+        {/* Payout message */}
+        <div className="space-y-1.5">
+          <Label htmlFor="payoutMsg">Payout notice message (shown to users)</Label>
+          <Textarea
+            id="payoutMsg"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="e.g. Payouts are processed within 2–3 business days"
+            className="bg-background resize-none"
+            rows={3}
+          />
+        </div>
+
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="gap-2">
+          {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Save changes
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -406,6 +553,10 @@ export default function SettingsPage() {
             <FileText className="h-3.5 w-3.5" />
             Legal
           </TabsTrigger>
+          <TabsTrigger value="payout" className="gap-2">
+            <Banknote className="h-3.5 w-3.5" />
+            Payouts
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -415,6 +566,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="legal">
           <LegalTab />
+        </TabsContent>
+        <TabsContent value="payout">
+          <PayoutSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -20,6 +20,7 @@ function formatWallet(w: {
   userId: string;
   availableBalance: { toNumber(): number };
   pendingBalance: { toNumber(): number };
+  pendingWithdrawalBalance: { toNumber(): number };
   lifetimeEarnings: { toNumber(): number };
   totalWithdrawn: { toNumber(): number };
   createdAt: Date;
@@ -30,6 +31,7 @@ function formatWallet(w: {
     userId: w.userId,
     availableBalance: w.availableBalance.toNumber(),
     pendingBalance: w.pendingBalance.toNumber(),
+    pendingWithdrawalBalance: w.pendingWithdrawalBalance.toNumber(),
     lifetimeEarnings: w.lifetimeEarnings.toNumber(),
     totalWithdrawn: w.totalWithdrawn.toNumber(),
     createdAt: w.createdAt,
