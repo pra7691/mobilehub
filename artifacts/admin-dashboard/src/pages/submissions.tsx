@@ -160,9 +160,9 @@ export default function Submissions() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="IMAGE">📷 Image</SelectItem>
-            <SelectItem value="VIDEO">🎥 Video</SelectItem>
-            <SelectItem value="AUDIO">🎙️ Audio</SelectItem>
+            <SelectItem value="IMAGE">Image</SelectItem>
+            <SelectItem value="VIDEO">Video</SelectItem>
+            <SelectItem value="AUDIO">Audio</SelectItem>
           </SelectContent>
         </Select>
 
