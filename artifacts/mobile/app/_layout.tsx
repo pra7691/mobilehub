@@ -10,6 +10,7 @@ import * as Notifications from "expo-notifications";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -21,16 +22,18 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DraftProvider } from "@/contexts/DraftContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
-// Show notifications in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Show notifications in foreground (native only — not supported on web)
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 // Set API base URL from env at module load time
 if (process.env.EXPO_PUBLIC_DOMAIN) {
@@ -46,11 +49,12 @@ function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
 
-  // Register push token after login
-  useNotifications(isAuthenticated);
+  // Register push token after login (native only)
+  useNotifications(Platform.OS !== "web" ? isAuthenticated : false);
 
-  // Handle notification tap → deep link
-  const lastResponse = Notifications.useLastNotificationResponse();
+  // Handle notification tap → deep link (native only)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const lastResponse = Platform.OS !== "web" ? Notifications.useLastNotificationResponse() : null;
   useEffect(() => {
     if (!lastResponse) return;
     const data = lastResponse.notification.request.content.data as {

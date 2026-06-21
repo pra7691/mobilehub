@@ -1,2 +1,3 @@
 - [Auth token strategy](auth-token-strategy.md) — DB-backed refresh tokens (SHA-256 hash); admin sessions use tokenVersion on AdminUser
 - [NestJS security setup](nestjs-security.md) — Helmet + env-restricted CORS in main.ts; @Global AuditModule; @types/express required for controller Request types
+- [Metro + pnpm monorepo for Expo](metro-monorepo.md) — do NOT use disableHierarchicalLookup=true; patch HmrServer.js to catch root-path HMR rejections; guard expo-notifications with Platform.OS!=='web'
