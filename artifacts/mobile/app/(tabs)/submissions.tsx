@@ -522,13 +522,15 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       paddingHorizontal: 20,
       paddingBottom: 12,
       paddingTop: 12,
+      alignItems: "center" as const,
     },
     headerLabel: {
       fontSize: 12,
       color: colors.mutedForeground,
       fontFamily: "Inter_500Medium",
       letterSpacing: 1,
-      textTransform: "uppercase",
+      textTransform: "uppercase" as const,
+      textAlign: "center" as const,
     },
     headerTitle: {
       fontSize: 26,
@@ -536,6 +538,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: colors.foreground,
       letterSpacing: -0.5,
       marginTop: 2,
+      textAlign: "center" as const,
     },
 
     segmented: {
