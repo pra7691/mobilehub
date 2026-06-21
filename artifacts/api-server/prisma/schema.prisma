@@ -679,3 +679,26 @@ model PayoutRequest {
   @@index([status, createdAt])
   @@map("payout_requests")
 }
+
+model Banner {
+  id                String    @id @default(cuid())
+  imageUrl          String
+  mobileImageUrl    String?
+  titleEn           String?
+  titleHi           String?
+  descriptionEn     String?
+  descriptionHi     String?
+  displayOrder      Int       @default(0)
+  isActive          Boolean   @default(true)
+  startDate         DateTime?
+  endDate           DateTime?
+  deletedAt         DateTime?
+  createdByAdminId  String?
+  updatedByAdminId  String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([isActive, displayOrder])
+  @@index([deletedAt])
+  @@map("banners")
+}

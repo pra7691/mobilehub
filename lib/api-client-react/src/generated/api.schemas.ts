@@ -1553,6 +1553,104 @@ export interface SuccessMessage {
   message: string;
 }
 
+export interface PublicBanner {
+  id: string;
+  imageUrl: string;
+  title?: string | null;
+  description?: string | null;
+}
+
+export interface AdminBanner {
+  id: string;
+  imageUrl: string;
+  mobileImageUrl?: string | null;
+  titleEn?: string | null;
+  titleHi?: string | null;
+  descriptionEn?: string | null;
+  descriptionHi?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminBannerPageMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export interface AdminBannerPage {
+  data: AdminBanner[];
+  meta: AdminBannerPageMeta;
+}
+
+export interface CreateBannerBody {
+  imageUrl: string;
+  mobileImageUrl?: string;
+  titleEn?: string;
+  titleHi?: string;
+  descriptionEn?: string;
+  descriptionHi?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface UpdateBannerBody {
+  imageUrl?: string;
+  mobileImageUrl?: string | null;
+  titleEn?: string;
+  titleHi?: string;
+  descriptionEn?: string;
+  descriptionHi?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface UpdateBannerStatusBody {
+  isActive: boolean;
+}
+
+export type ReorderBannersBodyItemsItem = {
+  id: string;
+  displayOrder: number;
+};
+
+export interface ReorderBannersBody {
+  items: ReorderBannersBodyItemsItem[];
+}
+
+export type BannerSettingsAutoSlideSeconds = typeof BannerSettingsAutoSlideSeconds[keyof typeof BannerSettingsAutoSlideSeconds];
+
+
+export const BannerSettingsAutoSlideSeconds = {
+  NUMBER_5: 5,
+  NUMBER_7: 7,
+} as const;
+
+export interface BannerSettings {
+  autoSlideSeconds: BannerSettingsAutoSlideSeconds;
+}
+
+export type UpdateBannerSettingsBodyAutoSlideSeconds = typeof UpdateBannerSettingsBodyAutoSlideSeconds[keyof typeof UpdateBannerSettingsBodyAutoSlideSeconds];
+
+
+export const UpdateBannerSettingsBodyAutoSlideSeconds = {
+  NUMBER_5: 5,
+  NUMBER_7: 7,
+} as const;
+
+export interface UpdateBannerSettingsBody {
+  autoSlideSeconds?: UpdateBannerSettingsBodyAutoSlideSeconds;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -2055,4 +2153,22 @@ export const AdminListReferralsStatus = {
   REWARDED: 'REWARDED',
   CANCELLED: 'CANCELLED',
 } as const;
+
+export type GetApiBannersParams = {
+language?: GetApiBannersLanguage;
+};
+
+export type GetApiBannersLanguage = typeof GetApiBannersLanguage[keyof typeof GetApiBannersLanguage];
+
+
+export const GetApiBannersLanguage = {
+  en: 'en',
+  hi: 'hi',
+} as const;
+
+export type GetApiAdminBannersParams = {
+page?: number;
+limit?: number;
+isActive?: boolean;
+};
 

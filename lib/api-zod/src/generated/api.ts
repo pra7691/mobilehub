@@ -3693,3 +3693,211 @@ export const AdminUpdateReferralSettingsResponse = zod.object({
 })
 
 
+/**
+ * @summary List active banners (mobile)
+ */
+export const GetApiBannersQueryParams = zod.object({
+  "language": zod.enum(['en', 'hi']).optional()
+})
+
+export const GetApiBannersResponseItem = zod.object({
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "title": zod.string().nullish(),
+  "description": zod.string().nullish()
+})
+export const GetApiBannersResponse = zod.array(GetApiBannersResponseItem)
+
+
+/**
+ * @summary List all banners (admin)
+ */
+export const GetApiAdminBannersQueryParams = zod.object({
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional(),
+  "isActive": zod.coerce.boolean().optional()
+})
+
+export const GetApiAdminBannersResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "mobileImageUrl": zod.string().nullish(),
+  "titleEn": zod.string().nullish(),
+  "titleHi": zod.string().nullish(),
+  "descriptionEn": zod.string().nullish(),
+  "descriptionHi": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "meta": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
+ * @summary Create a banner
+ */
+export const PostApiAdminBannersBody = zod.object({
+  "imageUrl": zod.string(),
+  "mobileImageUrl": zod.string().optional(),
+  "titleEn": zod.string().optional(),
+  "titleHi": zod.string().optional(),
+  "descriptionEn": zod.string().optional(),
+  "descriptionHi": zod.string().optional(),
+  "displayOrder": zod.number().optional(),
+  "isActive": zod.boolean().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Reorder banners
+ */
+export const PostApiAdminBannersReorderBody = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "displayOrder": zod.number()
+}))
+})
+
+
+/**
+ * @summary Get a single banner
+ */
+export const GetApiAdminBannersIdParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetApiAdminBannersIdResponse = zod.object({
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "mobileImageUrl": zod.string().nullish(),
+  "titleEn": zod.string().nullish(),
+  "titleHi": zod.string().nullish(),
+  "descriptionEn": zod.string().nullish(),
+  "descriptionHi": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a banner
+ */
+export const PatchApiAdminBannersIdParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PatchApiAdminBannersIdBody = zod.object({
+  "imageUrl": zod.string().optional(),
+  "mobileImageUrl": zod.string().nullish(),
+  "titleEn": zod.string().optional(),
+  "titleHi": zod.string().optional(),
+  "descriptionEn": zod.string().optional(),
+  "descriptionHi": zod.string().optional(),
+  "displayOrder": zod.number().optional(),
+  "isActive": zod.boolean().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish()
+})
+
+export const PatchApiAdminBannersIdResponse = zod.object({
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "mobileImageUrl": zod.string().nullish(),
+  "titleEn": zod.string().nullish(),
+  "titleHi": zod.string().nullish(),
+  "descriptionEn": zod.string().nullish(),
+  "descriptionHi": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Soft-delete a banner
+ */
+export const DeleteApiAdminBannersIdParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteApiAdminBannersIdResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Enable or disable a banner
+ */
+export const PatchApiAdminBannersIdStatusParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PatchApiAdminBannersIdStatusBody = zod.object({
+  "isActive": zod.boolean()
+})
+
+export const PatchApiAdminBannersIdStatusResponse = zod.object({
+  "id": zod.string(),
+  "imageUrl": zod.string(),
+  "mobileImageUrl": zod.string().nullish(),
+  "titleEn": zod.string().nullish(),
+  "titleHi": zod.string().nullish(),
+  "descriptionEn": zod.string().nullish(),
+  "descriptionHi": zod.string().nullish(),
+  "displayOrder": zod.number(),
+  "isActive": zod.boolean(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get banner settings
+ */
+export const GetApiAdminSettingsBannerResponse = zod.object({
+  "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)])
+})
+
+
+/**
+ * @summary Update banner settings
+ */
+export const PatchApiAdminSettingsBannerBody = zod.object({
+  "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)]).optional()
+})
+
+export const PatchApiAdminSettingsBannerResponse = zod.object({
+  "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)])
+})
+
+
+/**
+ * @summary Get banner settings (mobile)
+ */
+export const GetApiAppSettingsBannerResponse = zod.object({
+  "autoSlideSeconds": zod.union([zod.literal(5),zod.literal(7)])
+})
+
+

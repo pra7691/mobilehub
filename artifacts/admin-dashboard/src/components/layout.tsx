@@ -3,7 +3,7 @@ import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, 
 import { useAuth } from "@/lib/auth";
 import { Link, useLocation } from "wouter";
 import { useLogout } from "@workspace/api-client-react";
-import { Activity, Users, FolderTree, FileQuestion, SendToBack, Wallet, Settings, LogOut, Hexagon, Moon, Sun, HelpCircle, Bell, BellRing, Bug, Banknote, GitBranch } from "lucide-react";
+import { Activity, Users, FolderTree, FileQuestion, SendToBack, Wallet, Settings, LogOut, Hexagon, Moon, Sun, HelpCircle, Bell, BellRing, Bug, Banknote, GitBranch, Image as ImageIcon } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +31,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/wallet-transactions", label: "Wallet", icon: Wallet },
     { href: "/payouts", label: "Payouts", icon: Banknote },
     { href: "/referrals", label: "Referrals", icon: GitBranch },
+    { href: "/banners", label: "Banners", icon: ImageIcon },
     { href: "/otp-settings", label: "OTP Settings", icon: Settings },
     { href: "/faq", label: "FAQ", icon: HelpCircle },
     { href: "/notices", label: "Notices", icon: Bell },

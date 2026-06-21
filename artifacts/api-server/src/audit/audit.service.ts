@@ -34,7 +34,11 @@ export type AuditAction =
   | 'payout_settings.updated'
   | 'referral.applied'
   | 'referral.rewarded'
-  | 'referral.cancelled';
+  | 'referral.cancelled'
+  | 'banner.created'
+  | 'banner.updated'
+  | 'banner.status_changed'
+  | 'banner.deleted';
 
 export interface AuditContext {
   adminId?: string;

@@ -21,8 +21,9 @@ import {
   useAdminUpdateLegalContent,
   usePatchAdminSettingsPayout,
 } from "@workspace/api-client-react";
-import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch } from "lucide-react";
+import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch, Image as ImageIcon } from "lucide-react";
 import { ReferralSettingsTab } from "./referral-settings";
+import { BannerSettingsTab } from "./banner-settings";
 
 // ─── General Tab ─────────────────────────────────────────────────────────────
 
@@ -562,6 +563,10 @@ export default function SettingsPage() {
             <GitBranch className="h-3.5 w-3.5" />
             Referrals
           </TabsTrigger>
+          <TabsTrigger value="banner" className="gap-2">
+            <ImageIcon className="h-3.5 w-3.5" />
+            Banners
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -577,6 +582,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="referral">
           <ReferralSettingsTab />
+        </TabsContent>
+        <TabsContent value="banner">
+          <BannerSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

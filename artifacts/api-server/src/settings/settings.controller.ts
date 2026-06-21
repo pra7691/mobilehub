@@ -18,6 +18,7 @@ import {
   IsPositive,
   IsInt,
   Min,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -37,6 +38,10 @@ class UpdateLegalDto {
   @IsOptional() @IsString() title?: string;
   @IsOptional() @IsString() content?: string;
   @IsOptional() @IsBoolean() isPublished?: boolean;
+}
+
+class UpdateBannerSettingsDto {
+  @IsOptional() @IsIn([5, 7]) @Type(() => Number) autoSlideSeconds?: 5 | 7;
 }
 
 class UpdatePayoutSettingsDto {
@@ -82,6 +87,19 @@ export class AdminSettingsController {
     return this.service.updatePayoutSettings(body, req.user.email ?? req.user.sub);
   }
 
+  @Get('banner')
+  getBannerSettings() {
+    return this.service.getBannerSettings();
+  }
+
+  @Patch('banner')
+  updateBannerSettings(
+    @Body() body: UpdateBannerSettingsDto,
+    @Request() req: { user: { email?: string; sub: string } },
+  ) {
+    return this.service.updateBannerSettings(body, req.user.email ?? req.user.sub);
+  }
+
   @Patch('legal/:slug')
   updateLegal(
     @Param('slug') slug: string,
@@ -104,6 +122,11 @@ export class AppSettingsController {
   @Get('settings')
   getAppSettings() {
     return this.service.getAppSettings();
+  }
+
+  @Get('settings/banner')
+  getAppBannerSettings() {
+    return this.service.getBannerSettings();
   }
 
   @Get('legal/:slug')

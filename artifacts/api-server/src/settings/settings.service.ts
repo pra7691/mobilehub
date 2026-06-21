@@ -262,6 +262,26 @@ export class SettingsService {
     return this.getPayoutSettings();
   }
 
+  // ─── Banner settings ──────────────────────────────────────────────────────
+  async getBannerSettings() {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: 'HOME_BANNER_AUTOSLIDE_SECONDS' } });
+    const raw = row?.value;
+    const parsed = raw ? parseInt(raw, 10) : 5;
+    return { autoSlideSeconds: parsed === 7 ? 7 : 5 };
+  }
+
+  async updateBannerSettings(dto: { autoSlideSeconds?: 5 | 7 }, adminEmail?: string) {
+    if (dto.autoSlideSeconds !== undefined) {
+      const value = dto.autoSlideSeconds === 7 ? '7' : '5';
+      await this.prisma.appSetting.upsert({
+        where: { key: 'HOME_BANNER_AUTOSLIDE_SECONDS' },
+        update: { value, updatedBy: adminEmail },
+        create: { key: 'HOME_BANNER_AUTOSLIDE_SECONDS', value, updatedBy: adminEmail },
+      });
+    }
+    return this.getBannerSettings();
+  }
+
   // ─── App (public-auth): GET /app/settings ─────────────────────────────────
   async getAppSettings() {
     const [support, appName, privacyPolicy, termsAndConditions] = await Promise.all([

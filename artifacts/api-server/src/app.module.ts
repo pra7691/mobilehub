@@ -26,6 +26,7 @@ import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { ReferralSettingsModule } from './referral-settings/referral-settings.module';
+import { BannersModule } from './banners/banners.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ReferralSettingsModule } from './referral-settings/referral-settings.mo
     PayoutsModule,
     ReferralsModule,
     ReferralSettingsModule,
+    BannersModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
