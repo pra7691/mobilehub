@@ -284,11 +284,15 @@ export class SettingsService {
 
   // ─── App (public-auth): GET /app/settings ─────────────────────────────────
   async getAppSettings() {
-    const [support, appName, privacyPolicy, termsAndConditions] = await Promise.all([
+    const [support, appName, privacyPolicy, termsAndConditions, payoutEnabled, payoutMin, payoutMax, payoutMessage] = await Promise.all([
       this.prisma.supportSettings.findFirst(),
       this.prisma.appSetting.findUnique({ where: { key: 'APP_NAME' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'PRIVACY_POLICY' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'TERMS_AND_CONDITIONS' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_ENABLED' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_MIN_AMOUNT' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_MAX_AMOUNT' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_MESSAGE' } }),
     ]);
 
     return {
@@ -309,6 +313,12 @@ export class SettingsService {
         termsAndConditions: termsAndConditions?.isPublished && termsAndConditions.content
           ? { title: termsAndConditions.title ?? 'Terms & Conditions', version: termsAndConditions.version, updatedAt: termsAndConditions.updatedAt }
           : null,
+      },
+      payout: {
+        payoutsEnabled: payoutEnabled?.value !== 'false',
+        minWithdrawalAmount: payoutMin?.value ? parseFloat(payoutMin.value) : 100,
+        maxWithdrawalAmount: payoutMax?.value ? parseFloat(payoutMax.value) : null,
+        payoutMessage: payoutMessage?.value ?? null,
       },
     };
   }

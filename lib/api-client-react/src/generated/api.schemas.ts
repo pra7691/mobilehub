@@ -1039,10 +1039,18 @@ export type AppSettingsLegal = {
   termsAndConditions: LegalAvailability | null;
 };
 
+export type AppSettingsPayout = {
+  payoutsEnabled: boolean;
+  minWithdrawalAmount: number;
+  maxWithdrawalAmount: number | null;
+  payoutMessage: string | null;
+};
+
 export interface AppSettings {
   appName: string;
   support?: AppSettingsSupport;
   legal: AppSettingsLegal;
+  payout: AppSettingsPayout;
 }
 
 export interface AdminLegalSection {

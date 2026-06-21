@@ -2513,6 +2513,12 @@ export const GetAppSettingsResponse = zod.object({
   "version": zod.number(),
   "updatedAt": zod.coerce.date()
 }).nullable()
+}),
+  "payout": zod.object({
+  "payoutsEnabled": zod.boolean(),
+  "minWithdrawalAmount": zod.number(),
+  "maxWithdrawalAmount": zod.number().nullable(),
+  "payoutMessage": zod.string().nullable()
 })
 })
 

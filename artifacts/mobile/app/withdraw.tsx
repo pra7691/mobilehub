@@ -50,7 +50,7 @@ export default function WithdrawScreen() {
   const availableBalance = wallet ? Number(wallet.availableBalance) : 0;
   const pendingWithdrawal = wallet ? Number(wallet.pendingWithdrawalBalance ?? 0) : 0;
 
-  const payoutSettings = (appSettings as unknown as { payout?: { payoutsEnabled?: boolean; minWithdrawalAmount?: number; maxWithdrawalAmount?: number | null; payoutMessage?: string | null } })?.payout;
+  const payoutSettings = appSettings?.payout;
   const payoutsEnabled = payoutSettings?.payoutsEnabled !== false;
   const minAmount = payoutSettings?.minWithdrawalAmount ?? 100;
   const maxAmount = payoutSettings?.maxWithdrawalAmount ?? null;

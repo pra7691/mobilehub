@@ -4330,7 +4330,21 @@ components:
               allOf:
                 - $ref: "#/components/schemas/LegalAvailability"
           required: [privacyPolicy, termsAndConditions]
-      required: [appName, legal]
+        payout:
+          type: object
+          properties:
+            payoutsEnabled:
+              type: boolean
+            minWithdrawalAmount:
+              type: number
+            maxWithdrawalAmount:
+              type: number
+              nullable: true
+            payoutMessage:
+              type: string
+              nullable: true
+          required: [payoutsEnabled, minWithdrawalAmount, maxWithdrawalAmount, payoutMessage]
+      required: [appName, legal, payout]
 
     AdminLegalSection:
       type: object
