@@ -1,0 +1,114 @@
+Continue from the existing Tarzi project and deployed Replit application.
+
+Deployed admin URL:
+https://mobile-data-hub.replit.app/login
+
+Do not rebuild product features. Complete only these production tasks:
+
+1. Confirm Production API URL
+
+* Inspect the existing deployed project configuration, API client, environment variables, backend routes, and health endpoint.
+* Identify the exact public production API base URL used by the deployed Replit app.
+* Do not guess based only on the admin login URL.
+* Confirm the health endpoint works.
+* Update the Expo production environment so `EXPO_PUBLIC_API_BASE_URL` uses this confirmed deployed API URL.
+* Remove localhost, emulator IPs, development URLs, and temporary URLs from production configuration.
+* If the exact deployed API base URL cannot be confirmed from the project, stop and ask me for it.
+
+2. Copy Development Database to Production Database
+   Current setup:
+
+* Development database and production database are separate.
+* Development database contains the latest correct data/configuration.
+* Production database must be updated from development.
+
+Before copying:
+
+* Identify and clearly label source database as DEVELOPMENT.
+* Identify and clearly label target database as PRODUCTION.
+* Create a backup/export of both databases first.
+* Never overwrite development database.
+* Show a clear confirmation summary before changing production data.
+
+Important:
+
+* First ask me whether I want:
+  A. Full development database copy, including users, submissions, wallets, payouts, and test records
+  B. Master/configuration data only
+
+If I choose master/configuration data only, copy:
+
+* Admin users
+* Categories
+* Subcategories
+* Tasks
+* Settings
+* Privacy Policy and Terms content
+* Support settings
+* FAQ
+* Banners
+* Referral settings
+* Referral reward settings
+
+Do not copy users, submissions, wallet balances, wallet transactions, payout requests, or mobile error logs in master-data-only mode.
+
+After approval:
+
+* Run schema migrations safely on production.
+* Copy the chosen data from development to production.
+* Verify row counts for important tables.
+* Verify admin login, categories, tasks, settings, and mobile API responses against production database.
+* Provide the backup location/details, migration command, import/export method, and copied table summary.
+
+3. Public Privacy Policy Page
+   Create a public Privacy Policy page in the deployed Replit application.
+
+Required URL:
+https://mobile-data-hub.replit.app/privacy-policy
+
+Requirements:
+
+* Page must be accessible without login.
+* Use the existing Admin Settings → Legal → Privacy Policy content as the source.
+* If Privacy Policy content is not yet present, add or retain a rich-text/Markdown editor in Admin Settings so I can write and publish it.
+* The public page must display only published content.
+* If content is unpublished or empty, show a safe unavailable message, not draft content.
+* Page title: Privacy Policy
+* App name: Tarzi
+* Support email: [support@verbosetechlabs.com](mailto:support@verbosetechlabs.com)
+* The page should render cleanly on mobile and desktop.
+* Do not expose admin routes, debug details, or database data.
+
+Also add a public Terms page if it does not already exist:
+
+https://mobile-data-hub.replit.app/terms-and-conditions
+
+Use the same published-content approach.
+
+After deployment, provide the exact public URLs for:
+
+* Privacy Policy
+* Terms and Conditions
+
+4. Production Verification
+   Verify:
+
+* Admin URL works.
+* Confirmed API health endpoint works.
+* Mobile app production API points to the deployed API.
+* Production database contains the selected development data.
+* Privacy Policy URL works without login.
+* Terms URL works without login.
+* No localhost or development API URLs remain in production mobile configuration.
+
+At the end provide:
+
+* Confirmed production API base URL
+* Confirmed health check URL
+* Development-to-production database copy summary
+* Backups created
+* Migration/import commands used
+* Tables/data copied
+* Privacy Policy public URL
+* Terms public URL
+* Any blocker that still requires my input
