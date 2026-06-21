@@ -18,6 +18,7 @@ import {
 } from 'class-validator';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { SubmissionsService } from './submissions.service';
+import { AuditService } from '../audit/audit.service';
 
 class ApproveSubmissionDto {
   @IsOptional()
@@ -50,7 +51,10 @@ class RequestResubmissionDto {
 @Controller('admin/submissions')
 @UseGuards(AdminJwtGuard)
 export class AdminSubmissionsController {
-  constructor(private service: SubmissionsService) {}
+  constructor(
+    private service: SubmissionsService,
+    private audit: AuditService,
+  ) {}
 
   @Get()
   list(
@@ -81,29 +85,47 @@ export class AdminSubmissionsController {
   }
 
   @Post(':id/approve')
-  approve(
+  async approve(
     @Param('id') id: string,
     @Body() body: ApproveSubmissionDto,
     @Request() req: { user: { sub: string; email?: string } },
   ) {
-    return this.service.approve(id, req.user.email ?? req.user.sub, body);
+    const result = await this.service.approve(id, req.user.email ?? req.user.sub, body);
+    void this.audit.log(
+      'submission.reviewed',
+      { adminId: req.user.sub, adminEmail: req.user.email },
+      { entityType: 'submission', entityId: id, metadata: { action: 'approve', approvedAmount: body.approvedAmount } },
+    );
+    return result;
   }
 
   @Post(':id/reject')
-  reject(
+  async reject(
     @Param('id') id: string,
     @Body() body: RejectSubmissionDto,
     @Request() req: { user: { sub: string; email?: string } },
   ) {
-    return this.service.reject(id, req.user.email ?? req.user.sub, body);
+    const result = await this.service.reject(id, req.user.email ?? req.user.sub, body);
+    void this.audit.log(
+      'submission.reviewed',
+      { adminId: req.user.sub, adminEmail: req.user.email },
+      { entityType: 'submission', entityId: id, metadata: { action: 'reject', rejectionReason: body.rejectionReason } },
+    );
+    return result;
   }
 
   @Post(':id/request-resubmission')
-  requestResubmission(
+  async requestResubmission(
     @Param('id') id: string,
     @Body() body: RequestResubmissionDto,
     @Request() req: { user: { sub: string; email?: string } },
   ) {
-    return this.service.requestResubmission(id, req.user.email ?? req.user.sub, body);
+    const result = await this.service.requestResubmission(id, req.user.email ?? req.user.sub, body);
+    void this.audit.log(
+      'submission.reviewed',
+      { adminId: req.user.sub, adminEmail: req.user.email },
+      { entityType: 'submission', entityId: id, metadata: { action: 'request_resubmission', resubmissionReason: body.resubmissionReason } },
+    );
+    return result;
   }
 }

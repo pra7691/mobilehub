@@ -7,9 +7,10 @@ import { StorageModule } from '../storage/storage.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReferralsModule } from '../referrals/referrals.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [PrismaModule, StorageModule, WalletModule, NotificationsModule, ReferralsModule],
+  imports: [PrismaModule, StorageModule, WalletModule, NotificationsModule, ReferralsModule, AuditModule],
   controllers: [SubmissionsController, AdminSubmissionsController],
   providers: [SubmissionsService],
   exports: [SubmissionsService],

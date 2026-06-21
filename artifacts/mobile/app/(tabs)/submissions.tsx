@@ -38,6 +38,7 @@ interface Submission {
   currencySnapshot: string;
   collectionType: string;
   createdAt: string;
+  taskId?: string | null;
   task?: { title: string; collectionType?: string } | null;
   taskSnapshot?: { title?: string; collectionType?: string };
   rejectionReason?: string | null;
@@ -457,6 +458,7 @@ function SubmissionCard({
   styles: ReturnType<typeof makeStyles>;
   colors: ReturnType<typeof useColors>;
 }) {
+  const router = useRouter();
   const config =
     SUBMISSION_STATUS_CONFIG[item.status] ??
     SUBMISSION_STATUS_CONFIG["UNDER_REVIEW"];
@@ -488,7 +490,7 @@ function SubmissionCard({
           <View style={styles.payoutRow}>
             <Feather name="trending-up" size={12} color={colors.success} />
             <Text style={[styles.payoutText, { color: colors.success }]}>
-              ₹{item.paymentAmountSnapshot} earned
+              ₹{item.approvedAmount ?? item.paymentAmountSnapshot} earned
             </Text>
           </View>
         )}
@@ -510,6 +512,17 @@ function SubmissionCard({
           <Feather name="alert-circle" size={12} color="#f59e0b" />
           <Text style={[styles.reasonText, { color: "#f59e0b" }]} numberOfLines={3}>{item.resubmissionReason}</Text>
         </View>
+      ) : null}
+      {item.status === "RESUBMISSION_REQUIRED" && item.taskId ? (
+        <TouchableOpacity
+          style={styles.resubmitCta}
+          activeOpacity={0.8}
+          onPress={() => router.push(`/task/${item.taskId}`)}
+        >
+          <Feather name="refresh-cw" size={13} color="#f59e0b" />
+          <Text style={styles.resubmitCtaText}>Record New Submission</Text>
+          <Feather name="chevron-right" size={13} color="#f59e0b" />
+        </TouchableOpacity>
       ) : null}
     </View>
   );
@@ -738,6 +751,23 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: "#f87171",
       fontFamily: "Inter_400Regular",
       lineHeight: 17,
+    },
+    resubmitCta: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      gap: 6,
+      backgroundColor: "#422006",
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: "#78350f",
+    },
+    resubmitCtaText: {
+      fontSize: 13,
+      fontFamily: "Inter_600SemiBold",
+      color: "#f59e0b",
     },
 
     empty: { alignItems: "center", paddingTop: 80, gap: 10 },

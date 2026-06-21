@@ -2,7 +2,11 @@ import { useState } from "react";
 import {
   useAdminListSubmissions,
   useAdminGetSubmission,
+  useAdminApproveSubmission,
+  useAdminRejectSubmission,
+  useAdminRequestResubmission,
   getAdminGetSubmissionQueryKey,
+  getAdminListSubmissionsQueryKey,
   type Submission,
   type SubmissionMedia,
 } from "@workspace/api-client-react";
@@ -12,23 +16,29 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  ChevronLeft, ChevronRight, Search, Filter, Image, Video, Mic, X, ExternalLink, Info,
+  ChevronLeft, ChevronRight, Search, Filter, Image, Video, Mic, X, ExternalLink,
+  Info, CheckCircle, XCircle, RefreshCw, Loader2,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { formatDistanceToNow, format } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 
 type SubmissionStatusValue =
   | "DRAFT" | "UPLOADING" | "UNDER_REVIEW" | "APPROVED"
   | "REJECTED" | "RESUBMISSION_REQUIRED" | "UPLOAD_FAILED";
 
 type CollectionTypeValue = "VIDEO" | "IMAGE" | "AUDIO";
+
+type ReviewTab = "approve" | "reject" | "resubmit";
 
 const STATUS_BADGE: Record<SubmissionStatusValue, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-slate-500/15 text-slate-400 border-none" },
@@ -76,7 +86,18 @@ export default function Submissions() {
   const [searchInput, setSearchInput] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [reviewTab, setReviewTab] = useState<ReviewTab>("approve");
+
+  const [approvedAmount, setApprovedAmount] = useState("");
+  const [approveNote, setApproveNote] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectNote, setRejectNote] = useState("");
+  const [resubmissionReason, setResubmissionReason] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
   const limit = 15;
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useAdminListSubmissions({
     page, limit,
@@ -90,9 +111,24 @@ export default function Submissions() {
     { query: { enabled: !!selectedId, queryKey: getAdminGetSubmissionQueryKey(selectedId ?? "") } }
   );
 
+  const approveMutation = useAdminApproveSubmission();
+  const rejectMutation = useAdminRejectSubmission();
+  const resubmitMutation = useAdminRequestResubmission();
+
+  const isSubmitting =
+    approveMutation.isPending || rejectMutation.isPending || resubmitMutation.isPending;
+
   function openDetail(id: string) {
     setSelectedId(id);
     setDetailOpen(true);
+    setReviewTab("approve");
+    setApprovedAmount("");
+    setApproveNote("");
+    setRejectionReason("");
+    setRejectNote("");
+    setResubmissionReason("");
+    setReviewSuccess(null);
+    setReviewError(null);
   }
 
   function handleSearch() {
@@ -106,17 +142,76 @@ export default function Submissions() {
     setPage(1);
   }
 
+  async function handleApprove() {
+    if (!selectedId) return;
+    setReviewError(null);
+    setReviewSuccess(null);
+    try {
+      await approveMutation.mutateAsync({
+        id: selectedId,
+        data: {
+          approvedAmount: approvedAmount ? parseFloat(approvedAmount) : undefined,
+          adminNote: approveNote || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getAdminListSubmissionsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getAdminGetSubmissionQueryKey(selectedId) });
+      setReviewSuccess("Submission approved and wallet credited.");
+    } catch {
+      setReviewError("Failed to approve submission. Please try again.");
+    }
+  }
+
+  async function handleReject() {
+    if (!selectedId || !rejectionReason.trim()) return;
+    setReviewError(null);
+    setReviewSuccess(null);
+    try {
+      await rejectMutation.mutateAsync({
+        id: selectedId,
+        data: {
+          rejectionReason: rejectionReason.trim(),
+          adminNote: rejectNote || undefined,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getAdminListSubmissionsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getAdminGetSubmissionQueryKey(selectedId) });
+      setReviewSuccess("Submission rejected.");
+    } catch {
+      setReviewError("Failed to reject submission. Please try again.");
+    }
+  }
+
+  async function handleResubmit() {
+    if (!selectedId || !resubmissionReason.trim()) return;
+    setReviewError(null);
+    setReviewSuccess(null);
+    try {
+      await resubmitMutation.mutateAsync({
+        id: selectedId,
+        data: {
+          resubmissionReason: resubmissionReason.trim(),
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getAdminListSubmissionsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getAdminGetSubmissionQueryKey(selectedId) });
+      setReviewSuccess("Resubmission requested. User has been notified.");
+    } catch {
+      setReviewError("Failed to request resubmission. Please try again.");
+    }
+  }
+
   const taskSnapshot = selectedSub?.taskSnapshot as TaskSnapshot | undefined;
+  const snapshotAmount = selectedSub?.paymentAmountSnapshot;
+  const currency = selectedSub?.currencySnapshot === "INR" ? "₹" : "$";
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Submissions</h1>
-        <p className="text-sm text-muted-foreground">View incoming field data submissions.</p>
+        <p className="text-sm text-muted-foreground">View and review incoming field data submissions.</p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -173,7 +268,6 @@ export default function Submissions() {
         )}
       </div>
 
-      {/* Table */}
       <div className="border border-border rounded-md bg-card overflow-hidden">
         <Table>
           <TableHeader>
@@ -242,7 +336,6 @@ export default function Submissions() {
         </Table>
       </div>
 
-      {/* Pagination */}
       {data?.meta && data.meta.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
@@ -260,7 +353,6 @@ export default function Submissions() {
         </div>
       )}
 
-      {/* Detail panel */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-card border-border">
           <SheetHeader className="mb-4">
@@ -275,7 +367,6 @@ export default function Submissions() {
             </div>
           ) : selectedSub ? (
             <div className="space-y-6 text-sm">
-              {/* Status + IDs */}
               <section className="space-y-2">
                 <div className="flex items-center gap-3">
                   {getStatusBadge(selectedSub.status)}
@@ -297,6 +388,164 @@ export default function Submissions() {
                   )}
                 </div>
               </section>
+
+              {/* ── Review action panel (only for UNDER_REVIEW) ── */}
+              {selectedSub.status === "UNDER_REVIEW" && (
+                <section>
+                  <SectionTitle>Review Action</SectionTitle>
+                  <div className="bg-background rounded-lg border border-border overflow-hidden">
+                    {/* Tab bar */}
+                    <div className="flex border-b border-border">
+                      {(["approve", "reject", "resubmit"] as ReviewTab[]).map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => { setReviewTab(tab); setReviewSuccess(null); setReviewError(null); }}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
+                            reviewTab === tab
+                              ? tab === "approve"
+                                ? "bg-emerald-500/10 text-emerald-500 border-b-2 border-emerald-500"
+                                : tab === "reject"
+                                  ? "bg-red-500/10 text-red-500 border-b-2 border-red-500"
+                                  : "bg-orange-500/10 text-orange-400 border-b-2 border-orange-400"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                          }`}
+                        >
+                          {tab === "approve" && <CheckCircle className="h-3.5 w-3.5" />}
+                          {tab === "reject" && <XCircle className="h-3.5 w-3.5" />}
+                          {tab === "resubmit" && <RefreshCw className="h-3.5 w-3.5" />}
+                          {tab === "approve" ? "Approve" : tab === "reject" ? "Reject" : "Request Resubmission"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Feedback messages */}
+                    {reviewSuccess && (
+                      <div className="mx-3 mt-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-500">
+                        {reviewSuccess}
+                      </div>
+                    )}
+                    {reviewError && (
+                      <div className="mx-3 mt-3 rounded-md bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-500">
+                        {reviewError}
+                      </div>
+                    )}
+
+                    {/* Approve form */}
+                    {reviewTab === "approve" && (
+                      <div className="p-3 space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">
+                            Approved Amount (leave blank for {currency}{snapshotAmount?.toFixed(2)})
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder={snapshotAmount?.toFixed(2)}
+                            value={approvedAmount}
+                            onChange={(e) => setApprovedAmount(e.target.value)}
+                            className="bg-card h-8 text-sm"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Admin Note (optional)</Label>
+                          <Textarea
+                            placeholder="Internal note…"
+                            value={approveNote}
+                            onChange={(e) => setApproveNote(e.target.value)}
+                            rows={2}
+                            className="bg-card text-sm resize-none"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={() => void handleApprove()}
+                          disabled={isSubmitting || !!reviewSuccess}
+                        >
+                          {approveMutation.isPending ? (
+                            <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Approving…</>
+                          ) : (
+                            <><CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve & Credit Wallet</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Reject form */}
+                    {reviewTab === "reject" && (
+                      <div className="p-3 space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Rejection Reason <span className="text-red-500">*</span></Label>
+                          <Textarea
+                            placeholder="Explain why this submission is being rejected…"
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                            rows={3}
+                            className="bg-card text-sm resize-none"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Admin Note (optional)</Label>
+                          <Textarea
+                            placeholder="Internal note…"
+                            value={rejectNote}
+                            onChange={(e) => setRejectNote(e.target.value)}
+                            rows={2}
+                            className="bg-card text-sm resize-none"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full"
+                          onClick={() => void handleReject()}
+                          disabled={isSubmitting || !rejectionReason.trim() || !!reviewSuccess}
+                        >
+                          {rejectMutation.isPending ? (
+                            <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Rejecting…</>
+                          ) : (
+                            <><XCircle className="h-3.5 w-3.5 mr-1" /> Reject Submission</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Request resubmission form */}
+                    {reviewTab === "resubmit" && (
+                      <div className="p-3 space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Feedback for user <span className="text-red-500">*</span></Label>
+                          <Textarea
+                            placeholder="Tell the user what needs to be corrected or resubmitted…"
+                            value={resubmissionReason}
+                            onChange={(e) => setResubmissionReason(e.target.value)}
+                            rows={3}
+                            className="bg-card text-sm resize-none"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                          onClick={() => void handleResubmit()}
+                          disabled={isSubmitting || !resubmissionReason.trim() || !!reviewSuccess}
+                        >
+                          {resubmitMutation.isPending ? (
+                            <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sending…</>
+                          ) : (
+                            <><RefreshCw className="h-3.5 w-3.5 mr-1" /> Request Resubmission</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
 
               {/* Review result for concluded submissions */}
               {(selectedSub.status === "APPROVED" || selectedSub.status === "REJECTED" || selectedSub.status === "RESUBMISSION_REQUIRED") && (
