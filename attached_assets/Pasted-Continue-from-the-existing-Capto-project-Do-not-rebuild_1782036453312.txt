@@ -1,0 +1,192 @@
+Continue from the existing Capto project. Do not rebuild authentication, task browsing, capture, uploads, submissions, wallet, referrals, language support, admin layout, or mobile navigation.
+
+Build admin-managed informational banners for the top of the mobile Tasks home screen.
+
+Important:
+
+* Banners are informational only.
+* Do not add click actions.
+* Do not add deep links.
+* Do not add task redirects.
+* Do not add external URLs.
+* Tapping a banner must do nothing.
+
+## 1. Mobile Banner Behavior
+
+Add banners above the category grid/list on the Tasks home screen.
+
+Requirements:
+
+* Horizontal carousel/slider.
+* Auto-slide every 5 seconds by default.
+* Allow admin to choose global auto-slide interval: 5 or 7 seconds.
+* Manual swipe must work.
+* Show pagination dots.
+* Pause auto-slide while user is manually swiping.
+* Resume after manual interaction ends.
+* If there are no active banners, hide the whole banner section.
+* If banner API fails, hide banners and still show categories normally.
+* Use skeleton loading while banners load.
+* Keep aspect ratio consistent and avoid consuming excessive vertical space.
+
+Banner content:
+
+* Image required.
+* Optional title overlay.
+* Optional short description overlay.
+* Use readable overlay/gradient if text exists.
+* Must support English and Hindi text with normal fallback rules.
+
+## 2. Admin Banner Management
+
+Add sidebar item:
+
+* Banners
+
+Admin can:
+
+* Create banner
+* Edit banner
+* Preview banner
+* Enable/disable banner
+* Set display order
+* Set optional start date
+* Set optional end date
+* Soft delete banner
+* Reorder banners
+* Add English and Hindi banner text
+
+Banner fields:
+
+* imageUrl required
+* mobileImageUrl optional
+* titleEn optional
+* titleHi optional
+* descriptionEn optional
+* descriptionHi optional
+* displayOrder
+* isActive
+* startDate optional
+* endDate optional
+
+Do not add:
+
+* Button text
+* CTA
+* Redirect URL
+* Deep link
+* Action type
+* Click tracking
+
+## 3. Admin Settings
+
+Add Banner Settings under Admin Settings:
+
+* Auto-slide interval dropdown:
+
+  * 5 seconds
+  * 7 seconds
+* Default: 5 seconds
+
+This should affect all home banners globally.
+
+## 4. Backend and Prisma
+
+Create Banner model:
+
+* id
+* imageUrl
+* mobileImageUrl optional
+* titleEn optional
+* titleHi optional
+* descriptionEn optional
+* descriptionHi optional
+* displayOrder
+* isActive
+* startDate optional
+* endDate optional
+* createdAt
+* updatedAt
+* deletedAt optional
+* createdByAdminId optional
+* updatedByAdminId optional
+
+Add settings key:
+
+* HOME_BANNER_AUTOSLIDE_SECONDS
+* Valid values: 5 or 7
+* Default: 5
+
+Mobile APIs:
+
+* GET /banners?language=en
+* GET /banners?language=hi
+* GET /app/settings/banner
+
+Rules:
+
+* Return only active banners.
+* Respect start/end dates.
+* Sort by displayOrder ascending.
+* Hindi text falls back to English if missing.
+* Do not expose deleted, inactive, scheduled-future, or expired banners.
+
+Admin APIs:
+
+* GET /admin/banners
+* GET /admin/banners/:id
+* POST /admin/banners
+* PATCH /admin/banners/:id
+* PATCH /admin/banners/:id/status
+* POST /admin/banners/reorder
+* DELETE /admin/banners/:id
+* GET /admin/settings/banner
+* PATCH /admin/settings/banner
+
+Add Swagger documentation, DTO validation, audit logs, filtering, and pagination.
+
+## 5. Mobile Home Integration
+
+Update Tasks home screen:
+
+* Fetch banners using currently selected app language.
+* Fetch banner auto-slide interval setting.
+* Render banner carousel before categories.
+* Refresh banners on pull-to-refresh.
+* Keep safe-area handling correct.
+* Ensure banner images have fallback/error UI.
+* No navigation handler should be attached to banners.
+* Banner tap must not trigger anything.
+
+## 6. Testing
+
+Admin:
+
+1. Create English-only banner.
+2. Set active and order.
+3. Confirm it appears on mobile home.
+4. Add Hindi translation.
+5. Confirm Hindi user sees Hindi content.
+6. Disable banner and confirm it disappears.
+7. Set past end date and confirm it disappears.
+8. Reorder banners and confirm mobile order changes.
+9. Change auto-slide setting from 5 to 7 seconds and confirm it works.
+
+Mobile:
+
+1. Home loads categories even if banner API fails.
+2. Banner auto-slides after configured interval.
+3. Manual swipe works.
+4. Pagination dots update.
+5. Tapping banner does nothing.
+6. No banners means no empty space or empty banner container.
+7. Hindi fallback shows English when Hindi banner text is missing.
+
+At the end provide:
+
+* Files created/updated
+* Prisma schema and migration summary
+* Banner API route list
+* Admin test flow
+* Mobile test flow
+* Confirmation that banners have no click actions, URLs, redirects, or deep links

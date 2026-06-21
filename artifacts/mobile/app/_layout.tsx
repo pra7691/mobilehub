@@ -5,10 +5,10 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -17,7 +17,8 @@ import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { DisabledAccountView } from "@/components/DisabledAccountView";
+import { AuthProvider, useAuth, _notifyDisabled, isDisabledError } from "@/contexts/AuthContext";
 import { DraftProvider } from "@/contexts/DraftContext";
 import { useNotifications } from "@/hooks/useNotifications";
 
@@ -28,10 +29,22 @@ if (process.env.EXPO_PUBLIC_DOMAIN) {
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+// QueryClient with global error handler to detect USER_ACCOUNT_DISABLED
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (isDisabledError(error)) _notifyDisabled();
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (isDisabledError(error)) _notifyDisabled();
+    },
+  }),
+});
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isDisabled, logout } = useAuth();
   const router = useRouter();
   const segments = useSegments();
 
@@ -39,35 +52,12 @@ function RootLayoutNav() {
   useNotifications(Platform.OS !== "web" ? isAuthenticated : false);
 
   // Notification tap deep-link disabled in Expo Go (expo-notifications not available)
-  const lastResponse = null;
   useEffect(() => {
-    if (!lastResponse) return;
-    const data = lastResponse.notification.request.content.data as {
-      type?: string;
-      relatedEntityType?: string;
-      relatedEntityId?: string;
-    };
-    if (!data?.type) return;
-    switch (data.type) {
-      case "SUBMISSION_APPROVED":
-      case "SUBMISSION_REJECTED":
-      case "RESUBMISSION_REQUIRED":
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push("/(tabs)/submissions" as any);
-        break;
-      case "NEW_TASK":
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push("/(tabs)/" as any);
-        break;
-      case "APP_NOTICE":
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push("/(tabs)/" as any);
-        break;
-    }
-  }, [lastResponse]);
+    // No-op: push notification deep-link is disabled in this build
+  }, []);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isDisabled) return;
     const inAuth = segments[0] === "(auth)";
     if (!isAuthenticated && !inAuth) {
       router.replace("/(auth)/login");
@@ -75,7 +65,12 @@ function RootLayoutNav() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.replace("/(tabs)/" as any);
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, isDisabled, segments]);
+
+  // Full-screen disabled gate — replaces all navigation
+  if (isDisabled) {
+    return <DisabledAccountView onLogout={logout} />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -115,13 +110,16 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const [appReady, setAppReady] = useState(false);
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
+      setAppReady(true);
     }
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!appReady) return null;
 
   return (
     <SafeAreaProvider>

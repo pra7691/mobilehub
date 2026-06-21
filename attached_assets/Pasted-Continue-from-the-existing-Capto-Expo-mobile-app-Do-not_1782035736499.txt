@@ -1,0 +1,110 @@
+Continue from the existing Capto Expo mobile app. Do not rebuild screens, navigation, business logic, APIs, capture, drafts, uploads, or admin features.
+
+Fix safe-area handling globally across the entire mobile app.
+
+Problem:
+On iPhone, back buttons and top headers are overlapping with the status bar / time / Dynamic Island area. The back button is too high and cannot be tapped properly.
+
+Required outcome:
+
+* Every screen must respect the device safe area.
+* No back button, title, close button, camera control, header action, or top content should appear behind the iPhone status bar, notch, or Dynamic Island.
+* The same solution must work correctly on Android devices with status bars, camera cutouts, and different screen shapes.
+* This must be a global fix, not page-by-page manual padding.
+
+Implementation requirements:
+
+1. Use `react-native-safe-area-context`
+
+* Ensure `SafeAreaProvider` wraps the entire Expo app at the root layout.
+* Use `SafeAreaView` or `useSafeAreaInsets()` correctly in all screen layouts.
+* Do not use fixed top padding values such as `paddingTop: 20`, `40`, or `50` as a replacement for safe-area handling.
+
+2. Create shared layout components
+   Create reusable components such as:
+
+* `ScreenContainer`
+* `SafeScreen`
+* `AppHeader`
+
+Requirements:
+
+* `ScreenContainer` must apply safe-area top and bottom insets by default.
+* `AppHeader` must place back button and header actions below the safe-area top inset.
+* Back button touch target must be at least 44x44 points.
+* Header title must not overlap with status bar or Dynamic Island.
+* Support optional left back button, title, right action, transparent mode, and dark/cyan Capto styling.
+
+3. Apply globally
+   Update all mobile screens, including:
+
+* Login and OTP screens
+* Tasks home
+* Category screen
+* Subcategory screen
+* Task detail screen
+* Capture screens for video, image, and audio
+* Draft review screens
+* Upload screens
+* My Uploads tabs
+* Submission detail screens
+* Profile
+* Wallet and statement
+* FAQ
+* Support
+* Privacy Policy
+* Terms and Conditions
+* Disabled Account screen
+* Permission-required screens
+* Error/failure screens
+* Any modal or full-screen route
+
+4. Expo Router navigation
+
+* Check root layout, stack layout, tabs layout, and modal presentation routes.
+* Ensure Expo Router headers are either:
+
+  * fully disabled and replaced with the shared `AppHeader`, or
+  * configured with safe-area-aware header spacing.
+* Do not leave mixed header systems that create inconsistent top spacing.
+* Ensure native back gestures still work where applicable.
+
+5. Camera/capture screens
+   For camera screens:
+
+* Camera preview may extend edge-to-edge behind the status bar if visually needed.
+* But all interactive controls, including close/back button, timer, flash, camera switch, and stop button, must be positioned using safe-area insets.
+* Top controls must remain tappable below Dynamic Island/notch.
+* Bottom recording controls must also avoid home indicator areas.
+
+6. Bottom navigation
+
+* Ensure bottom tab bar respects bottom safe area on iPhone home-indicator devices.
+* No tab icon or label should overlap with home indicator.
+* Keep visual spacing balanced on Android.
+
+7. Test requirements
+   Test on:
+
+* iPhone with Dynamic Island
+* iPhone with notch
+* iPhone without notch if available
+* Android device with camera cutout
+* Android device without cutout
+
+Verify:
+
+* Back button is fully visible and tappable.
+* Header title is visible.
+* No content overlaps status bar.
+* Camera controls remain usable.
+* Bottom tabs and bottom buttons do not overlap home indicator.
+* Existing navigation behavior still works.
+
+At the end provide:
+
+* Files/components created or updated
+* Root safe-area implementation details
+* Screens updated
+* Confirmation that no fixed hard-coded top padding is used as the main solution
+* Test checklist for iPhone and Android

@@ -114,6 +114,7 @@ export const UserStatus = {
   active: 'active',
   inactive: 'inactive',
   suspended: 'suspended',
+  disabled: 'disabled',
 } as const;
 
 export interface User {
@@ -134,11 +135,26 @@ export const UpdateUserRequestStatus = {
   active: 'active',
   inactive: 'inactive',
   suspended: 'suspended',
+  disabled: 'disabled',
 } as const;
 
 export interface UpdateUserRequest {
   name?: string;
   status?: UpdateUserRequestStatus;
+}
+
+export type UpdateUserStatusRequestStatus = typeof UpdateUserStatusRequestStatus[keyof typeof UpdateUserStatusRequestStatus];
+
+
+export const UpdateUserStatusRequestStatus = {
+  active: 'active',
+  inactive: 'inactive',
+  suspended: 'suspended',
+  disabled: 'disabled',
+} as const;
+
+export interface UpdateUserStatusRequest {
+  status: UpdateUserStatusRequestStatus;
 }
 
 export interface UserListResponse {
@@ -1000,6 +1016,7 @@ export const ListUsersStatus = {
   active: 'active',
   inactive: 'inactive',
   suspended: 'suspended',
+  disabled: 'disabled',
 } as const;
 
 export type ListCategoriesParams = {

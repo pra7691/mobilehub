@@ -17,6 +17,7 @@ enum UserStatus {
   active
   inactive
   suspended
+  disabled
 }
 
 enum TaskStatus {

@@ -7,19 +7,41 @@ const TOKEN_KEY = "capto_access_token";
 const REFRESH_KEY = "capto_refresh_token";
 const REFRESH_BEFORE_EXPIRY_SEC = 60;
 
-interface AuthState {
+export interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
+  isDisabled: boolean;
 }
 
-interface AuthContextValue extends AuthState {
+export interface AuthContextValue extends AuthState {
   login: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+// ---------------------------------------------------------------------------
+// Module-level bridge so QueryClient (created outside AuthProvider) can
+// trigger the disabled state inside AuthProvider.
+// ---------------------------------------------------------------------------
+let _disabledSetter: ((v: boolean) => void) | null = null;
+
+export function _notifyDisabled(): void {
+  _disabledSetter?.(true);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers to detect USER_ACCOUNT_DISABLED errors from the API.
+// ---------------------------------------------------------------------------
+export function isDisabledError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { status?: number; data?: unknown };
+  if (e.status !== 403) return false;
+  const data = e.data as Record<string, unknown> | null;
+  return data?.code === "USER_ACCOUNT_DISABLED";
+}
 
 async function secureGet(key: string): Promise<string | null> {
   if (Platform.OS === "web") return localStorage.getItem(key);
@@ -55,9 +77,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     accessToken: null,
     refreshToken: null,
     isLoading: true,
+    isDisabled: false,
   });
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Register the module-level bridge so QueryClient can notify us
+  useEffect(() => {
+    _disabledSetter = (v) =>
+      setState((prev) => ({ ...prev, isDisabled: v }));
+    return () => { _disabledSetter = null; };
+  }, []);
 
   const clearTimer = useCallback(() => {
     if (refreshTimerRef.current !== null) {
@@ -82,7 +112,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setState(prev => ({ ...prev, accessToken: result.accessToken, refreshToken: result.refreshToken }));
         setAuthTokenGetter(() => result.accessToken);
         scheduleRefresh(result.accessToken, result.refreshToken);
-      } catch {
+      } catch (error) {
+        if (isDisabledError(error)) {
+          // Mark disabled but clear tokens — subsequent login attempts will also fail
+          await Promise.all([secureDelete(TOKEN_KEY), secureDelete(REFRESH_KEY)]);
+          setState(prev => ({ ...prev, accessToken: null, refreshToken: null, isDisabled: true }));
+          setAuthTokenGetter(null);
+          return;
+        }
         await Promise.all([secureDelete(TOKEN_KEY), secureDelete(REFRESH_KEY)]);
         setState(prev => ({ ...prev, accessToken: null, refreshToken: null }));
         setAuthTokenGetter(null);
@@ -98,31 +135,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       if (!accessToken || !refreshToken) {
-        setState({ accessToken: null, refreshToken: null, isLoading: false });
+        setState({ accessToken: null, refreshToken: null, isLoading: false, isDisabled: false });
         setAuthTokenGetter(null);
         return;
       }
 
       if (isExpired(accessToken)) {
-        // Try immediate refresh before marking ready
         try {
           const result = await refreshTokens({ refreshToken });
           await Promise.all([
             secureSet(TOKEN_KEY, result.accessToken),
             secureSet(REFRESH_KEY, result.refreshToken),
           ]);
-          setState({ accessToken: result.accessToken, refreshToken: result.refreshToken, isLoading: false });
+          setState({ accessToken: result.accessToken, refreshToken: result.refreshToken, isLoading: false, isDisabled: false });
           setAuthTokenGetter(() => result.accessToken);
           scheduleRefresh(result.accessToken, result.refreshToken);
-        } catch {
+        } catch (error) {
           await Promise.all([secureDelete(TOKEN_KEY), secureDelete(REFRESH_KEY)]);
-          setState({ accessToken: null, refreshToken: null, isLoading: false });
+          if (isDisabledError(error)) {
+            setState({ accessToken: null, refreshToken: null, isLoading: false, isDisabled: true });
+          } else {
+            setState({ accessToken: null, refreshToken: null, isLoading: false, isDisabled: false });
+          }
           setAuthTokenGetter(null);
         }
         return;
       }
 
-      setState({ accessToken, refreshToken, isLoading: false });
+      setState({ accessToken, refreshToken, isLoading: false, isDisabled: false });
       setAuthTokenGetter(() => accessToken);
       scheduleRefresh(accessToken, refreshToken);
     }
@@ -136,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       secureSet(TOKEN_KEY, accessToken),
       secureSet(REFRESH_KEY, refreshToken),
     ]);
-    setState(prev => ({ ...prev, accessToken, refreshToken }));
+    setState(prev => ({ ...prev, accessToken, refreshToken, isDisabled: false }));
     setAuthTokenGetter(() => accessToken);
     scheduleRefresh(accessToken, refreshToken);
   }, [scheduleRefresh]);
@@ -144,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     clearTimer();
     await Promise.all([secureDelete(TOKEN_KEY), secureDelete(REFRESH_KEY)]);
-    setState(prev => ({ ...prev, accessToken: null, refreshToken: null }));
+    setState(prev => ({ ...prev, accessToken: null, refreshToken: null, isDisabled: false }));
     setAuthTokenGetter(null);
   }, [clearTimer]);
 

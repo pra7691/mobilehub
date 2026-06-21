@@ -95,6 +95,7 @@ import type {
   UpdateSupportSettingsRequest,
   UpdateTaskRequest,
   UpdateUserRequest,
+  UpdateUserStatusRequest,
   UploadCompleteRequest,
   UploadFailedRequest,
   UploadUrlRequest,
@@ -1159,6 +1160,72 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteUserMutationOptions(options));
+    }
+
+export const getUpdateUserStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/users/${id}/status`
+}
+
+export const updateUserStatus = async (id: string,
+    updateUserStatusRequest: UpdateUserStatusRequest, options?: RequestInit): Promise<User> => {
+
+  return customFetch<User>(getUpdateUserStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateUserStatusRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateUserStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserStatus>>, TError,{id: string;data: BodyType<UpdateUserStatusRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserStatus>>, TError,{id: string;data: BodyType<UpdateUserStatusRequest>}, TContext> => {
+
+const mutationKey = ['updateUserStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserStatus>>, {id: string;data: BodyType<UpdateUserStatusRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateUserStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserStatus>>>
+    export type UpdateUserStatusMutationBody = BodyType<UpdateUserStatusRequest>
+    export type UpdateUserStatusMutationError = ErrorType<unknown>
+
+    export const useUpdateUserStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserStatus>>, TError,{id: string;data: BodyType<UpdateUserStatusRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserStatus>>,
+        TError,
+        {id: string;data: BodyType<UpdateUserStatusRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateUserStatusMutationOptions(options));
     }
 
 export const getGetMeUrl = () => {

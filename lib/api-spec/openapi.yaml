@@ -240,7 +240,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [active, inactive, suspended]
+            enum: [active, inactive, suspended, disabled]
       responses:
         "200":
           description: OK
@@ -294,6 +294,28 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /users/{id}/status:
+    patch:
+      operationId: updateUserStatus
+      tags: [users]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserStatusRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
 
   /users/me:
     get:
@@ -1822,7 +1844,7 @@ components:
           type: string
         status:
           type: string
-          enum: [active, inactive, suspended]
+          enum: [active, inactive, suspended, disabled]
         totalEarnings:
           type: number
         totalSubmissions:
@@ -1842,7 +1864,15 @@ components:
           type: string
         status:
           type: string
-          enum: [active, inactive, suspended]
+          enum: [active, inactive, suspended, disabled]
+
+    UpdateUserStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, inactive, suspended, disabled]
+      required: [status]
 
     UserListResponse:
       type: object

@@ -1,0 +1,359 @@
+Continue from the existing Capto project. Do not rebuild authentication, tasks, capture, uploads, submissions, wallet, payouts, language support, admin layout, or mobile navigation.
+
+Build the referral system with numeric six-digit referral codes and wallet reward credit after the referred user completes their first approved task.
+
+Important rules:
+
+* Referral codes must be numeric only.
+* Every referral code must contain exactly 6 digits.
+* Generate referral codes randomly.
+* Codes must be unique.
+* Example: `482917`
+* Do not use letters, prefixes, or alphanumeric codes.
+* Referral reward amount is configurable by admin.
+* Reward is credited to the referrer’s wallet only after the referred user completes their first approved task.
+* Do not credit reward merely when referred user registers or logs in.
+* Do not credit reward multiple times for the same referred user.
+
+## 1. Referral Code Generation
+
+Update User model:
+
+* referralCode: string
+* Exactly 6 numeric digits
+* Unique
+* Generated automatically when a user account is created
+* Existing users without a code must receive one through migration/backfill logic
+
+Generation rules:
+
+* Generate random number between 100000 and 999999.
+* Check uniqueness before saving.
+* Retry safely on collision.
+* Add a unique database constraint.
+* Never regenerate an existing user’s referral code unless explicitly required by admin-only repair logic.
+
+## 2. Referral Application During Onboarding
+
+New user flow:
+
+Language Selection → Login → OTP → Optional Referral Code → App
+
+Referral code input:
+
+* Optional.
+* Six numeric digits only.
+* Numeric keypad.
+* Max length: 6.
+* User can skip.
+* Validate before applying.
+* Invalid code message: “Referral code is not valid.”
+* A user cannot apply their own referral code.
+* A user can apply one referral code only.
+* Referral code cannot be changed after application.
+* Existing users should not see referral code entry again once account is created.
+
+Apply referral relationship after successful OTP verification and user account creation, or immediately after OTP verification if that fits the existing flow better.
+
+## 3. Referral Reward Rules
+
+Add referral settings in Admin Settings:
+
+Referral Settings:
+
+* Enable/disable referral program
+* Referral reward amount in INR
+* Default reward amount: ₹0 until admin configures it
+* Reward trigger: first approved task completed by referred user
+* Optional informational message shown in mobile referral screen
+
+Reward flow:
+
+1. User A shares referral code.
+2. User B registers and applies User A’s referral code.
+3. Referral record is created with status REGISTERED.
+4. User B submits tasks.
+5. When User B gets their first submission approved:
+
+   * Check that referral program is enabled.
+   * Check that referral reward has not already been paid for this referral.
+   * Credit configured reward amount to User A wallet.
+   * Create WalletTransaction.
+   * Mark referral as QUALIFIED / REWARDED.
+   * Store reward transaction ID and reward credited timestamp.
+6. Do not give reward to User B in this version.
+7. Do not pay the referrer again if User B completes more tasks.
+
+Use an atomic database transaction for:
+
+* Submission approval
+* Referral qualification
+* Wallet credit
+* Referral reward transaction creation
+
+Prevent duplicate rewards if:
+
+* Admin double-clicks approval.
+* Submission approval retries.
+* Background jobs retry.
+* Multiple submissions are approved at similar time.
+
+## 4. Prisma Models
+
+Update User:
+
+* referralCode unique
+* referredByUserId optional
+* referralAppliedAt optional
+
+Create or update Referral model:
+
+* id
+* referrerUserId
+* referredUserId
+* referralCode
+* status: REGISTERED, QUALIFIED, REWARDED, CANCELLED
+* createdAt
+* registeredAt
+* qualifiedAt optional
+* rewardedAt optional
+* rewardAmount optional
+* rewardWalletTransactionId optional
+* firstQualifiedSubmissionId optional
+* note optional
+* createdBySystem boolean default true
+* updatedAt
+
+Constraints:
+
+* One referred user can have only one referral record.
+* Referrer user cannot equal referred user.
+* One referral reward per referred user.
+* One referral reward wallet transaction per referral.
+
+Update WalletTransaction:
+
+* Add sourceType: REFERRAL_REWARD
+* Add sourceId referencing referral ID where applicable
+* Add transactionType suitable for referral reward credit, or use CREDIT with sourceType REFERRAL_REWARD.
+* Include idempotency key / uniqueness protection for referral reward transaction.
+
+## 5. Backend APIs
+
+Mobile authenticated APIs:
+
+* GET /referrals/me
+  Returns:
+
+  * user referral code
+  * referral reward amount currently configured
+  * referral program enabled/disabled status
+  * total registered referrals
+  * total qualified referrals
+  * total rewards earned
+  * referral history summary
+
+* GET /referrals/me/history
+  Supports pagination.
+
+* POST /referrals/validate
+  Validate a six-digit referral code before application.
+
+* POST /referrals/apply
+  Apply referral code for current user, only once.
+
+Admin APIs:
+
+* GET /admin/referrals
+* GET /admin/referrals/:id
+* GET /admin/referrals/stats
+* PATCH /admin/referrals/:id/cancel
+* POST /admin/referrals/:id/manual-reward-repair only if needed for controlled admin recovery, but prevent duplicate reward.
+
+Admin Settings APIs:
+
+* GET /admin/settings/referral
+* PATCH /admin/settings/referral
+
+Add Swagger docs, DTO validation, pagination, search, filters, and audit logs.
+
+## 6. Admin Dashboard
+
+### Users Page
+
+Update user list and user detail view to display:
+
+* User’s own referral code:
+
+  * Label: “Referral Code”
+  * Example: `482917`
+
+* Referral code used by this user:
+
+  * Label: “Referred By Code”
+  * Show six-digit code if applied
+  * Otherwise show “—”
+
+* Referrer user details where available
+
+* Referral reward status where available
+
+Add user table columns or detail drawer fields:
+
+* Referral Code
+* Referred By Code
+* Referred By User
+* Referral Reward Status
+
+### Referrals Page
+
+Add sidebar item:
+
+* Referrals
+
+List columns:
+
+* Referral ID
+* Referral Code Used
+* Referrer User
+* Referred User
+* Status
+* Registered Date
+* First Approved Submission Date
+* Reward Amount
+* Rewarded Date
+
+Filters:
+
+* Status
+* Referral code
+* Referrer mobile number
+* Referred user mobile number
+* Date range
+* Rewarded / not rewarded
+
+Referral detail:
+
+* Referrer profile summary
+* Referred user profile summary
+* Referral code used
+* Timeline
+* First qualifying approved submission
+* Reward transaction link
+* Reward amount
+* Reward status
+* Cancel referral action with confirmation
+* Do not allow manual duplicate reward.
+
+### Settings
+
+Add Referral Settings section:
+
+* Referral Program enabled toggle
+* Reward Amount input in INR
+* Optional mobile informational message
+* Save button
+* Show current reward trigger:
+  “Reward is credited after the referred user’s first approved task.”
+
+## 7. Mobile Referral Screen
+
+Add Profile menu item:
+
+* Refer & Earn
+
+Referral screen should show:
+
+* User referral code in large six-digit display
+* Copy Code button
+* Share button using native share sheet
+* Invitation message:
+  “Join Capto and complete data collection tasks. Use my referral code: {REFERRAL_CODE}”
+* Referral reward message from admin settings, if configured
+* Total registered referrals
+* Total qualified referrals
+* Total referral rewards earned
+* Referral history list
+
+History item:
+
+* Referred user masked mobile number
+* Registration date
+* Status
+* Reward amount only if credited
+* Do not expose full phone numbers.
+
+Status labels:
+
+* Registered: “Joined”
+* Qualified: “Completed first approved task”
+* Rewarded: “Reward credited”
+* Cancelled: “Cancelled”
+
+Do not claim reward is earned until wallet credit has actually been completed.
+
+## 8. Submission Approval Integration
+
+Modify existing submission approval flow:
+
+When admin approves a submission:
+
+1. Approve submission as usual.
+2. Credit the task payment to the submitting user as usual.
+3. Check whether the submitting user is a referred user.
+4. Check if their referral is REGISTERED and has no rewardWalletTransactionId.
+5. Check whether this is the user’s first approved submission.
+6. If yes and referral program is enabled and rewardAmount > 0:
+
+   * Credit reward to referrer wallet.
+   * Create referral reward WalletTransaction.
+   * Update referral status to REWARDED.
+   * Save firstQualifiedSubmissionId, reward amount, rewardedAt, and transaction ID.
+7. If no, do nothing.
+
+The referral reward must not interfere with normal task approval or payment credit.
+
+## 9. Security and Edge Cases
+
+* Referral code must remain numeric and exactly six digits.
+* Use masked mobile numbers in referral history.
+* Never expose unrelated user personal details.
+* Do not allow self-referral.
+* Do not allow multiple codes for one user.
+* Do not allow referral relationship changes after application.
+* Do not create reward if the referred user is disabled before first approved task, unless later approved after reactivation.
+* Do not create reward if referral program is disabled at approval time.
+* Keep audit logs for referral application, cancellation, qualification, and reward credit.
+* Use transaction locking/idempotency to eliminate duplicate wallet credits.
+
+## 10. Testing
+
+Test:
+
+1. New user receives unique six-digit numeric referral code.
+2. Existing users get codes through backfill.
+3. User A shares `482917`.
+4. User B enters `482917`.
+5. User B logs in successfully.
+6. Admin sees:
+
+   * User A’s referral code
+   * User B’s referred-by code
+7. User B completes and gets first task approved.
+8. User A receives configured referral amount in wallet exactly once.
+9. User B completes second task; User A gets no second referral reward.
+10. Self-referral is rejected.
+11. Invalid/non-six-digit codes are rejected.
+12. Referral disabled means no reward is credited.
+13. Admin approval retry cannot duplicate referral reward.
+14. Referral history and wallet statement show correct entries.
+
+At the end provide:
+
+* Files created/updated
+* Prisma migration summary
+* Referral API route list
+* Wallet transaction changes
+* Admin test flow
+* Mobile referral test flow
+* Confirmation that reward is credited exactly once after the referred user’s first approved task

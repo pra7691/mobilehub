@@ -163,7 +163,7 @@ export const ListUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listUsersQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listUsersQueryLimitMax).default(listUsersQueryLimitDefault),
   "search": zod.coerce.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']).optional()
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']).optional()
 })
 
 export const ListUsersResponse = zod.object({
@@ -171,7 +171,7 @@ export const ListUsersResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -194,7 +194,7 @@ export const GetUserResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -208,14 +208,14 @@ export const UpdateUserParams = zod.object({
 
 export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']).optional()
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']).optional()
 })
 
 export const UpdateUserResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -228,11 +228,31 @@ export const DeleteUserParams = zod.object({
 })
 
 
+export const UpdateUserStatusParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateUserStatusBody = zod.object({
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled'])
+})
+
+export const UpdateUserStatusResponse = zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().optional(),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
+  "totalEarnings": zod.number(),
+  "totalSubmissions": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
 export const GetMeResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -798,7 +818,7 @@ export const ListMySubmissionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -916,7 +936,7 @@ export const GetMySubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1034,7 +1054,7 @@ export const MarkUploadCompleteResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1150,7 +1170,7 @@ export const MarkUploadFailedResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1285,7 +1305,7 @@ export const AdminListSubmissionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1403,7 +1423,7 @@ export const AdminGetSubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1523,7 +1543,7 @@ export const AdminApproveSubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1639,7 +1659,7 @@ export const AdminRejectSubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1754,7 +1774,7 @@ export const AdminRequestResubmissionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1842,7 +1862,7 @@ export const ListMyWalletTransactionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1911,7 +1931,7 @@ export const ListWalletTransactionsResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),
@@ -1948,7 +1968,7 @@ export const GetWalletTransactionResponse = zod.object({
   "id": zod.string(),
   "phoneNumber": zod.string(),
   "name": zod.string().optional(),
-  "status": zod.enum(['active', 'inactive', 'suspended']),
+  "status": zod.enum(['active', 'inactive', 'suspended', 'disabled']),
   "totalEarnings": zod.number(),
   "totalSubmissions": zod.number(),
   "createdAt": zod.coerce.date(),

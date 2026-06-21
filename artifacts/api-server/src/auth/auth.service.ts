@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -134,6 +136,12 @@ export class AuthService {
     }
 
     if (user.status === 'suspended') throw new BadRequestException('Account suspended');
+    if (user.status === 'disabled') {
+      throw new HttpException(
+        { statusCode: HttpStatus.FORBIDDEN, code: 'USER_ACCOUNT_DISABLED', message: 'Your account is disabled.' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     const settings = await this.prisma.otpSetting.findFirst();
 
@@ -206,6 +214,12 @@ export class AuthService {
     const user = session.user;
     if (!user) throw new NotFoundException('User not found');
     if (user.status === 'suspended') throw new UnauthorizedException('Account suspended');
+    if (user.status === 'disabled') {
+      throw new HttpException(
+        { statusCode: HttpStatus.FORBIDDEN, code: 'USER_ACCOUNT_DISABLED', message: 'Your account is disabled.' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     return this.issueUserTokens(
       { sub: user.id, phoneNumber: user.phoneNumber, type: 'user' },

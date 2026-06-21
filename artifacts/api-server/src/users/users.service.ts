@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { UserStatus } from '@prisma/client';
 
 interface ListParams {
@@ -11,7 +12,10 @@ interface ListParams {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   private toResponse(user: {
     id: string;
@@ -87,6 +91,34 @@ export class UsersService {
       data,
       include: { submissions: { select: { paymentAmountSnapshot: true } } },
     });
+    return this.toResponse(user);
+  }
+
+  async updateStatus(
+    id: string,
+    status: UserStatus,
+    adminEmail: string,
+    adminId?: string,
+  ) {
+    const existing = await this.prisma.user.findFirst({ where: { id, deletedAt: null } });
+    if (!existing) throw new NotFoundException('User not found');
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { status },
+      include: { submissions: { select: { paymentAmountSnapshot: true } } },
+    });
+
+    await this.auditService.log(
+      'user.status_changed',
+      { adminId, adminEmail },
+      {
+        entityType: 'user',
+        entityId: id,
+        metadata: { previousStatus: existing.status, newStatus: status },
+      },
+    );
+
     return this.toResponse(user);
   }
 

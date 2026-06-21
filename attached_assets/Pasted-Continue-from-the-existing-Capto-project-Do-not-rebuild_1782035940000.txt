@@ -1,0 +1,462 @@
+Continue from the existing Capto project. Do not rebuild authentication, submissions, wallet credit, uploads, task management, capture flows, admin layout, or profile navigation.
+
+Build a complete manual UPI payout system.
+
+Important:
+
+* There is no real payout provider yet.
+* Do not integrate RazorpayX, Cashfree, PhonePe, Paytm, bank APIs, or any automatic UPI transfer service.
+* Admin will manually send money through their own UPI/banking app, then mark the payout as paid in Capto.
+* The system must track payout requests, wallet holds, payment status, and payout reference details correctly.
+
+Goal:
+
+1. User can save one UPI ID in Profile.
+
+2. User can request withdrawal from their available wallet balance.
+
+3. Admin can see payout requests and manually transfer money outside the system.
+
+4. After manually paying, admin marks request as Paid and enters a payment reference/UTR/transaction ID.
+
+5. User can see payout history and paid status.
+
+6. Mobile App — Payment Details
+
+Add a Profile menu item:
+
+* Payment Details
+
+Create a Payment Details screen with:
+
+* UPI ID field
+* Helper text: `Example: name@upi`
+* Save UPI ID button
+* Edit UPI ID button
+* Display saved UPI ID in masked form, for example: `pra***@upi`
+* Status label:
+
+  * Not Added
+  * Pending Verification
+  * Verified
+  * Rejected
+
+Rules:
+
+* Only one active UPI ID per user in version one.
+* Save/update UPI ID should set status to PENDING_VERIFICATION.
+* Do not claim it is automatically verified.
+* Validate basic UPI format:
+
+  * Must contain `@`
+  * Must have text before and after `@`
+  * Trim spaces
+  * Reject obviously invalid values
+* Do not expose full UPI ID on general profile pages, wallet statements, logs, or list views.
+* Allow the user to view their own full UPI ID only inside Payment Details.
+* Prevent UPI ID editing when the user has a payout request in PROCESSING status.
+
+2. Mobile App — Wallet Withdrawal Request
+
+On the Wallet/Balance screen add:
+
+* Withdraw button
+
+When user taps Withdraw:
+
+* Check that payouts are enabled in admin settings.
+* Check that user has a saved UPI ID.
+* Check UPI ID status:
+
+  * Allow payout request only if status is VERIFIED.
+  * Show a clear message if Pending Verification or Rejected.
+* Show available balance.
+* Ask user to enter withdrawal amount.
+* Use INR currency.
+* Enforce configurable minimum withdrawal amount.
+* Default minimum withdrawal amount: ₹100.
+* Optional configurable maximum withdrawal amount per request.
+* Withdrawal amount must not exceed available balance.
+* Disable submit button until valid.
+
+Show a confirmation screen with:
+
+* Withdrawal amount
+* Masked UPI ID
+* Available balance after request
+* Note: “Your withdrawal request will be processed manually.”
+
+After user confirms:
+
+* Create payout request with PENDING status.
+* Move requested amount from available balance to pending withdrawal balance.
+* Show success message: “Withdrawal request submitted.”
+* Redirect to payout history or wallet screen.
+
+3. Mobile App — Payout History
+
+Add a Payout History screen linked from Wallet.
+
+Show each request:
+
+* Request ID
+* Amount
+* Masked UPI ID
+* Requested date/time
+* Status:
+
+  * PENDING
+  * PROCESSING
+  * PAID
+  * REJECTED
+  * CANCELLED
+* Paid date/time, when paid
+* Payment reference/UTR/transaction ID, when available
+* Rejection reason, when rejected
+* Admin note, if allowed to be visible
+
+Rules:
+
+* User may cancel only when request status is PENDING.
+* User cannot cancel PROCESSING or PAID requests.
+* If request is rejected or cancelled, returned amount must be reflected in wallet balance.
+* Do not show any claim that payment is instant or automated.
+
+4. Backend / Prisma Data Models
+
+Create or update the following models.
+
+UserPaymentMethod:
+
+* id
+* userId
+* type: UPI
+* upiIdEncrypted or secure stored value
+* upiIdMasked
+* verificationStatus: NOT_ADDED, PENDING_VERIFICATION, VERIFIED, REJECTED
+* rejectionReason optional
+* isDefault
+* createdAt
+* updatedAt
+
+PayoutRequest:
+
+* id
+* userId
+* paymentMethodId
+* amount
+* currency default INR
+* status: PENDING, PROCESSING, PAID, REJECTED, CANCELLED
+* requestedAt
+* processingStartedAt optional
+* processedAt optional
+* paidAt optional
+* rejectedAt optional
+* cancelledAt optional
+* processedByAdminId optional
+* rejectionReason optional
+* adminNote optional
+* payoutReferenceId optional
+* walletHoldTransactionId optional
+* walletCompletionTransactionId optional
+* createdAt
+* updatedAt
+
+Wallet:
+
+* availableBalance
+* pendingWithdrawalBalance
+* lifetimeEarnings
+* pendingEarnings if already present
+* updatedAt
+
+WalletTransaction:
+Ensure support for:
+
+* CREDIT
+* DEBIT
+* PAYOUT_HOLD
+* PAYOUT_COMPLETED
+* PAYOUT_REVERSED
+* ADJUSTMENT
+
+Include:
+
+* sourceType
+* sourceId
+* amount
+* balanceBefore
+* balanceAfter
+* status
+* note
+* createdAt
+
+5. Wallet Accounting Rules
+
+All payout actions must use a database transaction and locking/idempotency protection.
+
+When user creates a withdrawal request:
+
+* Confirm wallet has sufficient available balance.
+* Create PayoutRequest with PENDING status.
+* Reduce availableBalance by requested amount.
+* Increase pendingWithdrawalBalance by requested amount.
+* Create WalletTransaction with PAYOUT_HOLD.
+* Store walletHoldTransactionId on payout request.
+
+When admin starts processing:
+
+* Change PayoutRequest from PENDING to PROCESSING.
+* Do not alter wallet balances again.
+* Store processingStartedAt and processedByAdminId.
+
+When admin marks payout as PAID:
+
+* Only allow from PROCESSING status.
+* Admin must enter payoutReferenceId, such as UTR, bank transaction ID, or UPI reference ID.
+* Change status to PAID.
+* Reduce pendingWithdrawalBalance by payout amount.
+* Create WalletTransaction with PAYOUT_COMPLETED.
+* Store paidAt, processedAt, processedByAdminId, payoutReferenceId, and walletCompletionTransactionId.
+* Do not change availableBalance again because amount was already held.
+
+When admin rejects payout:
+
+* Allow from PENDING or PROCESSING.
+* Rejection reason is required.
+* Change status to REJECTED.
+* Reduce pendingWithdrawalBalance by payout amount.
+* Return payout amount to availableBalance.
+* Create WalletTransaction with PAYOUT_REVERSED.
+* Store rejectedAt, processedByAdminId, and rejectionReason.
+
+When user cancels payout:
+
+* Allow only from PENDING.
+* Change status to CANCELLED.
+* Reduce pendingWithdrawalBalance by payout amount.
+* Return amount to availableBalance.
+* Create WalletTransaction with PAYOUT_REVERSED.
+
+Prevent:
+
+* Double tap creating duplicate payout requests.
+* Withdrawal above available balance.
+* Duplicate processing/paid actions.
+* Multiple wallet holds for the same request.
+* Marking a payout paid twice.
+* Deleting a UPI method linked to an active payout request.
+* Editing UPI ID while payout status is PROCESSING.
+
+6. Backend APIs
+
+Mobile authenticated APIs:
+
+* GET /payment-methods/me
+* POST /payment-methods/upi
+* PATCH /payment-methods/upi/:id
+* GET /wallet/me
+* GET /wallet/transactions
+* GET /payouts/my
+* GET /payouts/my/:id
+* POST /payouts/request
+* POST /payouts/:id/cancel
+
+Admin-only APIs:
+
+* GET /admin/payouts
+* GET /admin/payouts/:id
+* POST /admin/payouts/:id/verify-upi
+* POST /admin/payouts/:id/reject-upi
+* POST /admin/payouts/:id/start-processing
+* POST /admin/payouts/:id/mark-paid
+* POST /admin/payouts/:id/reject
+
+Clarification:
+
+* UPI verification is manual in this version.
+* Admin can mark a user’s UPI ID as VERIFIED or REJECTED after checking it manually.
+* `mark-paid` does not trigger any payment API. It only records that admin has already paid manually.
+
+API requirements:
+
+* Add Swagger documentation.
+* Add DTO validation.
+* Add pagination and sorting for payout lists.
+* Add search by payout ID, user ID, mobile number, and UPI ID where authorized.
+* Mask UPI IDs in list endpoints by default.
+* Return full UPI ID only to the account owner or authorized admin through an intentional detail view.
+
+7. Admin Dashboard — Payout Management
+
+Add sidebar item:
+
+* Payouts
+
+Payout list columns:
+
+* Request ID
+* User mobile number
+* User ID
+* Amount
+* Masked UPI ID
+* UPI verification status
+* Payout status
+* Requested date/time
+* Processing admin
+* Payment reference ID, if paid
+
+Filters:
+
+* PENDING
+* PROCESSING
+* PAID
+* REJECTED
+* CANCELLED
+* UPI verification status
+* Date range
+* Amount range
+* User mobile number
+* User ID
+
+Payout detail page/drawer:
+
+* Request summary
+* User wallet summary
+* Full UPI ID visible only after explicit “Reveal UPI ID” action
+* UPI verification status
+* Full payout timeline
+* Wallet hold transaction
+* Wallet completion/reversal transaction
+* Start Processing button
+* Mark Paid button
+* Reject button
+* Verify UPI button
+* Reject UPI button
+* Payment reference ID input required before Mark Paid
+* Admin note field
+* Rejection reason required before rejection
+* Confirmation modal before all irreversible actions
+
+Manual payout workflow in admin:
+
+1. Verify the user’s UPI ID manually.
+
+2. Mark UPI as Verified.
+
+3. Open payout request.
+
+4. Click Start Processing.
+
+5. Send money manually outside Capto using UPI or banking app.
+
+6. Copy the UTR/UPI transaction/reference ID.
+
+7. In Capto, click Mark Paid.
+
+8. Enter reference ID and optional admin note.
+
+9. Confirm.
+
+10. System records payout as PAID and updates wallet transaction history.
+
+11. Admin Settings
+
+Add Payout Settings under existing Admin Settings:
+
+* Enable/disable payouts
+* Minimum withdrawal amount, default ₹100
+* Maximum withdrawal amount per request optional
+* User-facing payout processing message
+* Optional daily payout processing limit per user
+* Optional maximum pending payout requests per user
+
+Do not implement automatic payout scheduling.
+
+9. Security and Privacy
+
+* Store full UPI ID securely; encrypt at rest if current architecture supports encryption.
+* Always store a masked UPI ID separately for safe display.
+* Never include full UPI IDs in normal logs, mobile error logs, analytics, notifications, or list tables.
+* Never log access tokens, refresh tokens, OTPs, or payment-sensitive values.
+* Only admin users may verify UPI IDs or change payout status.
+* Create audit logs for:
+
+  * UPI ID add/update
+  * UPI ID verification/rejection
+  * Payout request
+  * Payout cancellation
+  * Start processing
+  * Mark paid
+  * Payout rejection
+* Add idempotency protection to payout request creation and mark-paid action.
+
+10. UI and Messaging
+
+Use the existing Capto dark/cyan design.
+
+User-facing status labels:
+
+* Pending: “Request submitted”
+* Processing: “Payment is being processed”
+* Paid: “Payment completed”
+* Rejected: “Request rejected”
+* Cancelled: “Request cancelled”
+
+Do not use misleading messages such as:
+
+* “Instant payment”
+* “Automatic transfer”
+* “Money sent” before admin marks it paid
+
+11. Testing
+
+Test these flows end-to-end:
+
+A. UPI setup:
+
+* Save valid UPI ID.
+* Confirm it appears masked.
+* Confirm user cannot request withdrawal until admin verifies it.
+* Admin verifies UPI ID.
+* Confirm user can now request withdrawal.
+
+B. Payout request:
+
+* User has available balance above ₹100.
+* User requests valid amount.
+* Confirm available balance reduces.
+* Confirm pending withdrawal balance increases.
+* Confirm payout request appears in user payout history and admin payout list.
+* Confirm duplicate taps do not create duplicate requests.
+
+C. Manual payout:
+
+* Admin starts processing.
+* Admin manually sends payment outside Capto.
+* Admin marks payout paid with payment reference ID.
+* Confirm request changes to PAID.
+* Confirm pending withdrawal balance reduces.
+* Confirm wallet statement shows payout completed transaction.
+
+D. Rejection:
+
+* Admin rejects a pending/processing payout with a reason.
+* Confirm held amount returns to available balance.
+* Confirm user sees reason and updated wallet balance.
+
+E. Cancellation:
+
+* User cancels pending payout.
+* Confirm held amount returns to available balance.
+* Confirm payout status becomes CANCELLED.
+
+At the end provide:
+
+* Files created/updated
+* Prisma schema and migration summary
+* Full API route list
+* Wallet accounting explanation
+* Mobile user test steps
+* Admin manual payout test steps
+* Confirmation that no automatic UPI transfer or payout provider integration was added

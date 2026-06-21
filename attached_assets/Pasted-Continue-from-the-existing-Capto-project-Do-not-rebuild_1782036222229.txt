@@ -1,0 +1,360 @@
+Continue from the existing Capto project. Do not rebuild authentication, task management, capture, uploads, submissions, wallet, payout flows, admin layout, or mobile navigation.
+
+Implement full English and Hindi language support across the Expo mobile app, NestJS backend, PostgreSQL/Prisma schema, and Admin Dashboard.
+
+Important product decision:
+
+* English is the default language.
+* Hindi must display as: `हिंदी`
+* All mobile UI text must support English and Hindi.
+* Admin-created content must support English and Hindi separately.
+* Do not use automatic machine translation at runtime.
+* Do not show blank Hindi content. When Hindi content is unavailable, fall back to English.
+
+## 1. Mobile Language Selection Flow
+
+Required flow for a new user:
+
+Splash → Language Selection → Login → OTP → App
+
+Language selection screen:
+
+* Show app logo/name.
+* Title: “Choose your language”
+* Two options:
+
+  * English
+  * हिंदी
+* English selected by default.
+* User selects language and taps Continue.
+* Save selection locally before login.
+* Do not show language screen again after user has selected a language.
+* On future launches:
+
+  * If logged out: Splash → Login
+  * If logged in: Splash → App
+* User can change language later from Profile.
+
+Use secure/local persistent storage already used in the project.
+
+## 2. Mobile Profile Language Setting
+
+Add a Profile menu item:
+
+* Language
+
+Language screen should show:
+
+* English
+* हिंदी
+* Current selected language indicator
+* Save/apply immediately when user taps a language
+
+When user changes language:
+
+* Update app UI immediately.
+* Save locally.
+* Sync selected language to backend user profile when logged in.
+* Refresh task/category/subcategory/content data in the selected language.
+* Keep user on the same screen where practical.
+
+## 3. Mobile UI Localization
+
+Add a proper localization system for Expo React Native.
+
+Use a standard localization approach suitable for Expo, for example:
+
+* expo-localization
+* i18n-js or react-i18next
+
+Create language files:
+
+* `en.json`
+* `hi.json`
+
+Translate all mobile UI strings, including:
+
+* Splash/login/OTP
+* Buttons
+* Error messages
+* Empty states
+* Permission screens
+* Task browsing
+* Task details
+* Capture screens
+* Drafts
+* Upload flow
+* Under Review
+* Completed
+* Rejected / Needs Action
+* Profile
+* Wallet
+* Statement
+* Payment Details
+* UPI payout flow
+* Support
+* FAQ
+* Privacy Policy
+* Terms and Conditions
+* Disabled Account screen
+* Error and retry states
+* Notification labels
+* Logout confirmation
+* Settings labels
+
+Do not translate database IDs, amounts, UPI IDs, transaction references, or technical identifiers.
+
+## 4. Backend User Language Preference
+
+Add language preference to User model:
+
+* preferredLanguage: `en` or `hi`
+* Default: `en`
+
+Add mobile authenticated API:
+
+* GET /users/me
+* PATCH /users/me/language
+
+Example request:
+
+```json
+{
+  "preferredLanguage": "hi"
+}
+```
+
+Rules:
+
+* Valid values only: `en`, `hi`
+* Disabled users remain blocked as per existing disabled-account rules.
+* API must return current preferred language in user profile response.
+* Add Swagger docs and DTO validation.
+
+## 5. Admin Content Localization
+
+Update all admin content management to support English and Hindi fields.
+
+### Categories
+
+Add:
+
+* nameEn
+* nameHi
+* descriptionEn optional
+* descriptionHi optional
+
+### Subcategories
+
+Add:
+
+* nameEn
+* nameHi
+* descriptionEn optional
+* descriptionHi optional
+
+### Tasks
+
+Add:
+
+* titleEn
+* titleHi
+* shortDescriptionEn
+* shortDescriptionHi
+* detailedInstructionsEn
+* detailedInstructionsHi
+* dosEn
+* dosHi
+* dontsEn
+* dontsHi
+* sampleMediaUrl stays shared unless separate language-specific sample media is needed later
+
+### FAQ
+
+Add:
+
+* questionEn
+* questionHi
+* answerEn
+* answerHi
+
+### Support Settings
+
+Add:
+
+* supportMessageEn
+* supportMessageHi
+* Support email/WhatsApp/phone remain shared.
+
+### Legal Settings
+
+Update Privacy Policy and Terms & Conditions settings to support:
+
+* titleEn
+* titleHi
+* contentEn
+* contentHi
+* version
+* isPublished
+
+### Notices / App Announcements
+
+Add:
+
+* titleEn
+* titleHi
+* contentEn
+* contentHi
+
+## 6. Admin Dashboard UI Changes
+
+For Categories, Subcategories, Tasks, FAQ, Legal Settings, Support Settings, and Notices:
+
+* Add language tabs or toggle:
+
+  * English
+  * हिंदी
+* English should be required.
+* Hindi should be optional initially.
+* Clearly show when Hindi fields are missing.
+* Publishing should still be allowed with English only.
+* Admin must be able to add Hindi later without changing English content.
+* Show translated content preview in the selected tab.
+* Preserve existing fields/data and migrate safely.
+
+For task forms:
+
+* Keep collection settings, payment, limits, FPS, camera rules, and technical fields shared.
+* Only user-facing text must be multilingual.
+
+## 7. Backend Content APIs
+
+Update mobile-facing content APIs to support language parameter.
+
+Examples:
+
+* GET /categories?language=en
+* GET /categories?language=hi
+* GET /categories/:id/subcategories?language=hi
+* GET /tasks?subcategoryId=...&language=hi
+* GET /tasks/:id?language=hi
+* GET /public/faq?language=hi
+* GET /app/legal/privacy-policy?language=hi
+* GET /app/legal/terms-and-conditions?language=hi
+* GET /app/settings?language=hi
+* GET /app/notices?language=hi
+
+Rules:
+
+* If Hindi content exists, return Hindi content.
+* If Hindi content is missing, return English text as fallback.
+* API response may include:
+
+  * requestedLanguage
+  * resolvedLanguage
+  * fallbackUsed: true/false
+* Do not return both full English and Hindi content in every mobile response unless needed.
+* Admin APIs should return both languages for editing.
+
+## 8. Prisma / Database Migration
+
+Update Prisma schema safely.
+
+Requirements:
+
+* Add `preferredLanguage` to User.
+* Add bilingual fields to content entities.
+* Preserve existing English content by migrating current fields into English fields.
+* Do not lose existing categories, subcategories, tasks, FAQ, legal content, support content, or notices.
+* Existing single-language data should become English by default.
+* Hindi fields can initially be null/empty.
+* Add migration notes.
+
+## 9. Fallback Rules
+
+Implement these strict rules:
+
+1. English selected:
+
+* Always show English content.
+
+2. Hindi selected:
+
+* Show Hindi content when available.
+* Otherwise show English content.
+* Never show blank category title, task instruction, FAQ answer, legal page, or support text.
+
+3. UI text:
+
+* Hindi UI translations should always come from `hi.json`.
+* Do not fall back to raw translation keys.
+
+4. Legal pages:
+
+* Show Hindi content when published Hindi content exists.
+* Otherwise show English published content.
+* Do not hide the legal page merely because Hindi is unavailable.
+
+## 10. Safe Rollout
+
+Do not break existing users.
+
+For users who already exist:
+
+* Default preferredLanguage to `en`.
+* Existing login/session must continue to work.
+* Existing admin-created content must remain visible in English.
+
+For mobile:
+
+* Existing users should see English unless they change language from Profile.
+* New users choose language before login.
+
+## 11. Testing
+
+Test these flows:
+
+A. New user:
+
+* Launch app.
+* Language selection appears.
+* English selected by default.
+* Choose हिंदी.
+* Continue to login.
+* Login and OTP screens appear in Hindi.
+* Task categories/tasks display Hindi where added.
+* Missing Hindi text falls back to English.
+
+B. Existing user:
+
+* Existing user opens app.
+* Does not get language selection again.
+* Sees English by default.
+* Changes language from Profile to हिंदी.
+* UI updates immediately.
+* Task/category/subcategory/task details refresh in Hindi.
+
+C. Admin:
+
+* Add a category/task in English only.
+* Confirm Hindi user sees English fallback.
+* Add Hindi translation.
+* Confirm Hindi user sees Hindi content.
+* Confirm English user still sees English content.
+
+D. Legal and FAQ:
+
+* Add Hindi Privacy Policy, Terms, FAQ.
+* Confirm Hindi user sees Hindi version.
+* Remove Hindi legal content.
+* Confirm Hindi user sees English fallback, not blank page.
+
+At the end provide:
+
+* Files created/updated
+* Prisma migration summary
+* API route changes
+* Admin translation-entry workflow
+* Mobile language-selection test flow
+* Hindi fallback test flow
+* Confirmation that no runtime automatic translation service was added

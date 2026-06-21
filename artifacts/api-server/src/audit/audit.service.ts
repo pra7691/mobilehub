@@ -20,7 +20,8 @@ export type AuditAction =
   | 'static_page.updated'
   | 'notice.created'
   | 'notice.updated'
-  | 'notice.deleted';
+  | 'notice.deleted'
+  | 'user.status_changed';
 
 export interface AuditContext {
   adminId?: string;
