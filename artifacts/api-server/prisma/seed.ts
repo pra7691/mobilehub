@@ -21,6 +21,16 @@ async function main() {
     console.log('Created OTP settings (test mode ON, OTP: 123456)');
   }
 
+  // Support settings
+  const existingSupport = await prisma.supportSettings.findFirst();
+  if (!existingSupport) {
+    await prisma.supportSettings.create({ data: { email: 'support@verbosetechlabs.com', whatsappNumber: '', workingHours: 'Mon–Fri, 10am–6pm IST', message: 'Our team is here to help. Reach out and we\'ll get back to you within 24 hours.' } });
+    console.log('Created support settings');
+  } else {
+    await prisma.supportSettings.update({ where: { id: existingSupport.id }, data: { email: 'support@verbosetechlabs.com' } });
+    console.log('Updated support email');
+  }
+
   // Skip if categories already exist
   const existingCats = await prisma.category.count({ where: { deletedAt: null } });
   if (existingCats > 0) {
