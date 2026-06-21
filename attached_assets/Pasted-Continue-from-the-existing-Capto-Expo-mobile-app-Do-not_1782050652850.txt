@@ -1,0 +1,243 @@
+Continue from the existing Capto Expo mobile app. Do not rebuild existing modules. Fix these capture-flow bugs end-to-end.
+
+There are four issues:
+
+1. Camera remains active behind My Uploads after submission/upload.
+2. Audio recording throws uncaught Promise/console errors.
+3. Audio recording close button overlaps the iPhone/Android status area.
+4. Camera close button overlaps the iPhone/Android status area.
+
+Do not hide errors. Find and fix root causes.
+
+## A. Camera Must Fully Close Before Navigation
+
+Problem:
+After a task is submitted/uploaded, the app navigates to My Uploads but the camera preview remains visible in the background. It looks like My Uploads is layered on top of the active camera screen.
+
+Required behavior:
+
+* After capture is saved, uploaded, cancelled, or user leaves capture flow, camera must fully unmount.
+* Camera preview must stop.
+* Camera session must release device resources.
+* Navigation must not stack My Uploads as an overlay on top of the camera route.
+* My Uploads should become a normal screen with no camera visible behind it.
+
+Implementation requirements:
+
+1. Inspect Expo Router navigation from:
+
+   * camera capture screen
+   * review screen
+   * upload completion screen
+   * draft save flow
+   * submission success flow
+2. Replace incorrect `push()` navigation with `replace()`, `dismissAll()`, reset navigation state, or correct route replacement where needed.
+3. On successful upload/submission:
+
+   * Stop recording if still active.
+   * Clear camera state.
+   * Unmount `CameraView`.
+   * Release camera resources before routing.
+   * Navigate to My Uploads → Under Review only after cleanup completes.
+4. On cancel/close:
+
+   * Stop recording safely.
+   * Stop preview / unmount camera.
+   * Clear temporary camera refs.
+   * Return to task detail or previous screen without leaving camera mounted.
+5. Ensure camera component renders only when:
+
+   * route is focused
+   * app is active
+   * capture session is active
+6. Use focus/app-state lifecycle handling where needed.
+7. Ensure no camera screen is retained below a modal, stack, sheet, or nested route after navigation.
+8. Test Android and iOS with:
+
+   * capture image → review → upload → My Uploads
+   * capture video → review → upload → My Uploads
+   * cancel camera
+   * app background/foreground during capture
+
+## B. Fix Audio Recording Promise Errors
+
+Problem:
+During audio recording, the app shows errors such as:
+
+* “Uncaught in Promise”
+* function/console errors
+* multiple logs such as “Log 1 of 2” and “Log 2 of 2”
+* errors are not reliably visible in Admin Error Logs
+
+Requirements:
+
+1. Inspect exact installed Expo audio package/version and all audio recording code.
+2. Do not assume API signatures.
+3. Find all unhandled Promise rejections in:
+
+   * prepare/start recording
+   * pause recording
+   * resume recording
+   * stop recording
+   * unload/release recording
+   * playback setup
+   * playback cleanup
+   * component unmount
+   * close/cancel action
+4. Wrap all async audio operations in safe `try/catch/finally`.
+5. Prevent duplicate rapid actions:
+
+   * Start twice
+   * Stop twice
+   * Pause after stop
+   * Resume after stop
+   * Close while starting/stopping
+6. Add explicit recording state machine:
+
+   * IDLE
+   * PREPARING
+   * RECORDING
+   * PAUSED
+   * STOPPING
+   * REVIEWING
+   * ERROR
+7. Disable invalid buttons during transitions.
+8. Clean up recording/audio resources on:
+
+   * screen close
+   * navigation away
+   * app background
+   * component unmount
+9. Never call unload/release twice.
+10. Never show raw console output, React Native logs, stack traces, or developer red-screen UI to users.
+11. On audio failure, show user-safe UI:
+
+* Title: “Audio recording failed”
+* Message: “Please try recording again.”
+* Buttons: Retry, Cancel
+
+12. Ensure audio errors are sent to backend Mobile Error Logs with:
+
+* screen name
+* action
+* audio state
+* safe error message
+* task ID
+* draft ID if available
+* platform
+* app version
+* timestamp
+
+13. Ensure error logs actually reach backend and appear in Admin Error Logs.
+14. Add deduplication so the same failure is not logged repeatedly.
+
+## C. Fix Capture Screen Safe Area Globally
+
+Problem:
+The close/cross button on:
+
+* Audio recording screen
+* Camera capture screen
+
+is overlapping with the status bar/time area. On iPhone it can overlap with Dynamic Island/notch; on Android it can overlap with status bar/cutout. User cannot tap it.
+
+Required behavior:
+
+* Close button must always be visibly below safe area.
+* It must be fully tappable.
+* It must have at least 44x44 touch target.
+* It must work on iPhone Dynamic Island, iPhone notch, Android cutout, and standard Android devices.
+
+Implementation:
+
+1. Use `react-native-safe-area-context`.
+2. Use `useSafeAreaInsets()` in all full-screen capture screens.
+3. Do not use hard-coded top spacing.
+4. Camera preview/audio visual can remain edge-to-edge.
+5. Top controls must use:
+
+   * `top: insets.top + appropriateSpacing`
+6. Apply this to:
+
+   * camera close button
+   * audio close button
+   * flash button
+   * camera switch button
+   * timer
+   * any top overlays
+7. Bottom recording controls must use bottom safe-area inset so they do not overlap the home indicator.
+8. Check both portrait capture screens and review screens.
+
+## D. Error Logging Verification
+
+The existing error logging may not be capturing these errors.
+
+Verify and fix:
+
+1. Mobile error service catches:
+
+   * unhandled Promise rejections where possible
+   * audio exceptions
+   * capture exceptions
+   * upload exceptions
+   * screen render exceptions
+2. Failed log submission should queue locally and retry later.
+3. Admin Error Logs should display:
+
+   * error type
+   * message
+   * user reference
+   * task ID
+   * draft/submission ID
+   * platform
+   * screen
+   * timestamp
+   * status
+4. Do not store tokens, OTPs, full UPI IDs, presigned URLs, or cloud credentials.
+
+## E. Required Testing
+
+Test on real iPhone and Android device/emulator:
+
+1. Image:
+
+* Open camera.
+* Confirm close button is below status bar.
+* Capture image.
+* Save/upload.
+* Confirm camera disappears completely before My Uploads appears.
+
+2. Video:
+
+* Record.
+* Stop.
+* Review.
+* Upload.
+* Confirm no camera remains behind My Uploads.
+
+3. Audio:
+
+* Start recording.
+* Pause/resume.
+* Stop.
+* Close during idle.
+* Close during recording.
+* Retry after a forced failure.
+* Confirm no uncaught Promise or raw error screen.
+* Confirm errors appear in Admin Error Logs when intentionally triggered.
+
+4. Safe area:
+
+* Verify all capture top controls are below Dynamic Island/status bar.
+* Verify bottom controls are above home indicator.
+* Verify close buttons are tappable.
+
+At the end provide:
+
+* Root cause of camera remaining active
+* Exact navigation/lifecycle changes made
+* Root cause of audio Promise errors
+* Audio state machine details
+* Screens updated for safe area
+* Error logging verification results
+* Test results for image, video, and audio capture

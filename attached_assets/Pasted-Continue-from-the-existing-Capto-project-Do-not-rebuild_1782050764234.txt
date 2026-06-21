@@ -1,0 +1,339 @@
+Continue from the existing Capto project. Do not rebuild capture, upload, task management, wallet, payout, referral, language, or existing admin layout.
+
+The Admin Dashboard currently shows submitted tasks/submissions, but there is no action to approve, reject, or change submission status.
+
+Build the complete Admin Submission Review workflow.
+
+## Goal
+
+Admin must be able to review every submitted task and:
+
+* Approve submission
+* Reject submission
+* Request resubmission
+
+When approved:
+
+* Submission status changes to APPROVED.
+* User receives the task payment amount in wallet.
+* Wallet transaction is created.
+* If the user was referred and this is their first approved task, trigger referral reward logic if that module exists.
+* Mobile user sees the submission in Completed and wallet balance updates.
+
+When rejected:
+
+* Submission status changes to REJECTED.
+* Admin must enter rejection reason.
+* No task payment is credited.
+* Mobile user sees rejection reason.
+
+When resubmission is requested:
+
+* Submission status changes to RESUBMISSION_REQUIRED.
+* Admin must enter reason.
+* No task payment is credited.
+* Mobile user sees action-needed status and reason.
+
+## 1. Admin Submissions Page
+
+Update the existing Submissions page.
+
+Submission list must show:
+
+* Submission ID
+* User mobile number / user ID
+* Task title
+* Category and subcategory
+* Collection type
+* Submitted date/time
+* Duration or image count
+* Expected payment amount
+* Current status
+* Review status
+* Action button
+
+Statuses:
+
+* DRAFT
+* UPLOADING
+* UNDER_REVIEW
+* APPROVED
+* REJECTED
+* RESUBMISSION_REQUIRED
+* UPLOAD_FAILED
+
+For UNDER_REVIEW submissions, show visible action controls:
+
+* Review
+* Approve
+* Reject
+* Request Resubmission
+
+Do not show approval/rejection actions for statuses that are already final unless there is a controlled admin override flow later.
+
+## 2. Submission Detail Review Screen
+
+When admin opens a submission, show a full detail page or side drawer with:
+
+### Submission Information
+
+* Submission ID
+* User details
+* Task details
+* Task snapshot
+* Payment amount snapshot
+* Category/subcategory
+* Collection type
+* Capture date/time
+* Upload date/time
+* Device metadata
+* Camera/lens metadata where available
+* Duration
+* Image count
+* File size
+* Submission timeline
+
+### Media Review
+
+For Video:
+
+* In-dashboard video player
+* Playback controls
+* Duration
+* Full-screen option if supported
+
+For Images:
+
+* Image gallery
+* Full-size image preview
+* Previous/next image controls
+* Image count
+
+For Audio:
+
+* Audio player
+* Playback controls
+* Duration
+
+### Review Actions
+
+Show action area only when status is UNDER_REVIEW:
+
+Approve:
+
+* Default approved amount = paymentAmountSnapshot
+* Admin can edit approved amount before approval
+* Optional admin note
+* Confirmation modal
+* Confirm button: “Approve Submission”
+
+Reject:
+
+* Rejection reason required
+* Optional admin note
+* Confirmation modal
+* Confirm button: “Reject Submission”
+
+Request Resubmission:
+
+* Reason required
+* Optional admin note
+* Confirmation modal
+* Confirm button: “Request Resubmission”
+
+## 3. Backend APIs
+
+Ensure these admin-only APIs exist and are fully wired:
+
+* GET /admin/submissions
+* GET /admin/submissions/:id
+* POST /admin/submissions/:id/approve
+* POST /admin/submissions/:id/reject
+* POST /admin/submissions/:id/request-resubmission
+
+Approval request body:
+
+```json
+{
+  "approvedAmount": 40,
+  "adminNote": "Approved after quality review."
+}
+```
+
+Reject request body:
+
+```json
+{
+  "rejectionReason": "Video is too dark and instructions are not visible.",
+  "adminNote": "Please record again in better lighting."
+}
+```
+
+Resubmission request body:
+
+```json
+{
+  "resubmissionReason": "Please capture the full activity from start to finish.",
+  "adminNote": "Do not skip the preparation steps."
+}
+```
+
+Rules:
+
+* Only submissions with status UNDER_REVIEW can be reviewed.
+* Return clear error if already reviewed.
+* Prevent duplicate approval.
+* Do not allow double wallet credit.
+* Use database transaction for approval and wallet update.
+* Save reviewedBy admin ID and reviewedAt.
+* Save approved amount, rejection reason, resubmission reason, and admin note where applicable.
+* Add Swagger docs and DTO validation.
+
+## 4. Wallet Integration
+
+On approval:
+
+1. Lock submission record.
+2. Confirm submission is UNDER_REVIEW.
+3. Change submission status to APPROVED.
+4. Set approvedAmount.
+5. Create WalletTransaction:
+
+   * transactionType: CREDIT
+   * sourceType: SUBMISSION
+   * sourceId: submission ID
+   * amount: approvedAmount
+   * note: task title / submission ID
+6. Increase user available balance.
+7. Increase user lifetime earnings.
+8. Save wallet balance before and after.
+9. Ensure this can happen only once.
+
+If referral system exists:
+
+* Trigger referral reward only after normal submission credit succeeds.
+* Reward referrer only once when referred user gets their first approved task.
+* Do not block normal approval if referral reward fails; log it safely and make it recoverable.
+
+On reject or resubmission:
+
+* Do not create wallet credit.
+* Do not change available balance.
+
+## 5. Mobile App Updates
+
+Update My Uploads and Submission Details.
+
+### Under Review
+
+Show:
+
+* Submitted date/time
+* Status: Under Review
+* Expected payment amount
+* Task title
+* Media preview where supported
+
+### Completed
+
+Show approved submissions:
+
+* Status: Approved
+* Approved amount
+* Reviewed date
+* Task title
+* Wallet transaction link if available
+
+### Rejected / Needs Action
+
+Add a visible section, filter, or tab for:
+
+* REJECTED
+* RESUBMISSION_REQUIRED
+
+Show:
+
+* Status
+* Admin reason
+* Admin note if present
+* Task details
+* Option to create a new recording/draft for resubmission-required tasks where appropriate
+* Do not allow modification of original submitted media.
+
+## 6. Admin Dashboard UX
+
+* Keep existing Capto dark/cyan design.
+* Use clear status badges:
+
+  * Under Review: amber/yellow
+  * Approved: green
+  * Rejected: red
+  * Resubmission Required: orange
+* Add filters:
+
+  * Status
+  * Task
+  * Category
+  * Subcategory
+  * Collection type
+  * User
+  * Date range
+* Add search by:
+
+  * submission ID
+  * user mobile number
+  * task title
+* Show loading, empty, error, and retry states.
+
+## 7. Audit Logs and Error Handling
+
+Create audit entries for:
+
+* Submission approved
+* Submission rejected
+* Resubmission requested
+* Approved amount edited
+* Wallet credit created
+
+Include:
+
+* Admin ID
+* Submission ID
+* Old status
+* New status
+* Timestamp
+* Action details
+
+Do not expose raw server errors to admin UI or mobile users.
+
+## 8. Testing
+
+Test these flows:
+
+1. Upload a submission from mobile.
+2. Confirm it appears in Admin → Submissions as UNDER_REVIEW.
+3. Open detail screen and play/view media.
+4. Approve with default amount.
+5. Confirm:
+
+   * Submission becomes APPROVED.
+   * Wallet transaction created once.
+   * User available balance increases.
+   * Submission appears in mobile Completed.
+6. Approve same submission again and confirm system blocks duplicate credit.
+7. Upload another submission.
+8. Reject with reason.
+9. Confirm mobile user sees rejected status and reason.
+10. Upload another submission.
+11. Request resubmission with reason.
+12. Confirm mobile user sees action-needed status and can record a new submission.
+13. Verify referral reward logic does not duplicate credit if it exists.
+
+At the end provide:
+
+* Files created/updated
+* API routes added or fixed
+* Wallet transaction logic summary
+* Admin review test steps
+* Mobile status test steps
+* Confirmation that approval creates exactly one wallet credit
