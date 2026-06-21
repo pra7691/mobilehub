@@ -15,6 +15,7 @@ export type AuditAction =
   | 'task.deleted'
   | 'task.status_changed'
   | 'submission.reviewed'
+  | 'submission.wallet_credited'
   | 'otp_settings.updated'
   | 'support_settings.updated'
   | 'static_page.updated'

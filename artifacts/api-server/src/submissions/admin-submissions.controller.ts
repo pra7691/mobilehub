@@ -69,6 +69,9 @@ export class AdminSubmissionsController {
     @Query('categoryId') categoryId?: string,
     @Query('subcategoryId') subcategoryId?: string,
     @Query('userId') userId?: string,
+    @Query('taskId') taskId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
     @Query('search') search?: string,
   ) {
     return this.service.adminList({
@@ -79,6 +82,9 @@ export class AdminSubmissionsController {
       categoryId,
       subcategoryId,
       userId,
+      taskId,
+      dateFrom,
+      dateTo,
       search,
     });
   }
@@ -107,6 +113,20 @@ export class AdminSubmissionsController {
           oldStatus: 'UNDER_REVIEW',
           newStatus: 'APPROVED',
           approvedAmount: body.approvedAmount,
+          walletCredited: true,
+        },
+      },
+    );
+    void this.audit.log(
+      'submission.wallet_credited',
+      ctx,
+      {
+        entityType: 'submission',
+        entityId: id,
+        metadata: {
+          sourceType: 'SUBMISSION',
+          sourceId: id,
+          amount: body.approvedAmount,
           walletCredited: true,
         },
       },

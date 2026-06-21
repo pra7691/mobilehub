@@ -1309,6 +1309,9 @@ export const AdminListSubmissionsQueryParams = zod.object({
   "categoryId": zod.coerce.string().optional(),
   "subcategoryId": zod.coerce.string().optional(),
   "userId": zod.coerce.string().optional(),
+  "taskId": zod.coerce.string().optional(),
+  "dateFrom": zod.date().optional().describe('ISO 8601 date string — filter submissions created on or after this date'),
+  "dateTo": zod.date().optional().describe('ISO 8601 date string — filter submissions created on or before this date'),
   "search": zod.coerce.string().optional()
 })
 

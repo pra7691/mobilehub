@@ -849,6 +849,22 @@ paths:
           in: query
           schema:
             type: string
+        - name: taskId
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          description: ISO 8601 date string — filter submissions created on or after this date
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          description: ISO 8601 date string — filter submissions created on or before this date
+          schema:
+            type: string
+            format: date-time
         - name: search
           in: query
           schema:

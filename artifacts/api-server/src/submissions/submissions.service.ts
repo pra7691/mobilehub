@@ -614,6 +614,9 @@ export class SubmissionsService {
     categoryId?: string;
     subcategoryId?: string;
     userId?: string;
+    taskId?: string;
+    dateFrom?: string;
+    dateTo?: string;
     search?: string;
   }) {
     const page = params.page ?? 1;
@@ -626,6 +629,12 @@ export class SubmissionsService {
     if (params.categoryId) where.categoryId = params.categoryId;
     if (params.subcategoryId) where.subcategoryId = params.subcategoryId;
     if (params.userId) where.userId = params.userId;
+    if (params.taskId) where.taskId = params.taskId;
+    if (params.dateFrom || params.dateTo) {
+      where.createdAt = {};
+      if (params.dateFrom) where.createdAt.gte = new Date(params.dateFrom);
+      if (params.dateTo) where.createdAt.lte = new Date(params.dateTo);
+    }
     if (params.search) {
       where.OR = [
         { id: { contains: params.search, mode: 'insensitive' } },
@@ -689,13 +698,9 @@ export class SubmissionsService {
     body: { approvedAmount?: number; adminNote?: string },
   ) {
     return this.prisma.$transaction(async (tx) => {
+      // Fetch submission data for use in wallet credit and notifications
       const submission = await tx.submission.findUnique({ where: { id: submissionId } });
       if (!submission) throw new NotFoundException('Submission not found');
-      if (submission.status !== 'UNDER_REVIEW') {
-        throw new BadRequestException(
-          `Only UNDER_REVIEW submissions can be approved (current: ${submission.status})`,
-        );
-      }
 
       const amount =
         body.approvedAmount != null
@@ -704,6 +709,24 @@ export class SubmissionsService {
 
       const taskTitle =
         (submission.taskSnapshot as Record<string, unknown>)?.title as string ?? submissionId;
+
+      // Atomic conditional status transition — only succeeds if submission is still UNDER_REVIEW.
+      // This prevents double-approval from concurrent requests.
+      const { count } = await tx.submission.updateMany({
+        where: { id: submissionId, status: 'UNDER_REVIEW' },
+        data: {
+          status: 'APPROVED',
+          approvedAmount: amount,
+          adminNote: body.adminNote ?? null,
+          reviewedBy: adminEmail,
+          reviewedAt: new Date(),
+        },
+      });
+      if (count === 0) {
+        throw new BadRequestException(
+          `Only UNDER_REVIEW submissions can be approved (current: ${submission.status})`,
+        );
+      }
 
       await this.walletService.creditSubmissionApproval(
         tx as Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
@@ -720,17 +743,11 @@ export class SubmissionsService {
         submissionId,
       );
 
-      const updated = await tx.submission.update({
+      const updated = await tx.submission.findUnique({
         where: { id: submissionId },
-        data: {
-          status: 'APPROVED',
-          approvedAmount: amount,
-          adminNote: body.adminNote ?? null,
-          reviewedBy: adminEmail,
-          reviewedAt: new Date(),
-        },
         include: SUBMISSION_INCLUDE,
       });
+      if (!updated) throw new NotFoundException('Submission not found after approval');
 
       const result = formatSubmission(updated);
 

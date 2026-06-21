@@ -1866,6 +1866,15 @@ collectionType?: AdminListSubmissionsCollectionType;
 categoryId?: string;
 subcategoryId?: string;
 userId?: string;
+taskId?: string;
+/**
+ * ISO 8601 date string — filter submissions created on or after this date
+ */
+dateFrom?: string;
+/**
+ * ISO 8601 date string — filter submissions created on or before this date
+ */
+dateTo?: string;
 search?: string;
 };
 

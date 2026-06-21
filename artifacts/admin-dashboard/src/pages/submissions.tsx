@@ -23,6 +23,16 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ChevronLeft, ChevronRight, Search, Filter, Image, Video, Mic, X, ExternalLink,
   Info, CheckCircle, XCircle, RefreshCw, Loader2,
 } from "lucide-react";
@@ -39,6 +49,7 @@ type SubmissionStatusValue =
 type CollectionTypeValue = "VIDEO" | "IMAGE" | "AUDIO";
 
 type ReviewTab = "approve" | "reject" | "resubmit";
+type ConfirmAction = "approve" | "reject" | "resubmit";
 
 const STATUS_BADGE: Record<SubmissionStatusValue, { label: string; className: string }> = {
   DRAFT: { label: "Draft", className: "bg-slate-500/15 text-slate-400 border-none" },
@@ -87,6 +98,7 @@ export default function Submissions() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [reviewTab, setReviewTab] = useState<ReviewTab>("approve");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   const [approvedAmount, setApprovedAmount] = useState("");
   const [approveNote, setApproveNote] = useState("");
@@ -123,6 +135,7 @@ export default function Submissions() {
     setSelectedId(id);
     setDetailOpen(true);
     setReviewTab("approve");
+    setConfirmAction(null);
     setApprovedAmount("");
     setApproveNote("");
     setRejectionReason("");
@@ -131,6 +144,13 @@ export default function Submissions() {
     setResubmitNote("");
     setReviewSuccess(null);
     setReviewError(null);
+  }
+
+  async function executeConfirmedAction() {
+    if (confirmAction === "approve") await handleApprove();
+    else if (confirmAction === "reject") await handleReject();
+    else if (confirmAction === "resubmit") await handleResubmit();
+    setConfirmAction(null);
   }
 
   function handleSearch() {
@@ -465,7 +485,7 @@ export default function Submissions() {
                         <Button
                           size="sm"
                           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={() => void handleApprove()}
+                          onClick={() => setConfirmAction("approve")}
                           disabled={isSubmitting || !!reviewSuccess}
                         >
                           {approveMutation.isPending ? (
@@ -506,7 +526,7 @@ export default function Submissions() {
                           size="sm"
                           variant="destructive"
                           className="w-full"
-                          onClick={() => void handleReject()}
+                          onClick={() => setConfirmAction("reject")}
                           disabled={isSubmitting || !rejectionReason.trim() || !!reviewSuccess}
                         >
                           {rejectMutation.isPending ? (
@@ -546,7 +566,7 @@ export default function Submissions() {
                         <Button
                           size="sm"
                           className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                          onClick={() => void handleResubmit()}
+                          onClick={() => setConfirmAction("resubmit")}
                           disabled={isSubmitting || !resubmissionReason.trim() || !!reviewSuccess}
                         >
                           {resubmitMutation.isPending ? (
@@ -723,6 +743,48 @@ export default function Submissions() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      {/* Confirmation dialog for review actions */}
+      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === "approve" && "Approve Submission?"}
+              {confirmAction === "reject" && "Reject Submission?"}
+              {confirmAction === "resubmit" && "Request Resubmission?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "approve" && "This will approve the submission and credit the user's wallet. This action cannot be undone."}
+              {confirmAction === "reject" && "This will permanently reject the submission. The user will be notified. This action cannot be undone."}
+              {confirmAction === "resubmit" && "This will notify the user to resubmit their work with the provided feedback."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void executeConfirmedAction()}
+              disabled={isSubmitting}
+              className={
+                confirmAction === "approve"
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : confirmAction === "reject"
+                  ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  : "bg-orange-600 hover:bg-orange-700 text-white"
+              }
+            >
+              {isSubmitting ? (
+                <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Processing…</>
+              ) : confirmAction === "approve" ? (
+                "Approve & Credit"
+              ) : confirmAction === "reject" ? (
+                "Reject Submission"
+              ) : (
+                "Send Request"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

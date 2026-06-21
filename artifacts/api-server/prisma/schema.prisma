@@ -429,6 +429,7 @@ model WalletTransaction {
   wallet Wallet @relation(fields: [walletId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
 
+  @@unique([sourceType, sourceId])
   @@index([userId, createdAt])
   @@map("wallet_transactions")
 }
