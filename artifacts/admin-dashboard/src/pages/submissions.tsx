@@ -1,13 +1,8 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   useAdminListSubmissions,
   useAdminGetSubmission,
-  useAdminApproveSubmission,
-  useAdminRejectSubmission,
-  useAdminRequestResubmission,
   getAdminGetSubmissionQueryKey,
-  getAdminListSubmissionsQueryKey,
   type Submission,
   type SubmissionMedia,
 } from "@workspace/api-client-react";
@@ -81,65 +76,7 @@ export default function Submissions() {
   const [searchInput, setSearchInput] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [actionMode, setActionMode] = useState<"approve" | "reject" | "resubmit" | null>(null);
-  const [amountInput, setAmountInput] = useState("");
-  const [reasonInput, setReasonInput] = useState("");
-  const [adminNoteInput, setAdminNoteInput] = useState("");
   const limit = 15;
-
-  const queryClient = useQueryClient();
-  const { mutate: approve, isPending: approving } = useAdminApproveSubmission();
-  const { mutate: reject, isPending: rejecting } = useAdminRejectSubmission();
-  const { mutate: requestResubmission, isPending: requestingResubmission } = useAdminRequestResubmission();
-  const isActionPending = approving || rejecting || requestingResubmission;
-
-  function resetAction() {
-    setActionMode(null);
-    setAmountInput("");
-    setReasonInput("");
-    setAdminNoteInput("");
-  }
-
-  function handleActionSuccess() {
-    void queryClient.invalidateQueries({ queryKey: getAdminListSubmissionsQueryKey() });
-    if (selectedId) {
-      void queryClient.invalidateQueries({ queryKey: getAdminGetSubmissionQueryKey(selectedId) });
-    }
-    resetAction();
-  }
-
-  function submitApprove() {
-    if (!selectedId) return;
-    approve(
-      {
-        id: selectedId,
-        data: {
-          approvedAmount: amountInput ? parseFloat(amountInput) : undefined,
-          adminNote: adminNoteInput || undefined,
-        },
-      },
-      { onSuccess: handleActionSuccess },
-    );
-  }
-
-  function submitReject() {
-    if (!selectedId || !reasonInput.trim()) return;
-    reject(
-      {
-        id: selectedId,
-        data: { rejectionReason: reasonInput.trim(), adminNote: adminNoteInput || undefined },
-      },
-      { onSuccess: handleActionSuccess },
-    );
-  }
-
-  function submitResubmission() {
-    if (!selectedId || !reasonInput.trim()) return;
-    requestResubmission(
-      { id: selectedId, data: { resubmissionReason: reasonInput.trim() } },
-      { onSuccess: handleActionSuccess },
-    );
-  }
 
   const { data, isLoading } = useAdminListSubmissions({
     page, limit,
@@ -156,7 +93,6 @@ export default function Submissions() {
   function openDetail(id: string) {
     setSelectedId(id);
     setDetailOpen(true);
-    resetAction();
   }
 
   function handleSearch() {
@@ -361,102 +297,6 @@ export default function Submissions() {
                   )}
                 </div>
               </section>
-
-              {/* Action buttons for UNDER_REVIEW submissions */}
-              {selectedSub.status === "UNDER_REVIEW" && (
-                <section>
-                  <SectionTitle>Actions</SectionTitle>
-                  {!actionMode ? (
-                    <div className="flex gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-none"
-                        onClick={() => setActionMode("approve")}
-                      >
-                        ✓ Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-orange-600 hover:bg-orange-700 text-white border-none"
-                        onClick={() => setActionMode("resubmit")}
-                      >
-                        ↩ Request Resubmission
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setActionMode("reject")}
-                      >
-                        ✕ Reject
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 bg-background border border-border rounded-lg p-3">
-                      {actionMode === "approve" && (
-                        <>
-                          <p className="text-xs font-semibold text-foreground">Approve Submission</p>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Override Amount (optional — defaults to ₹{selectedSub.paymentAmountSnapshot?.toFixed(2)})</label>
-                            <Input
-                              className="mt-1 bg-card"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder={String(selectedSub.paymentAmountSnapshot?.toFixed(2) ?? "")}
-                              value={amountInput}
-                              onChange={(e) => setAmountInput(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Admin Note (internal, optional)</label>
-                            <Input className="mt-1 bg-card" placeholder="Internal note…" value={adminNoteInput} onChange={(e) => setAdminNoteInput(e.target.value)} />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white border-none" onClick={submitApprove} disabled={isActionPending}>
-                              {approving ? "Approving…" : "Confirm Approve"}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={resetAction} disabled={isActionPending}>Cancel</Button>
-                          </div>
-                        </>
-                      )}
-                      {actionMode === "reject" && (
-                        <>
-                          <p className="text-xs font-semibold text-foreground">Reject Submission</p>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Rejection Reason *</label>
-                            <Input className="mt-1 bg-card" placeholder="Reason for rejection…" value={reasonInput} onChange={(e) => setReasonInput(e.target.value)} />
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Admin Note (internal, optional)</label>
-                            <Input className="mt-1 bg-card" placeholder="Internal note…" value={adminNoteInput} onChange={(e) => setAdminNoteInput(e.target.value)} />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="destructive" onClick={submitReject} disabled={isActionPending || !reasonInput.trim()}>
-                              {rejecting ? "Rejecting…" : "Confirm Reject"}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={resetAction} disabled={isActionPending}>Cancel</Button>
-                          </div>
-                        </>
-                      )}
-                      {actionMode === "resubmit" && (
-                        <>
-                          <p className="text-xs font-semibold text-foreground">Request Resubmission</p>
-                          <div>
-                            <label className="text-xs text-muted-foreground">Feedback for Agent *</label>
-                            <Input className="mt-1 bg-card" placeholder="What needs to be corrected…" value={reasonInput} onChange={(e) => setReasonInput(e.target.value)} />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white border-none" onClick={submitResubmission} disabled={isActionPending || !reasonInput.trim()}>
-                              {requestingResubmission ? "Sending…" : "Send Feedback"}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={resetAction} disabled={isActionPending}>Cancel</Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </section>
-              )}
 
               {/* Review result for concluded submissions */}
               {(selectedSub.status === "APPROVED" || selectedSub.status === "REJECTED" || selectedSub.status === "RESUBMISSION_REQUIRED") && (

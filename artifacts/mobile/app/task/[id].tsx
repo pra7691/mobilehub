@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetTask } from "@workspace/api-client-react";
 
 import { PermissionGate } from "@/components/PermissionGate";
@@ -104,26 +104,25 @@ function StartTaskButton({
   };
 
   return (
-    <View style={styles.ctaSection}>
-      <TouchableOpacity
-        style={styles.ctaBtn}
-        activeOpacity={0.8}
-        onPress={handlePress}
-        disabled={checkingPermission}
-      >
-        {checkingPermission ? (
-          <ActivityIndicator color="#22d3ee" size="small" />
-        ) : (
-          <Text style={styles.ctaBtnText}>{typeConf.icon}  Start Task</Text>
-        )}
-      </TouchableOpacity>
-    </View>
+    <TouchableOpacity
+      style={styles.ctaBtn}
+      activeOpacity={0.8}
+      onPress={handlePress}
+      disabled={checkingPermission}
+    >
+      {checkingPermission ? (
+        <ActivityIndicator color="#22d3ee" size="small" />
+      ) : (
+        <Text style={styles.ctaBtnText}>{typeConf.icon}  Start Task</Text>
+      )}
+    </TouchableOpacity>
   );
 }
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data: task, isLoading, error } = useGetTask(id);
 
   if (isLoading) {
@@ -364,15 +363,17 @@ export default function TaskDetailScreen() {
 
       </ScrollView>
 
-      {/* Fixed bottom CTA */}
+      {/* Fixed bottom CTA — padded for home indicator on curved phones */}
       {task.status === "active" ? (
-        <StartTaskButton
-          collectionType={task.collectionType as CollectionType}
-          taskId={id}
-          typeConf={typeConf}
-        />
+        <View style={[styles.ctaSection, { paddingBottom: Math.max(insets.bottom + 8, 20) }]}>
+          <StartTaskButton
+            collectionType={task.collectionType as CollectionType}
+            taskId={id}
+            typeConf={typeConf}
+          />
+        </View>
       ) : (
-        <View style={styles.ctaSection}>
+        <View style={[styles.ctaSection, { paddingBottom: Math.max(insets.bottom + 8, 20) }]}>
           <View style={[styles.ctaBtn, styles.ctaBtnDisabled]}>
             <Text style={[styles.ctaBtnText, styles.ctaBtnTextDisabled]}>
               Task not available
