@@ -22,7 +22,7 @@ export default function Login() {
       { data: { email, password } },
       {
         onSuccess: (data) => {
-          login(data.accessToken);
+          login(data.accessToken, data.refreshToken);
         },
         onError: (err: any) => {
           setError(err.message || "Invalid credentials");
