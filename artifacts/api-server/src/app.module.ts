@@ -28,6 +28,7 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { ReferralSettingsModule } from './referral-settings/referral-settings.module';
 import { BannersModule } from './banners/banners.module';
 import { TranslateModule } from './translate/translate.module';
+import { SeedProdController } from './seed-prod.controller';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { TranslateModule } from './translate/translate.module';
     BannersModule,
     TranslateModule,
   ],
+  controllers: [SeedProdController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],

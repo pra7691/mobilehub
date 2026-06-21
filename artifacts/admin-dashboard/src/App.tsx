@@ -27,6 +27,7 @@ import ErrorLogsPage from "@/pages/error-logs";
 import PayoutsPage from "@/pages/payouts";
 import ReferralsPage from "@/pages/referrals";
 import BannersPage from "@/pages/banners";
+import PublicPage from "@/pages/public-page";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,8 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/privacy-policy" component={PublicPage} />
+      <Route path="/terms-and-conditions" component={PublicPage} />
       <Route path="/login">
         {isAuthenticated ? <Redirect to="/" /> : <Login />}
       </Route>

@@ -134,3 +134,13 @@ export class AppSettingsController {
     return this.service.getLegal(slug as 'privacy-policy' | 'terms-and-conditions');
   }
 }
+
+@Controller('public/legal')
+export class PublicLegalController {
+  constructor(private service: SettingsService) {}
+
+  @Get(':slug')
+  getPublicLegal(@Param('slug') slug: string) {
+    return this.service.getLegal(slug as 'privacy-policy' | 'terms-and-conditions');
+  }
+}

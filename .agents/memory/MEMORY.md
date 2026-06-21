@@ -2,3 +2,4 @@
 - [Mobile error reporting](mobile-error-reporting.md) — offline queue in AsyncStorage, drains on app ready, wired into submitDraft and ErrorBoundary
 - [MobileErrorLog module](mobile-error-log-module.md) — NestJS module + Prisma model + OpenAPI spec for mobile error capture with admin resolve/unresolve
 - [Currency formatting](currency-formatting.md) — shared formatINR util in admin lib/utils.ts and mobile utils/formatCurrency.ts; use these everywhere, never inline ₹${toFixed}
+- [Public legal pages](public-legal-pages.md) — /privacy-policy and /terms-and-conditions in admin SPA, served by PublicLegalController at /api/public/legal/:slug (no auth)
