@@ -52,7 +52,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top + 20 }]}
+      style={[styles.container, { paddingTop: insets.top + 40 }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.inner}>
