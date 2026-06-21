@@ -1,0 +1,57 @@
+Before building the Tarzi Google Play production AAB, perform a final production deployment verification and fix any missing deployment issues.
+
+Live production domain:
+https://mobile-data-hub.replit.app
+
+Required public URLs:
+
+* https://mobile-data-hub.replit.app/privacy-policy
+* https://mobile-data-hub.replit.app/terms-and-conditions
+* https://mobile-data-hub.replit.app/delete-account
+* https://mobile-data-hub.replit.app/api/healthz
+
+Problem:
+The live public routes are still being detected with the page title “Capto Admin Dashboard.” Verify whether the latest Tarzi public-route changes are actually deployed. If not, publish the latest deployment.
+
+Requirements:
+
+1. Deploy latest code to production.
+2. Confirm all public legal/deletion routes:
+
+   * return HTTP 200
+   * work without login
+   * work on direct open and refresh
+   * show Tarzi branding, not Capto
+   * do not show admin sidebar, admin login, admin shell, or dashboard UI
+   * show the real published Privacy Policy / Terms content
+   * show proper public account-deletion request form
+3. Update the global document/browser title to Tarzi where appropriate.
+4. Confirm:
+
+   * Privacy Policy page title is “Privacy Policy | Tarzi”
+   * Terms page title is “Terms and Conditions | Tarzi”
+   * Delete Account page title is “Delete Account | Tarzi”
+   * Admin dashboard title is “Tarzi Admin”
+5. Verify production settings have published legal content, not unavailable/empty placeholders.
+6. Verify production API base URL in Expo config is exactly:
+   https://mobile-data-hub.replit.app/api
+7. Change the default admin password immediately. Do not leave:
+   [admin@capto.app](mailto:admin@capto.app) / Admin@1234
+8. Confirm final app icon and splash assets are present before production build. If not, clearly list them as blockers.
+
+OTP reviewer mode:
+
+* Keep test OTP mode strictly restricted to a specific review/test mobile number or explicit allowlist.
+* Do not allow one hard-coded OTP to log in as any arbitrary phone number in production.
+* Do not show the test OTP in app UI, screenshots, public documentation, or logs.
+* Keep a clear admin switch to disable reviewer/test OTP mode after review.
+
+At the end provide:
+
+* Deployment version/date
+* HTTP status for all four public URLs
+* Screenshot or textual proof of visible Tarzi branding/content
+* Confirmed production API URL
+* Confirmation default admin password was changed
+* Confirmation whether app icon and splash assets are final
+* Any remaining blockers before EAS AAB build

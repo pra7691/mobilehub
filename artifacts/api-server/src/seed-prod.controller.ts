@@ -635,7 +635,7 @@ const BANNERS = [
 ];
 
 const ADMIN_USER = {
-  email: 'admin@capto.app',
+  email: 'admin@tarzi.app',
   name: 'Super Admin',
   password: '$2a$10$RhJgH3MwBA3wm.3tOnYwMeg01G0lF1Qydfk6w47MDRaW9AVMsuDzK',
   role: 'super_admin',

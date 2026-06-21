@@ -172,10 +172,15 @@ export class AuthService {
       throw new BadRequestException('Please wait before requesting another OTP');
     }
 
-    const otp =
-      settings?.isTestMode && settings.testOtp
-        ? settings.testOtp
-        : Math.floor(100000 + Math.random() * 900000).toString();
+    const allowedPhones = (settings?.allowedPhoneNumbers ?? '')
+      .split(/[,\n]/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const isPhoneOnAllowlist = allowedPhones.length > 0 && allowedPhones.includes(phoneNumber);
+    const useTestOtp = Boolean(settings?.isTestMode && settings?.testOtp && isPhoneOnAllowlist);
+    const otp = useTestOtp
+      ? settings!.testOtp!
+      : Math.floor(100000 + Math.random() * 900000).toString();
     const expirySeconds = settings?.otpExpirySeconds ?? 300;
 
     const session = await this.prisma.otpSession.create({

@@ -11,7 +11,7 @@ interface LegalContent {
 
 const PAGE_META: Record<string, { label: string; slug: string }> = {
   "/privacy-policy":       { label: "Privacy Policy",       slug: "privacy-policy" },
-  "/terms-and-conditions": { label: "Terms & Conditions",   slug: "terms-and-conditions" },
+  "/terms-and-conditions": { label: "Terms and Conditions",  slug: "terms-and-conditions" },
 };
 
 export default function PublicPage() {
@@ -45,6 +45,11 @@ export default function PublicPage() {
       })
       .finally(() => setLoading(false));
   }, [location, meta?.slug]);
+
+  useEffect(() => {
+    document.title = meta ? `${meta.label} | Tarzi` : "Tarzi Admin";
+    return () => { document.title = "Tarzi Admin"; };
+  }, [meta?.label]);
 
   const pageLabel = meta?.label ?? "Legal";
 

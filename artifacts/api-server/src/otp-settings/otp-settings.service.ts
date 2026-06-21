@@ -8,6 +8,7 @@ interface UpdateDto {
   cooldownSeconds?: number;
   isTestMode?: boolean;
   testOtp?: string;
+  allowedPhoneNumbers?: string;
 }
 
 @Injectable()

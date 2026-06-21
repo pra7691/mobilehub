@@ -1,6 +1,6 @@
 import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { OtpSettingsService } from './otp-settings.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { IsOptional, IsNumber, IsBoolean, IsString, Min, Max } from 'class-validator';
 
 class UpdateOtpSettingsBody {
@@ -10,10 +10,11 @@ class UpdateOtpSettingsBody {
   @IsOptional() @IsNumber() @Min(0) cooldownSeconds?: number;
   @IsOptional() @IsBoolean() isTestMode?: boolean;
   @IsOptional() @IsString() testOtp?: string;
+  @IsOptional() @IsString() allowedPhoneNumbers?: string;
 }
 
 @Controller('otp-settings')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AdminJwtGuard)
 export class OtpSettingsController {
   constructor(private service: OtpSettingsService) {}
   @Get() get() { return this.service.get(); }

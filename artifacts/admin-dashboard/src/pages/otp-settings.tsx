@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldAlert, Save } from "lucide-react";
@@ -20,6 +21,7 @@ const formSchema = z.object({
   cooldownSeconds: z.coerce.number().min(30).max(3600),
   isTestMode: z.boolean(),
   testOtp: z.string().optional(),
+  allowedPhoneNumbers: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -39,6 +41,7 @@ export default function OtpSettings() {
       cooldownSeconds: 120,
       isTestMode: false,
       testOtp: "",
+      allowedPhoneNumbers: "",
     },
   });
 
@@ -51,13 +54,16 @@ export default function OtpSettings() {
         cooldownSeconds: settings.cooldownSeconds,
         isTestMode: settings.isTestMode,
         testOtp: settings.testOtp || "",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        allowedPhoneNumbers: (settings as any).allowedPhoneNumbers || "",
       });
     }
   }, [settings, form]);
 
   const onSubmit = (values: FormValues) => {
     updateMutation.mutate(
-      { data: values },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { data: values as any },
       {
         onSuccess: (updatedSettings) => {
           queryClient.setQueryData(getGetOtpSettingsQueryKey(), updatedSettings);
@@ -130,7 +136,7 @@ export default function OtpSettings() {
                       <FormControl>
                         <Input type="number" {...field} className="bg-background" />
                       </FormControl>
-                      <FormDescription>Number of digits in the OTP code (4-8).</FormDescription>
+                      <FormDescription>Number of digits in the OTP code (4–8).</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -185,9 +191,9 @@ export default function OtpSettings() {
               <div className="border border-destructive/20 bg-destructive/5 rounded-md p-4 mt-6">
                 <div className="flex items-center gap-2 text-destructive font-medium mb-4">
                   <ShieldAlert className="h-5 w-5" />
-                  Testing & Development
+                  Reviewer / Test Mode
                 </div>
-                
+
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
@@ -197,7 +203,8 @@ export default function OtpSettings() {
                         <div className="space-y-0.5">
                           <FormLabel className="text-base">Enable Test Mode</FormLabel>
                           <FormDescription>
-                            Allows bypass of real SMS delivery using a fixed code.
+                            Allows a fixed OTP for approved phone numbers only (e.g. Google Play reviewers).
+                            Disable before general rollout to real users.
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -211,22 +218,50 @@ export default function OtpSettings() {
                   />
 
                   {form.watch("isTestMode") && (
-                    <FormField
-                      control={form.control}
-                      name="testOtp"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Static Test OTP</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="e.g. 123456" className="bg-background border-destructive/30 focus-visible:ring-destructive/30" />
-                          </FormControl>
-                          <FormDescription className="text-destructive/80">
-                            WARNING: This code will work for ALL logins while test mode is active.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="testOtp"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Static Test OTP Code</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="e.g. 123456"
+                                className="bg-background border-destructive/30 focus-visible:ring-destructive/30"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-destructive/80">
+                              The OTP code sent to allowlisted numbers only. Never shown in app UI or logs.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="allowedPhoneNumbers"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Reviewer Phone Allowlist</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                placeholder="+919876543210, +918765432109"
+                                className="bg-background border-destructive/30 focus-visible:ring-destructive/30 font-mono text-sm min-h-[80px]"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-destructive/80">
+                              Comma-separated E.164 numbers (+91XXXXXXXXXX). Test OTP works ONLY for
+                              these numbers. If empty, test OTP is disabled for all phones even if test mode is on.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
                   )}
                 </div>
               </div>

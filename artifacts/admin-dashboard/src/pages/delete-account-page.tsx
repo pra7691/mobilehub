@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 
 type Step = "form" | "submitted";
 
@@ -8,6 +8,11 @@ export default function DeleteAccountPage() {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = "Delete Account | Tarzi";
+    return () => { document.title = "Tarzi Admin"; };
+  }, []);
 
   const digits = phone.replace(/\D/g, "").slice(0, 10);
   const isValid = /^[6-9]\d{9}$/.test(digits);

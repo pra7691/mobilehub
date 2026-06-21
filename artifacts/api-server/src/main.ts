@@ -46,7 +46,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 5000;
   await app.listen(port);
-  logger.log(`Capto API running on port ${port}`);
+  logger.log(`Tarzi API running on port ${port}`);
 }
 
 bootstrap();

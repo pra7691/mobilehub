@@ -200,9 +200,10 @@ model OtpSetting {
   otpExpirySeconds Int      @default(300)
   maxAttempts      Int      @default(3)
   cooldownSeconds  Int      @default(60)
-  isTestMode       Boolean  @default(false)
-  testOtp          String?
-  updatedAt        DateTime @updatedAt
+  isTestMode          Boolean  @default(false)
+  testOtp             String?
+  allowedPhoneNumbers String?
+  updatedAt           DateTime @updatedAt
 
   @@map("otp_settings")
 }
