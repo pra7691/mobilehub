@@ -8,7 +8,7 @@ import {
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -16,6 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@workspace/api-client-react";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { StartupScreen } from "@/components/StartupScreen";
 import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
@@ -55,7 +56,7 @@ function decodeJwtSub(token: string): string | null {
   }
 }
 
-function RootLayoutNav() {
+function RootLayoutNav({ onReady }: { onReady: () => void }) {
   const { isAuthenticated, isLoading, isDisabled, logout, accessToken } = useAuth() as AuthState & {
     isAuthenticated: boolean; logout: () => Promise<void>; accessToken: string | null;
   };
@@ -65,6 +66,16 @@ function RootLayoutNav() {
 
   // Register push token after login (native only)
   useNotifications(Platform.OS !== "web" ? isAuthenticated : false);
+
+  // Hide splash once auth + language checks have resolved
+  const readyFired = useRef(false);
+  useEffect(() => {
+    if (!isLoading && !isLanguageLoading && !readyFired.current) {
+      readyFired.current = true;
+      onReady();
+      drainErrorQueue().catch(() => {});
+    }
+  }, [isLoading, isLanguageLoading, onReady]);
 
   useEffect(() => {
     if (isLoading || isDisabled || isLanguageLoading) return;
@@ -151,19 +162,34 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const [appReady, setAppReady] = useState(false);
-
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-      setAppReady(true);
-      // Drain any queued error reports from previous sessions
-      drainErrorQueue().catch(() => {});
+  // Single hide function — idempotent, safe to call multiple times
+  const splashHiddenRef = useRef(false);
+  const hideSplash = useCallback(async () => {
+    if (splashHiddenRef.current) return;
+    splashHiddenRef.current = true;
+    try {
+      await SplashScreen.hideAsync();
+    } catch {
+      // Already hidden or never shown (web) — ignore
     }
-  }, [fontsLoaded, fontError]);
+  }, []);
 
-  if (!appReady) return null;
+  // Safety net: force-hide after 10 s so splash never freezes indefinitely
+  useEffect(() => {
+    const timer = setTimeout(hideSplash, 10_000);
+    return () => clearTimeout(timer);
+  }, [hideSplash]);
 
+  // While fonts are loading:
+  //   • Native — native splash is still showing (preventAutoHideAsync keeps it up).
+  //   • Web — no native splash, so show the in-app StartupScreen.
+  if (!fontsLoaded && !fontError) {
+    return <StartupScreen />;
+  }
+
+  // Fonts ready. Render providers and pass hideSplash into RootLayoutNav.
+  // The native splash is still visible; it will be hidden by RootLayoutNav
+  // once auth + language checks both resolve.
   return (
     <SafeAreaProvider>
       <ErrorBoundary onError={reportRenderError}>
@@ -173,7 +199,7 @@ export default function RootLayout() {
               <LanguageProvider>
                 <AuthProvider>
                   <DraftProvider>
-                    <RootLayoutNav />
+                    <RootLayoutNav onReady={hideSplash} />
                     <OfflineBanner />
                   </DraftProvider>
                 </AuthProvider>

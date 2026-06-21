@@ -1,27 +1,32 @@
 {
   "expo": {
-    "name": "Tarzi",
-    "slug": "tarzi",
+    "name": "Capto",
+    "slug": "capto",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tarzi",
-    "userInterfaceStyle": "automatic",
+    "scheme": "capto",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0a0a"
     },
     "ios": {
       "supportsTablet": false,
+      "bundleIdentifier": "com.capto.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Capto needs camera access to capture photo and video evidence for tasks.",
         "NSMicrophoneUsageDescription": "Capto needs microphone access to record audio evidence and video with sound for tasks."
-      },
-      "bundleIdentifier": "com.tarzi.app"
+      }
     },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.capto.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -31,13 +36,24 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS"
-      ],
-      "package": "com.tarzi.app"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0a0a0a",
+          "image": "./assets/images/icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#0a0a0a"
+          }
+        }
+      ],
       [
         "expo-router",
         {
