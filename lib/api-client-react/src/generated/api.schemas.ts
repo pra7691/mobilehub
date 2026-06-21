@@ -966,6 +966,90 @@ export interface AppNotification {
   updatedAt: string;
 }
 
+export interface LegalContent {
+  title: string;
+  content: string;
+  isPublished: boolean;
+  version: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export interface UpdateLegalRequest {
+  title?: string;
+  content?: string;
+  isPublished?: boolean;
+}
+
+export interface UpdateGeneralSettingsRequest {
+  appName?: string;
+}
+
+export interface UpdateSettingsSupportRequest {
+  email?: string;
+  whatsappNumber?: string;
+  phoneNumber?: string | null;
+  workingHours?: string | null;
+  message?: string | null;
+}
+
+export interface LegalAvailability {
+  title: string;
+  version: number;
+  updatedAt: string;
+}
+
+export type AppSettingsSupport = {
+  email: string;
+  whatsappNumber: string;
+  phoneNumber?: string | null;
+  workingHours?: string | null;
+  message?: string | null;
+} | null;
+
+export type AppSettingsLegal = {
+  privacyPolicy: LegalAvailability | null;
+  termsAndConditions: LegalAvailability | null;
+};
+
+export interface AppSettings {
+  appName: string;
+  support?: AppSettingsSupport;
+  legal: AppSettingsLegal;
+}
+
+export interface AdminLegalSection {
+  title: string;
+  content: string;
+  isPublished: boolean;
+  version: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+}
+
+export type AdminSettingsGeneral = {
+  appName: string;
+};
+
+export type AdminSettingsSupport = {
+  email?: string;
+  whatsappNumber?: string;
+  phoneNumber?: string | null;
+  workingHours?: string | null;
+  message?: string | null;
+} | null;
+
+export type AdminSettingsLegal = {
+  privacyPolicy: AdminLegalSection;
+  termsAndConditions: AdminLegalSection;
+};
+
+export interface AdminSettings {
+  general: AdminSettingsGeneral;
+  support?: AdminSettingsSupport;
+  legal: AdminSettingsLegal;
+}
+
 export interface NotificationListResponse {
   data: AppNotification[];
   meta: PaginationMeta;

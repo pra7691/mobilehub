@@ -19,11 +19,10 @@ import Tasks from "@/pages/tasks";
 import Submissions from "@/pages/submissions";
 import WalletTransactions from "@/pages/wallet-transactions";
 import OtpSettings from "@/pages/otp-settings";
-import SupportSettings from "@/pages/support-settings";
 import FaqPage from "@/pages/faq";
-import StaticPagesAdmin from "@/pages/static-pages";
 import NoticesPage from "@/pages/notices";
 import NotificationsPage from "@/pages/notifications";
+import SettingsPage from "@/pages/settings";
 
 const queryClient = new QueryClient();
 
@@ -54,11 +53,10 @@ function Router() {
       <Route path="/submissions" component={() => <ProtectedRoute component={Submissions} />} />
       <Route path="/wallet-transactions" component={() => <ProtectedRoute component={WalletTransactions} />} />
       <Route path="/otp-settings" component={() => <ProtectedRoute component={OtpSettings} />} />
-      <Route path="/support-settings" component={() => <ProtectedRoute component={SupportSettings} />} />
       <Route path="/faq" component={() => <ProtectedRoute component={FaqPage} />} />
-      <Route path="/static-pages" component={() => <ProtectedRoute component={StaticPagesAdmin} />} />
       <Route path="/notices" component={() => <ProtectedRoute component={NoticesPage} />} />
       <Route path="/notifications" component={() => <ProtectedRoute component={NotificationsPage} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route component={NotFound} />
     </Switch>
   );

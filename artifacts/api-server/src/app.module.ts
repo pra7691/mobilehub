@@ -20,6 +20,7 @@ import { PagesModule } from './pages/pages.module';
 import { NoticesModule } from './notices/notices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuditModule } from './audit/audit.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AuditModule } from './audit/audit.module';
     PagesModule,
     NoticesModule,
     NotificationsModule,
+    SettingsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -1441,6 +1441,121 @@ paths:
         "204":
           description: No Content
 
+  # ─── Settings ─────────────────────────────────────────────────────
+  /admin/settings:
+    get:
+      operationId: adminGetSettings
+      tags: [settings]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettings"
+
+  /admin/settings/general:
+    patch:
+      operationId: adminUpdateGeneralSettings
+      tags: [settings]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGeneralSettingsRequest"
+      responses:
+        "200":
+          description: OK
+
+  /admin/settings/support:
+    patch:
+      operationId: adminUpdateSettingsSupport
+      tags: [settings]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsSupportRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportSettings"
+
+  /admin/settings/legal/{slug}:
+    patch:
+      operationId: adminUpdateLegalContent
+      tags: [settings]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+            enum: [privacy-policy, terms-and-conditions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLegalRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalContent"
+
+  /app/settings:
+    get:
+      operationId: getAppSettings
+      tags: [app-settings]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+
+  /app/legal/{slug}:
+    get:
+      operationId: getAppLegal
+      tags: [app-settings]
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+            enum: [privacy-policy, terms-and-conditions]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegalContent"
+        "404":
+          description: Not published or not found
+
   # ─── Public Endpoints ─────────────────────────────────────────────
   /public/faq:
     get:
@@ -3081,6 +3196,164 @@ components:
           type: string
           format: date-time
       required: [id, userId, title, body, type, isRead, createdAt, updatedAt]
+
+    LegalContent:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+        version:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedBy:
+          type: string
+          nullable: true
+      required: [title, content, isPublished, version]
+
+    UpdateLegalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+
+    UpdateGeneralSettingsRequest:
+      type: object
+      properties:
+        appName:
+          type: string
+
+    UpdateSettingsSupportRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        whatsappNumber:
+          type: string
+        phoneNumber:
+          type: string
+          nullable: true
+        workingHours:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    LegalAvailability:
+      type: object
+      properties:
+        title:
+          type: string
+        version:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+      required: [title, version, updatedAt]
+
+    AppSettings:
+      type: object
+      properties:
+        appName:
+          type: string
+        support:
+          type: object
+          nullable: true
+          properties:
+            email:
+              type: string
+            whatsappNumber:
+              type: string
+            phoneNumber:
+              type: string
+              nullable: true
+            workingHours:
+              type: string
+              nullable: true
+            message:
+              type: string
+              nullable: true
+          required: [email, whatsappNumber]
+        legal:
+          type: object
+          properties:
+            privacyPolicy:
+              nullable: true
+              allOf:
+                - $ref: "#/components/schemas/LegalAvailability"
+            termsAndConditions:
+              nullable: true
+              allOf:
+                - $ref: "#/components/schemas/LegalAvailability"
+          required: [privacyPolicy, termsAndConditions]
+      required: [appName, legal]
+
+    AdminLegalSection:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        isPublished:
+          type: boolean
+        version:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedBy:
+          type: string
+          nullable: true
+      required: [title, content, isPublished, version]
+
+    AdminSettings:
+      type: object
+      properties:
+        general:
+          type: object
+          properties:
+            appName:
+              type: string
+          required: [appName]
+        support:
+          type: object
+          nullable: true
+          properties:
+            email:
+              type: string
+            whatsappNumber:
+              type: string
+            phoneNumber:
+              type: string
+              nullable: true
+            workingHours:
+              type: string
+              nullable: true
+            message:
+              type: string
+              nullable: true
+        legal:
+          type: object
+          properties:
+            privacyPolicy:
+              $ref: "#/components/schemas/AdminLegalSection"
+            termsAndConditions:
+              $ref: "#/components/schemas/AdminLegalSection"
+          required: [privacyPolicy, termsAndConditions]
+      required: [general, legal]
 
     NotificationListResponse:
       type: object

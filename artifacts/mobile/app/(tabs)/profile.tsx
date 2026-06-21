@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useGetMe, useGetMyWallet, useListMySubmissions } from "@workspace/api-client-react";
+import { useGetMe, useGetMyWallet, useListMySubmissions, useGetAppSettings } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import Constants from "expo-constants";
@@ -46,6 +46,7 @@ export default function ProfileScreen() {
   const { data: allSubs } = useListMySubmissions({ limit: 1 }) as { data: SubListResponse | undefined };
   const { data: approvedSubs } = useListMySubmissions({ limit: 1, status: "APPROVED" }) as { data: SubListResponse | undefined };
   const { data: pendingSubs } = useListMySubmissions({ limit: 1, status: "UNDER_REVIEW" }) as { data: SubListResponse | undefined };
+  const { data: appSettings } = useGetAppSettings();
 
   const totalSubmissions = allSubs?.meta?.total ?? 0;
   const approvedCount = approvedSubs?.meta?.total ?? 0;
@@ -167,18 +168,22 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <MenuRow icon="headphones" label="Support" onPress={() => router.push("/support" as never)} colors={colors} />
         <MenuRow icon="help-circle" label="FAQ" onPress={() => router.push("/faq" as never)} colors={colors} />
-        <MenuRow
-          icon="shield"
-          label="Privacy Policy"
-          onPress={() => router.push({ pathname: "/static-page", params: { slug: "privacy-policy" } } as never)}
-          colors={colors}
-        />
-        <MenuRow
-          icon="file-text"
-          label="Terms & Conditions"
-          onPress={() => router.push({ pathname: "/static-page", params: { slug: "terms-and-conditions" } } as never)}
-          colors={colors}
-        />
+        {appSettings?.legal?.privacyPolicy && (
+          <MenuRow
+            icon="shield"
+            label="Privacy Policy"
+            onPress={() => router.push({ pathname: "/legal-content", params: { slug: "privacy-policy" } } as never)}
+            colors={colors}
+          />
+        )}
+        {appSettings?.legal?.termsAndConditions && (
+          <MenuRow
+            icon="file-text"
+            label="Terms & Conditions"
+            onPress={() => router.push({ pathname: "/legal-content", params: { slug: "terms-and-conditions" } } as never)}
+            colors={colors}
+          />
+        )}
         <MenuRow icon="info" label={`App Version ${appVersion}`} onPress={() => {}} colors={colors} chevron={false} last />
       </View>
 

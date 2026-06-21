@@ -414,6 +414,19 @@ model SupportSettings {
   @@map("support_settings")
 }
 
+model AppSetting {
+  key         String   @id
+  value       String?
+  content     String?
+  title       String?
+  isPublished Boolean  @default(false)
+  version     Int      @default(1)
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
 model Notice {
   id        String    @id @default(cuid())
   title     String

@@ -3,7 +3,7 @@ import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, 
 import { useAuth } from "@/lib/auth";
 import { Link, useLocation } from "wouter";
 import { useLogout } from "@workspace/api-client-react";
-import { Activity, Users, FolderTree, FileQuestion, SendToBack, Wallet, Settings, LogOut, Hexagon, Moon, Sun, Headphones, HelpCircle, FileText, Bell, BellRing } from "lucide-react";
+import { Activity, Users, FolderTree, FileQuestion, SendToBack, Wallet, Settings, LogOut, Hexagon, Moon, Sun, HelpCircle, Bell, BellRing } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 
@@ -30,11 +30,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/submissions", label: "Submissions", icon: SendToBack },
     { href: "/wallet-transactions", label: "Wallet", icon: Wallet },
     { href: "/otp-settings", label: "OTP Settings", icon: Settings },
-    { href: "/support-settings", label: "Support", icon: Headphones },
     { href: "/faq", label: "FAQ", icon: HelpCircle },
-    { href: "/static-pages", label: "Static Pages", icon: FileText },
     { href: "/notices", label: "Notices", icon: Bell },
     { href: "/notifications", label: "Notifications", icon: BellRing },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (

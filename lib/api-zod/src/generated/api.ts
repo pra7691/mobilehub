@@ -2328,6 +2328,120 @@ export const AdminDeleteNoticeParams = zod.object({
 })
 
 
+export const AdminGetSettingsResponse = zod.object({
+  "general": zod.object({
+  "appName": zod.string()
+}),
+  "support": zod.object({
+  "email": zod.string().optional(),
+  "whatsappNumber": zod.string().optional(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish()
+}).nullish(),
+  "legal": zod.object({
+  "privacyPolicy": zod.object({
+  "title": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "updatedBy": zod.string().nullish()
+}),
+  "termsAndConditions": zod.object({
+  "title": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "updatedBy": zod.string().nullish()
+})
+})
+})
+
+
+export const AdminUpdateGeneralSettingsBody = zod.object({
+  "appName": zod.string().optional()
+})
+
+
+export const AdminUpdateSettingsSupportBody = zod.object({
+  "email": zod.string().optional(),
+  "whatsappNumber": zod.string().optional(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+export const AdminUpdateSettingsSupportResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "whatsappNumber": zod.string(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+export const AdminUpdateLegalContentParams = zod.object({
+  "slug": zod.enum(['privacy-policy', 'terms-and-conditions'])
+})
+
+export const AdminUpdateLegalContentBody = zod.object({
+  "title": zod.string().optional(),
+  "content": zod.string().optional(),
+  "isPublished": zod.boolean().optional()
+})
+
+export const AdminUpdateLegalContentResponse = zod.object({
+  "title": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+export const GetAppSettingsResponse = zod.object({
+  "appName": zod.string(),
+  "support": zod.object({
+  "email": zod.string(),
+  "whatsappNumber": zod.string(),
+  "phoneNumber": zod.string().nullish(),
+  "workingHours": zod.string().nullish(),
+  "message": zod.string().nullish()
+}).nullish(),
+  "legal": zod.object({
+  "privacyPolicy": zod.object({
+  "title": zod.string(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date()
+}).nullable(),
+  "termsAndConditions": zod.object({
+  "title": zod.string(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date()
+}).nullable()
+})
+})
+
+
+export const GetAppLegalParams = zod.object({
+  "slug": zod.enum(['privacy-policy', 'terms-and-conditions'])
+})
+
+export const GetAppLegalResponse = zod.object({
+  "title": zod.string(),
+  "content": zod.string(),
+  "isPublished": zod.boolean(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "updatedBy": zod.string().nullish()
+})
+
+
 export const GetPublicFaqQueryParams = zod.object({
   "search": zod.coerce.string().optional()
 })

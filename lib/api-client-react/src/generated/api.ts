@@ -29,9 +29,11 @@ import type {
   AdminNotificationListResponse,
   AdminRejectSubmissionBody,
   AdminRequestResubmissionBody,
+  AdminSettings,
   AdminUser,
   AdminUserListResponse,
   AppNotification,
+  AppSettings,
   AuthTokens,
   Category,
   CategoryListResponse,
@@ -56,6 +58,7 @@ import type {
   HealthStatus,
   InitiateSubmissionRequest,
   InitiateSubmissionResponse,
+  LegalContent,
   ListAdminUsersParams,
   ListCategoriesParams,
   ListMySubmissionsParams,
@@ -87,9 +90,12 @@ import type {
   UpdateAdminUserRequest,
   UpdateCategoryRequest,
   UpdateFaqRequest,
+  UpdateGeneralSettingsRequest,
+  UpdateLegalRequest,
   UpdateNoticeRequest,
   UpdateOtpSettingsRequest,
   UpdatePreferencesRequest,
+  UpdateSettingsSupportRequest,
   UpdateStaticPageRequest,
   UpdateSubcategoryRequest,
   UpdateSupportSettingsRequest,
@@ -5167,6 +5173,415 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getAdminDeleteNoticeMutationOptions(options));
     }
+
+export const getAdminGetSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings`
+}
+
+export const adminGetSettings = async ( options?: RequestInit): Promise<AdminSettings> => {
+
+  return customFetch<AdminSettings>(getAdminGetSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetSettingsQueryKey = () => {
+    return [
+    `/api/admin/settings`
+    ] as const;
+    }
+
+
+export const getAdminGetSettingsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetSettings>>> = ({ signal }) => adminGetSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetSettings>>>
+export type AdminGetSettingsQueryError = ErrorType<unknown>
+
+
+
+export function useAdminGetSettings<TData = Awaited<ReturnType<typeof adminGetSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminUpdateGeneralSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/general`
+}
+
+export const adminUpdateGeneralSettings = async (updateGeneralSettingsRequest: UpdateGeneralSettingsRequest, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminUpdateGeneralSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateGeneralSettingsRequest,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateGeneralSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateGeneralSettings>>, TError,{data: BodyType<UpdateGeneralSettingsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateGeneralSettings>>, TError,{data: BodyType<UpdateGeneralSettingsRequest>}, TContext> => {
+
+const mutationKey = ['adminUpdateGeneralSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateGeneralSettings>>, {data: BodyType<UpdateGeneralSettingsRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminUpdateGeneralSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateGeneralSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateGeneralSettings>>>
+    export type AdminUpdateGeneralSettingsMutationBody = BodyType<UpdateGeneralSettingsRequest>
+    export type AdminUpdateGeneralSettingsMutationError = ErrorType<unknown>
+
+    export const useAdminUpdateGeneralSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateGeneralSettings>>, TError,{data: BodyType<UpdateGeneralSettingsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateGeneralSettings>>,
+        TError,
+        {data: BodyType<UpdateGeneralSettingsRequest>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateGeneralSettingsMutationOptions(options));
+    }
+
+export const getAdminUpdateSettingsSupportUrl = () => {
+
+
+
+
+  return `/api/admin/settings/support`
+}
+
+export const adminUpdateSettingsSupport = async (updateSettingsSupportRequest: UpdateSettingsSupportRequest, options?: RequestInit): Promise<SupportSettings> => {
+
+  return customFetch<SupportSettings>(getAdminUpdateSettingsSupportUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateSettingsSupportRequest,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateSettingsSupportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettingsSupport>>, TError,{data: BodyType<UpdateSettingsSupportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettingsSupport>>, TError,{data: BodyType<UpdateSettingsSupportRequest>}, TContext> => {
+
+const mutationKey = ['adminUpdateSettingsSupport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateSettingsSupport>>, {data: BodyType<UpdateSettingsSupportRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminUpdateSettingsSupport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateSettingsSupportMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateSettingsSupport>>>
+    export type AdminUpdateSettingsSupportMutationBody = BodyType<UpdateSettingsSupportRequest>
+    export type AdminUpdateSettingsSupportMutationError = ErrorType<unknown>
+
+    export const useAdminUpdateSettingsSupport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettingsSupport>>, TError,{data: BodyType<UpdateSettingsSupportRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateSettingsSupport>>,
+        TError,
+        {data: BodyType<UpdateSettingsSupportRequest>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateSettingsSupportMutationOptions(options));
+    }
+
+export const getAdminUpdateLegalContentUrl = (slug: 'privacy-policy' | 'terms-and-conditions',) => {
+
+
+
+
+  return `/api/admin/settings/legal/${slug}`
+}
+
+export const adminUpdateLegalContent = async (slug: 'privacy-policy' | 'terms-and-conditions',
+    updateLegalRequest: UpdateLegalRequest, options?: RequestInit): Promise<LegalContent> => {
+
+  return customFetch<LegalContent>(getAdminUpdateLegalContentUrl(slug),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateLegalRequest,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateLegalContentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateLegalContent>>, TError,{slug: 'privacy-policy' | 'terms-and-conditions';data: BodyType<UpdateLegalRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateLegalContent>>, TError,{slug: 'privacy-policy' | 'terms-and-conditions';data: BodyType<UpdateLegalRequest>}, TContext> => {
+
+const mutationKey = ['adminUpdateLegalContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateLegalContent>>, {slug: 'privacy-policy' | 'terms-and-conditions';data: BodyType<UpdateLegalRequest>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  adminUpdateLegalContent(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateLegalContentMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateLegalContent>>>
+    export type AdminUpdateLegalContentMutationBody = BodyType<UpdateLegalRequest>
+    export type AdminUpdateLegalContentMutationError = ErrorType<unknown>
+
+    export const useAdminUpdateLegalContent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateLegalContent>>, TError,{slug: 'privacy-policy' | 'terms-and-conditions';data: BodyType<UpdateLegalRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateLegalContent>>,
+        TError,
+        {slug: 'privacy-policy' | 'terms-and-conditions';data: BodyType<UpdateLegalRequest>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateLegalContentMutationOptions(options));
+    }
+
+export const getGetAppSettingsUrl = () => {
+
+
+
+
+  return `/api/app/settings`
+}
+
+export const getAppSettings = async ( options?: RequestInit): Promise<AppSettings> => {
+
+  return customFetch<AppSettings>(getGetAppSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAppSettingsQueryKey = () => {
+    return [
+    `/api/app/settings`
+    ] as const;
+    }
+
+
+export const getGetAppSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAppSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAppSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppSettings>>> = ({ signal }) => getAppSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAppSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAppSettings>>>
+export type GetAppSettingsQueryError = ErrorType<unknown>
+
+
+
+export function useGetAppSettings<TData = Awaited<ReturnType<typeof getAppSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAppSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAppLegalUrl = (slug: 'privacy-policy' | 'terms-and-conditions',) => {
+
+
+
+
+  return `/api/app/legal/${slug}`
+}
+
+export const getAppLegal = async (slug: 'privacy-policy' | 'terms-and-conditions', options?: RequestInit): Promise<LegalContent> => {
+
+  return customFetch<LegalContent>(getGetAppLegalUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAppLegalQueryKey = (slug: 'privacy-policy' | 'terms-and-conditions',) => {
+    return [
+    `/api/app/legal/${slug}`
+    ] as const;
+    }
+
+
+export const getGetAppLegalQueryOptions = <TData = Awaited<ReturnType<typeof getAppLegal>>, TError = ErrorType<void>>(slug: 'privacy-policy' | 'terms-and-conditions', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppLegal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAppLegalQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppLegal>>> = ({ signal }) => getAppLegal(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAppLegal>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAppLegalQueryResult = NonNullable<Awaited<ReturnType<typeof getAppLegal>>>
+export type GetAppLegalQueryError = ErrorType<void>
+
+
+
+export function useGetAppLegal<TData = Awaited<ReturnType<typeof getAppLegal>>, TError = ErrorType<void>>(
+ slug: 'privacy-policy' | 'terms-and-conditions', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppLegal>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAppLegalQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetPublicFaqUrl = (params?: GetPublicFaqParams,) => {
   const normalizedParams = new URLSearchParams();
