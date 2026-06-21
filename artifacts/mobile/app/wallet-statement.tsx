@@ -65,7 +65,7 @@ export default function WalletStatementScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerLabel}>ACCOUNT</Text>
-          <Text style={styles.headerTitle}>Wallet Statement</Text>
+          <Text style={styles.headerTitle}>Wallet</Text>
         </View>
         <TouchableOpacity
           onPress={() => router.push("/withdraw" as never)}
