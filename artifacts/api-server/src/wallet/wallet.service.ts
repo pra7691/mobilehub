@@ -139,7 +139,31 @@ export class WalletService {
   }
 
   async listUserTransactions(userId: string, params: { page?: number; limit?: number; type?: TransactionType }) {
-    return this.listTransactions({ ...params, userId });
+    const page = params.page ?? 1;
+    const limit = Math.min(params.limit ?? 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {
+      userId,
+      NOT: { type: 'PAYOUT_COMPLETED' },
+    };
+    if (params.type) where.type = params.type;
+
+    const [total, data] = await Promise.all([
+      this.prisma.walletTransaction.count({ where }),
+      this.prisma.walletTransaction.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, phoneNumber: true, name: true } } },
+      }),
+    ]);
+
+    return {
+      data: data.map(formatTransaction),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   /** Called inside a Prisma transaction to atomically credit a referral reward */

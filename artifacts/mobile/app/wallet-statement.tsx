@@ -24,6 +24,8 @@ function sourceLabel(sourceType: string): string {
   switch (sourceType) {
     case "SUBMISSION_APPROVAL":
       return "Submission approved";
+    case "PAYOUT":
+      return "Withdrawal";
     case "WITHDRAWAL":
       return "Withdrawal";
     case "ADJUSTMENT":
@@ -33,6 +35,12 @@ function sourceLabel(sourceType: string): string {
     default:
       return sourceType.replace(/_/g, " ").toLowerCase();
   }
+}
+
+function txLabel(type: string, sourceType: string): string {
+  if (type === "PAYOUT_HOLD") return "Withdrawal requested";
+  if (type === "PAYOUT_REVERSED") return "Withdrawal returned";
+  return sourceLabel(sourceType);
 }
 
 export default function WalletStatementScreen() {
@@ -128,7 +136,7 @@ export default function WalletStatementScreen() {
                 </View>
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowLabel} numberOfLines={1}>
-                    {sourceLabel(item.sourceType)}
+                    {txLabel(item.type, item.sourceType)}
                   </Text>
                   <Text style={styles.rowDate}>{date}</Text>
                 </View>
