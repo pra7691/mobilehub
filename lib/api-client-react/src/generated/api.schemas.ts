@@ -1442,6 +1442,117 @@ export interface UpdatePayoutSettingsBody {
   maxPendingPayoutsPerUser?: number | null;
 }
 
+export interface ReferralSummary {
+  referralCode?: string | null;
+  isEnabled: boolean;
+  rewardAmount: number;
+  message?: string | null;
+  totalRegistered: number;
+  totalRewarded: number;
+  totalRewardsEarned: number;
+}
+
+export type ReferralHistoryItemStatus = typeof ReferralHistoryItemStatus[keyof typeof ReferralHistoryItemStatus];
+
+
+export const ReferralHistoryItemStatus = {
+  REGISTERED: 'REGISTERED',
+  REWARDED: 'REWARDED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface ReferralHistoryItem {
+  id: string;
+  referredUserMasked: string;
+  status: ReferralHistoryItemStatus;
+  registeredAt: string;
+  qualifiedAt?: string | null;
+  rewardedAt?: string | null;
+  rewardAmount?: number | null;
+}
+
+export interface ReferralHistoryPage {
+  data: ReferralHistoryItem[];
+  meta: PaginationMeta;
+}
+
+export interface ReferralCodeBody {
+  referralCode: string;
+}
+
+export interface ReferralValidationResult {
+  valid: boolean;
+  message: string;
+}
+
+export interface ReferralStats {
+  total: number;
+  registered: number;
+  rewarded: number;
+  cancelled: number;
+  totalRewardsPaid: number;
+}
+
+export interface AdminReferralUser {
+  id: string;
+  phoneNumber: string;
+  name?: string | null;
+  phoneNumberMasked: string;
+}
+
+export type AdminReferralStatus = typeof AdminReferralStatus[keyof typeof AdminReferralStatus];
+
+
+export const AdminReferralStatus = {
+  REGISTERED: 'REGISTERED',
+  REWARDED: 'REWARDED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export interface AdminReferral {
+  id: string;
+  referrerUserId: string;
+  referredUserId: string;
+  referralCode: string;
+  status: AdminReferralStatus;
+  registeredAt: string;
+  qualifiedAt?: string | null;
+  rewardedAt?: string | null;
+  rewardAmount?: number | null;
+  rewardWalletTransactionId?: string | null;
+  firstQualifiedSubmissionId?: string | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  referrer?: AdminReferralUser;
+  referred?: AdminReferralUser;
+}
+
+export interface AdminReferralPage {
+  data: AdminReferral[];
+  meta: PaginationMeta;
+}
+
+export interface ReferralSettings {
+  id: string;
+  isEnabled: boolean;
+  rewardAmount: number;
+  message?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateReferralSettingsBody {
+  isEnabled?: boolean;
+  rewardAmount?: number;
+  message?: string | null;
+}
+
+export interface SuccessMessage {
+  success: boolean;
+  message: string;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -1919,4 +2030,29 @@ export type GetAdminPayoutsIdParams = {
  */
 revealUpi?: string;
 };
+
+export type GetMyReferralHistoryParams = {
+page?: number;
+limit?: number;
+};
+
+export type AdminListReferralsParams = {
+page?: number;
+limit?: number;
+status?: AdminListReferralsStatus;
+referralCode?: string;
+referrerPhone?: string;
+referredPhone?: string;
+fromDate?: string;
+toDate?: string;
+};
+
+export type AdminListReferralsStatus = typeof AdminListReferralsStatus[keyof typeof AdminListReferralsStatus];
+
+
+export const AdminListReferralsStatus = {
+  REGISTERED: 'REGISTERED',
+  REWARDED: 'REWARDED',
+  CANCELLED: 'CANCELLED',
+} as const;
 

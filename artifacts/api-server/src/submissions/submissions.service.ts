@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { WalletService } from '../wallet/wallet.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { NotificationType, NotificationEntityType } from '@prisma/client';
 import {
   SubmissionStatus,
@@ -193,6 +194,7 @@ export class SubmissionsService {
     private storage: StorageService,
     private walletService: WalletService,
     private notificationsService: NotificationsService,
+    private referralsService: ReferralsService,
   ) {}
 
   // ─── POST /submissions/initiate ────────────────────────────────────────────
@@ -709,6 +711,13 @@ export class SubmissionsService {
         submissionId,
         amount,
         taskTitle,
+      );
+
+      // Trigger referral reward atomically (on first approved submission of referred user)
+      await this.referralsService.processFirstApprovalReferralReward(
+        tx as Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+        submission.userId,
+        submissionId,
       );
 
       const updated = await tx.submission.update({

@@ -24,6 +24,8 @@ import { SettingsModule } from './settings/settings.module';
 import { MobileErrorLogsModule } from './mobile-error-logs/mobile-error-logs.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { PayoutsModule } from './payouts/payouts.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { ReferralSettingsModule } from './referral-settings/referral-settings.module';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { PayoutsModule } from './payouts/payouts.module';
     MobileErrorLogsModule,
     PaymentMethodsModule,
     PayoutsModule,
+    ReferralsModule,
+    ReferralSettingsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

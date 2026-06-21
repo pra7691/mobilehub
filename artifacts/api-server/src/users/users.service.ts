@@ -23,9 +23,13 @@ export class UsersService {
     name: string | null;
     preferredLanguage: string;
     status: UserStatus;
+    referralCode?: string | null;
+    referredByUserId?: string | null;
+    referralAppliedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
     submissions?: { paymentAmountSnapshot: { toNumber(): number } }[];
+    referralReceived?: { referralCode: string } | null;
   }) {
     const totalEarnings =
       user.submissions?.reduce(
@@ -39,6 +43,10 @@ export class UsersService {
       name: user.name,
       preferredLanguage: user.preferredLanguage,
       status: user.status,
+      referralCode: user.referralCode ?? null,
+      referredByCode: user.referralReceived?.referralCode ?? null,
+      referredByUserId: user.referredByUserId ?? null,
+      referralAppliedAt: user.referralAppliedAt ?? null,
       totalEarnings,
       totalSubmissions,
       createdAt: user.createdAt,
@@ -67,7 +75,10 @@ export class UsersService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { submissions: { select: { paymentAmountSnapshot: true } } },
+        include: {
+          submissions: { select: { paymentAmountSnapshot: true } },
+          referralReceived: { select: { referralCode: true } },
+        },
       }),
     ]);
 
@@ -80,7 +91,10 @@ export class UsersService {
   async findOne(id: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
-      include: { submissions: { select: { paymentAmountSnapshot: true } } },
+      include: {
+        submissions: { select: { paymentAmountSnapshot: true } },
+        referralReceived: { select: { referralCode: true } },
+      },
     });
     if (!user) throw new NotFoundException('User not found');
     return this.toResponse(user);
@@ -91,7 +105,10 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data,
-      include: { submissions: { select: { paymentAmountSnapshot: true } } },
+      include: {
+        submissions: { select: { paymentAmountSnapshot: true } },
+        referralReceived: { select: { referralCode: true } },
+      },
     });
     return this.toResponse(user);
   }
@@ -105,7 +122,10 @@ export class UsersService {
     const updated = await this.prisma.user.update({
       where: { id },
       data: { preferredLanguage },
-      include: { submissions: { select: { paymentAmountSnapshot: true } } },
+      include: {
+        submissions: { select: { paymentAmountSnapshot: true } },
+        referralReceived: { select: { referralCode: true } },
+      },
     });
     return this.toResponse(updated);
   }
@@ -122,7 +142,10 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id },
       data: { status },
-      include: { submissions: { select: { paymentAmountSnapshot: true } } },
+      include: {
+        submissions: { select: { paymentAmountSnapshot: true } },
+        referralReceived: { select: { referralCode: true } },
+      },
     });
 
     await this.auditService.log(

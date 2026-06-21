@@ -15,6 +15,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { generateUniqueReferralCode } from '../referrals/referrals.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'capto-jwt-secret-change-in-production';
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -132,7 +133,17 @@ export class AuthService {
     let user = await this.prisma.user.findUnique({ where: { phoneNumber: dto.phoneNumber } });
 
     if (!user) {
-      user = await this.prisma.user.create({ data: { phoneNumber: dto.phoneNumber } });
+      const referralCode = await generateUniqueReferralCode(this.prisma);
+      user = await this.prisma.user.create({
+        data: { phoneNumber: dto.phoneNumber, referralCode },
+      });
+    } else if (!user.referralCode) {
+      // Backfill missing referral code for existing users
+      const referralCode = await generateUniqueReferralCode(this.prisma);
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { referralCode },
+      });
     }
 
     if (user.status === 'suspended') throw new BadRequestException('Account suspended');

@@ -3450,3 +3450,246 @@ export const PatchAdminSettingsPayoutResponse = zod.object({
 })
 
 
+/**
+ * @summary Get current user referral summary
+ */
+export const GetMyReferralSummaryResponse = zod.object({
+  "referralCode": zod.string().nullish(),
+  "isEnabled": zod.boolean(),
+  "rewardAmount": zod.number(),
+  "message": zod.string().nullish(),
+  "totalRegistered": zod.number(),
+  "totalRewarded": zod.number(),
+  "totalRewardsEarned": zod.number()
+})
+
+
+/**
+ * @summary Paginated list of referrals made by current user
+ */
+export const getMyReferralHistoryQueryPageDefault = 1;
+export const getMyReferralHistoryQueryLimitDefault = 20;
+
+export const GetMyReferralHistoryQueryParams = zod.object({
+  "page": zod.coerce.number().default(getMyReferralHistoryQueryPageDefault),
+  "limit": zod.coerce.number().default(getMyReferralHistoryQueryLimitDefault)
+})
+
+export const GetMyReferralHistoryResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "referredUserMasked": zod.string(),
+  "status": zod.enum(['REGISTERED', 'REWARDED', 'CANCELLED']),
+  "registeredAt": zod.coerce.date(),
+  "qualifiedAt": zod.coerce.date().nullish(),
+  "rewardedAt": zod.coerce.date().nullish(),
+  "rewardAmount": zod.number().nullish()
+})),
+  "meta": zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
+ * @summary Validate a referral code without applying it
+ */
+export const ValidateReferralCodeBody = zod.object({
+  "referralCode": zod.string()
+})
+
+export const ValidateReferralCodeResponse = zod.object({
+  "valid": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Apply a referral code to the current user account
+ */
+export const ApplyReferralCodeBody = zod.object({
+  "referralCode": zod.string()
+})
+
+export const ApplyReferralCodeResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Referral aggregate statistics
+ */
+export const AdminGetReferralStatsResponse = zod.object({
+  "total": zod.number(),
+  "registered": zod.number(),
+  "rewarded": zod.number(),
+  "cancelled": zod.number(),
+  "totalRewardsPaid": zod.number()
+})
+
+
+/**
+ * @summary List referrals with filters
+ */
+export const adminListReferralsQueryPageDefault = 1;
+export const adminListReferralsQueryLimitDefault = 20;
+
+export const AdminListReferralsQueryParams = zod.object({
+  "page": zod.coerce.number().default(adminListReferralsQueryPageDefault),
+  "limit": zod.coerce.number().default(adminListReferralsQueryLimitDefault),
+  "status": zod.enum(['REGISTERED', 'REWARDED', 'CANCELLED']).optional(),
+  "referralCode": zod.coerce.string().optional(),
+  "referrerPhone": zod.coerce.string().optional(),
+  "referredPhone": zod.coerce.string().optional(),
+  "fromDate": zod.date().optional(),
+  "toDate": zod.date().optional()
+})
+
+export const AdminListReferralsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string(),
+  "referrerUserId": zod.string(),
+  "referredUserId": zod.string(),
+  "referralCode": zod.string(),
+  "status": zod.enum(['REGISTERED', 'REWARDED', 'CANCELLED']),
+  "registeredAt": zod.coerce.date(),
+  "qualifiedAt": zod.coerce.date().nullish(),
+  "rewardedAt": zod.coerce.date().nullish(),
+  "rewardAmount": zod.number().nullish(),
+  "rewardWalletTransactionId": zod.string().nullish(),
+  "firstQualifiedSubmissionId": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "referrer": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish(),
+  "phoneNumberMasked": zod.string()
+}).optional(),
+  "referred": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish(),
+  "phoneNumberMasked": zod.string()
+}).optional()
+})),
+  "meta": zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
+ * @summary Get a single referral record
+ */
+export const AdminGetReferralParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminGetReferralResponse = zod.object({
+  "id": zod.string(),
+  "referrerUserId": zod.string(),
+  "referredUserId": zod.string(),
+  "referralCode": zod.string(),
+  "status": zod.enum(['REGISTERED', 'REWARDED', 'CANCELLED']),
+  "registeredAt": zod.coerce.date(),
+  "qualifiedAt": zod.coerce.date().nullish(),
+  "rewardedAt": zod.coerce.date().nullish(),
+  "rewardAmount": zod.number().nullish(),
+  "rewardWalletTransactionId": zod.string().nullish(),
+  "firstQualifiedSubmissionId": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "referrer": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish(),
+  "phoneNumberMasked": zod.string()
+}).optional(),
+  "referred": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish(),
+  "phoneNumberMasked": zod.string()
+}).optional()
+})
+
+
+/**
+ * @summary Cancel a referral record
+ */
+export const AdminCancelReferralParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminCancelReferralResponse = zod.object({
+  "id": zod.string(),
+  "referrerUserId": zod.string(),
+  "referredUserId": zod.string(),
+  "referralCode": zod.string(),
+  "status": zod.enum(['REGISTERED', 'REWARDED', 'CANCELLED']),
+  "registeredAt": zod.coerce.date(),
+  "qualifiedAt": zod.coerce.date().nullish(),
+  "rewardedAt": zod.coerce.date().nullish(),
+  "rewardAmount": zod.number().nullish(),
+  "rewardWalletTransactionId": zod.string().nullish(),
+  "firstQualifiedSubmissionId": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "referrer": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish(),
+  "phoneNumberMasked": zod.string()
+}).optional(),
+  "referred": zod.object({
+  "id": zod.string(),
+  "phoneNumber": zod.string(),
+  "name": zod.string().nullish(),
+  "phoneNumberMasked": zod.string()
+}).optional()
+})
+
+
+/**
+ * @summary Get referral settings
+ */
+export const AdminGetReferralSettingsResponse = zod.object({
+  "id": zod.string(),
+  "isEnabled": zod.boolean(),
+  "rewardAmount": zod.number(),
+  "message": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update referral settings
+ */
+export const AdminUpdateReferralSettingsBody = zod.object({
+  "isEnabled": zod.boolean().optional(),
+  "rewardAmount": zod.number().optional(),
+  "message": zod.string().nullish()
+})
+
+export const AdminUpdateReferralSettingsResponse = zod.object({
+  "id": zod.string(),
+  "isEnabled": zod.boolean(),
+  "rewardAmount": zod.number(),
+  "message": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+

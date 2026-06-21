@@ -142,6 +142,47 @@ export class WalletService {
     return this.listTransactions({ ...params, userId });
   }
 
+  /** Called inside a Prisma transaction to atomically credit a referral reward */
+  async creditReferralReward(
+    tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
+    referrerUserId: string,
+    referralId: string,
+    amount: number,
+  ) {
+    let wallet = await tx.wallet.findUnique({ where: { userId: referrerUserId } });
+    if (!wallet) {
+      wallet = await tx.wallet.create({ data: { userId: referrerUserId } });
+    }
+
+    const balanceBefore = wallet.availableBalance.toNumber();
+    const balanceAfter = balanceBefore + amount;
+
+    const txRecord = await tx.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        userId: referrerUserId,
+        type: 'CREDIT',
+        sourceType: 'REFERRAL_REWARD',
+        sourceId: referralId,
+        amount,
+        balanceBefore,
+        balanceAfter,
+        note: `Referral reward`,
+        status: 'COMPLETED',
+      },
+    });
+
+    await tx.wallet.update({
+      where: { id: wallet.id },
+      data: {
+        availableBalance: balanceAfter,
+        lifetimeEarnings: { increment: amount },
+      },
+    });
+
+    return txRecord;
+  }
+
   /** Called inside a Prisma transaction to atomically credit a wallet */
   async creditSubmissionApproval(
     tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],

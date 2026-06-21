@@ -21,7 +21,8 @@ import {
   useAdminUpdateLegalContent,
   usePatchAdminSettingsPayout,
 } from "@workspace/api-client-react";
-import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote } from "lucide-react";
+import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch } from "lucide-react";
+import { ReferralSettingsTab } from "./referral-settings";
 
 // ─── General Tab ─────────────────────────────────────────────────────────────
 
@@ -557,6 +558,10 @@ export default function SettingsPage() {
             <Banknote className="h-3.5 w-3.5" />
             Payouts
           </TabsTrigger>
+          <TabsTrigger value="referral" className="gap-2">
+            <GitBranch className="h-3.5 w-3.5" />
+            Referrals
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -569,6 +574,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="payout">
           <PayoutSettingsTab />
+        </TabsContent>
+        <TabsContent value="referral">
+          <ReferralSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

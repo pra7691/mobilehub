@@ -32,6 +32,9 @@ tags:
   - name: public-notices
   - name: notifications
   - name: admin-notifications
+  - name: referrals
+  - name: admin-referrals
+  - name: referral-settings
 
 paths:
   /healthz:
@@ -2373,6 +2376,222 @@ paths:
               schema:
                 $ref: "#/components/schemas/PayoutSettings"
 
+
+  # ─── Referrals (mobile) ───────────────────────────────────────────────────
+
+  /referrals/me:
+    get:
+      operationId: getMyReferralSummary
+      tags: [referrals]
+      summary: Get current user referral summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Referral summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
+
+  /referrals/me/history:
+    get:
+      operationId: getMyReferralHistory
+      tags: [referrals]
+      summary: Paginated list of referrals made by current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        "200":
+          description: Paginated referral history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralHistoryPage"
+
+  /referrals/validate:
+    post:
+      operationId: validateReferralCode
+      tags: [referrals]
+      summary: Validate a referral code without applying it
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralCodeBody"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralValidationResult"
+
+  /referrals/apply:
+    post:
+      operationId: applyReferralCode
+      tags: [referrals]
+      summary: Apply a referral code to the current user account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralCodeBody"
+      responses:
+        "200":
+          description: Applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+
+  # ─── Admin Referrals ───────────────────────────────────────────────────────
+
+  /admin/referrals/stats:
+    get:
+      operationId: adminGetReferralStats
+      tags: [admin-referrals]
+      summary: Referral aggregate statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralStats"
+
+  /admin/referrals:
+    get:
+      operationId: adminListReferrals
+      tags: [admin-referrals]
+      summary: List referrals with filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [REGISTERED, REWARDED, CANCELLED] }
+        - name: referralCode
+          in: query
+          schema: { type: string }
+        - name: referrerPhone
+          in: query
+          schema: { type: string }
+        - name: referredPhone
+          in: query
+          schema: { type: string }
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Paginated referrals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferralPage"
+
+  /admin/referrals/{id}:
+    get:
+      operationId: adminGetReferral
+      tags: [admin-referrals]
+      summary: Get a single referral record
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Referral detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferral"
+
+  /admin/referrals/{id}/cancel:
+    patch:
+      operationId: adminCancelReferral
+      tags: [admin-referrals]
+      summary: Cancel a referral record
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated referral
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferral"
+
+  # ─── Referral Settings ─────────────────────────────────────────────────────
+
+  /admin/settings/referral:
+    get:
+      operationId: adminGetReferralSettings
+      tags: [referral-settings]
+      summary: Get referral settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Referral settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSettings"
+
+    patch:
+      operationId: adminUpdateReferralSettings
+      tags: [referral-settings]
+      summary: Update referral settings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReferralSettingsBody"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSettings"
+
 components:
   securitySchemes:
     BearerAuth:
@@ -4602,3 +4821,205 @@ components:
         maxPendingPayoutsPerUser:
           type: integer
           nullable: true
+    ReferralSummary:
+      type: object
+      properties:
+        referralCode:
+          type: string
+          nullable: true
+        isEnabled:
+          type: boolean
+        rewardAmount:
+          type: number
+        message:
+          type: string
+          nullable: true
+        totalRegistered:
+          type: integer
+        totalRewarded:
+          type: integer
+        totalRewardsEarned:
+          type: number
+      required: [isEnabled, rewardAmount, totalRegistered, totalRewarded, totalRewardsEarned]
+
+    ReferralHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        referredUserMasked:
+          type: string
+        status:
+          type: string
+          enum: [REGISTERED, REWARDED, CANCELLED]
+        registeredAt:
+          type: string
+          format: date-time
+        qualifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rewardedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rewardAmount:
+          type: number
+          nullable: true
+      required: [id, referredUserMasked, status, registeredAt]
+
+    ReferralHistoryPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralHistoryItem"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+
+    ReferralCodeBody:
+      type: object
+      properties:
+        referralCode:
+          type: string
+      required: [referralCode]
+
+    ReferralValidationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        message:
+          type: string
+      required: [valid, message]
+
+    ReferralStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        registered:
+          type: integer
+        rewarded:
+          type: integer
+        cancelled:
+          type: integer
+        totalRewardsPaid:
+          type: number
+      required: [total, registered, rewarded, cancelled, totalRewardsPaid]
+
+    AdminReferralUser:
+      type: object
+      properties:
+        id:
+          type: string
+        phoneNumber:
+          type: string
+        name:
+          type: string
+          nullable: true
+        phoneNumberMasked:
+          type: string
+      required: [id, phoneNumber, phoneNumberMasked]
+
+    AdminReferral:
+      type: object
+      properties:
+        id:
+          type: string
+        referrerUserId:
+          type: string
+        referredUserId:
+          type: string
+        referralCode:
+          type: string
+        status:
+          type: string
+          enum: [REGISTERED, REWARDED, CANCELLED]
+        registeredAt:
+          type: string
+          format: date-time
+        qualifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rewardedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rewardAmount:
+          type: number
+          nullable: true
+        rewardWalletTransactionId:
+          type: string
+          nullable: true
+        firstQualifiedSubmissionId:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        referrer:
+          $ref: "#/components/schemas/AdminReferralUser"
+        referred:
+          $ref: "#/components/schemas/AdminReferralUser"
+      required: [id, referrerUserId, referredUserId, referralCode, status, registeredAt, createdAt, updatedAt]
+
+    AdminReferralPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminReferral"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+
+    ReferralSettings:
+      type: object
+      properties:
+        id:
+          type: string
+        isEnabled:
+          type: boolean
+        rewardAmount:
+          type: number
+        message:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, isEnabled, rewardAmount, createdAt, updatedAt]
+
+    UpdateReferralSettingsBody:
+      type: object
+      properties:
+        isEnabled:
+          type: boolean
+        rewardAmount:
+          type: number
+        message:
+          type: string
+          nullable: true
+    SuccessMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
+

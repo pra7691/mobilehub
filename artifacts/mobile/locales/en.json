@@ -369,5 +369,32 @@
     "discardConfirm": "This draft will be permanently deleted.",
     "noDrafts": "No drafts",
     "saved": "Draft saved"
+  },
+  "referral": {
+    "title": "Refer & Earn",
+    "entryTitle": "Have a referral code?",
+    "entrySubtitle": "Enter a friend's referral code to get started. You can only apply one code.",
+    "codePlaceholder": "Enter 6-digit code",
+    "applyCode": "Apply Code",
+    "skip": "Skip, I don't have a code",
+    "invalidCode": "Referral code is not valid",
+    "applyError": "Failed to apply referral code",
+    "yourCode": "Your Referral Code",
+    "share": "Share with Friends",
+    "codeCopied": "Code copied!",
+    "earnTitle": "Earn ₹%{amount} per referral",
+    "defaultMessage": "Invite friends to Capto and earn ₹%{amount} when they complete their first approved task!",
+    "programDisabled": "The referral program is currently unavailable.",
+    "howItWorks": "How it works",
+    "step1": "Share your unique 6-digit referral code with friends",
+    "step2": "Your friend signs up and enters your code",
+    "step3": "Earn ₹%{amount} when they get their first task approved",
+    "invited": "Invited",
+    "rewarded": "Rewarded",
+    "earned": "Earned",
+    "recentReferrals": "Recent Referrals",
+    "statusRegistered": "Pending",
+    "statusRewarded": "Rewarded",
+    "statusCancelled": "Cancelled"
   }
 }

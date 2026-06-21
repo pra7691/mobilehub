@@ -31,7 +31,10 @@ export type AuditAction =
   | 'payout.processing_started'
   | 'payout.mark_paid'
   | 'payout.rejected'
-  | 'payout_settings.updated';
+  | 'payout_settings.updated'
+  | 'referral.applied'
+  | 'referral.rewarded'
+  | 'referral.cancelled';
 
 export interface AuditContext {
   adminId?: string;

@@ -166,6 +166,12 @@ export default function ProfileScreen() {
         <MenuRow icon="credit-card" label={t("profile.paymentDetails")} onPress={() => router.push("/payment-details" as never)} colors={colors} />
         <MenuRow icon="bell" label="Notifications" onPress={() => router.push("/notification-settings" as never)} colors={colors} />
         <MenuRow
+          icon="gift"
+          label={t("referral.title")}
+          onPress={() => router.push("/referral" as never)}
+          colors={colors}
+        />
+        <MenuRow
           icon="globe"
           label={t("profile.language")}
           sublabel={currentLanguageLabel}

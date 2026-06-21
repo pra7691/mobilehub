@@ -19,7 +19,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
-import { AuthProvider, useAuth, _notifyDisabled, isDisabledError } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth, _notifyDisabled, isDisabledError, AuthState } from "@/contexts/AuthContext";
+import { hasBeenPrompted } from "./referral-entry";
 import { DraftProvider } from "@/contexts/DraftContext";
 import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -45,8 +46,19 @@ const queryClient = new QueryClient({
   }),
 });
 
+function decodeJwtSub(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading, isDisabled, logout } = useAuth();
+  const { isAuthenticated, isLoading, isDisabled, logout, accessToken } = useAuth() as AuthState & {
+    isAuthenticated: boolean; logout: () => Promise<void>; accessToken: string | null;
+  };
   const { hasSelectedLanguage, isLanguageLoading } = useLanguage();
   const router = useRouter();
   const segments = useSegments();
@@ -59,6 +71,7 @@ function RootLayoutNav() {
 
     const inLangSelection = segments[0] === "language-selection";
     const inAuth = segments[0] === "(auth)";
+    const inReferralEntry = segments[0] === "referral-entry";
 
     // First-time users: must pick a language before anything else
     if (!hasSelectedLanguage && !inLangSelection) {
@@ -71,10 +84,25 @@ function RootLayoutNav() {
     if (!isAuthenticated && !inAuth) {
       router.replace("/(auth)/login");
     } else if (isAuthenticated && inAuth) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      router.replace("/(tabs)/" as any);
+      // After login: check if we should show the referral-entry screen
+      const userId = accessToken ? decodeJwtSub(accessToken) : null;
+      if (userId) {
+        hasBeenPrompted(userId).then((prompted) => {
+          if (!prompted) {
+            router.replace("/referral-entry" as never);
+          } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            router.replace("/(tabs)/" as any);
+          }
+        });
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.replace("/(tabs)/" as any);
+      }
+    } else if (isAuthenticated && !inAuth && !inReferralEntry) {
+      // Already authenticated — nothing to do
     }
-  }, [isAuthenticated, isLoading, isDisabled, isLanguageLoading, hasSelectedLanguage, segments]);
+  }, [isAuthenticated, isLoading, isDisabled, isLanguageLoading, hasSelectedLanguage, segments, accessToken]);
 
   // Full-screen disabled gate — replaces all navigation
   if (isDisabled) {
@@ -109,6 +137,8 @@ function RootLayoutNav() {
       <Stack.Screen name="support" options={{ presentation: "card", headerShown: false }} />
       <Stack.Screen name="faq" options={{ presentation: "card", headerShown: false }} />
       <Stack.Screen name="static-page" options={{ presentation: "card", headerShown: false }} />
+      <Stack.Screen name="referral-entry" options={{ presentation: "modal", headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="referral" options={{ presentation: "card", headerShown: false }} />
     </Stack>
   );
 }

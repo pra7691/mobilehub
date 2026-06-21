@@ -25,6 +25,7 @@ import NotificationsPage from "@/pages/notifications";
 import SettingsPage from "@/pages/settings";
 import ErrorLogsPage from "@/pages/error-logs";
 import PayoutsPage from "@/pages/payouts";
+import ReferralsPage from "@/pages/referrals";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ function Router() {
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/error-logs" component={() => <ProtectedRoute component={ErrorLogsPage} />} />
       <Route path="/payouts" component={() => <ProtectedRoute component={PayoutsPage} />} />
+      <Route path="/referrals" component={() => <ProtectedRoute component={ReferralsPage} />} />
       <Route component={NotFound} />
     </Switch>
   );
