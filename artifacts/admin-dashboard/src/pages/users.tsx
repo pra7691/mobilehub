@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatINR } from "@/lib/utils";
 
 interface PendingAction {
   userId: string;
@@ -144,7 +145,7 @@ export default function Users() {
                     {user.name && <div className="text-xs text-muted-foreground">{user.name}</div>}
                   </TableCell>
                   <TableCell>{getStatusBadge(user.status)}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">₹{user.totalEarnings.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{formatINR(user.totalEarnings)}</TableCell>
                   <TableCell className="text-right">{user.totalSubmissions}</TableCell>
                   <TableCell className="text-right text-muted-foreground text-sm">
                     {new Date(user.createdAt).toLocaleDateString()}

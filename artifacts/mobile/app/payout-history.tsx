@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { useGetPayoutsMy, getGetPayoutsMyQueryKey } from "@workspace/api-client-react";
 import type { PayoutRequestItem } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { formatINR } from "@/utils/formatCurrency";
 
 type PayoutStatus = "PENDING" | "PROCESSING" | "PAID" | "REJECTED" | "CANCELLED";
 
@@ -100,7 +101,7 @@ export default function PayoutHistoryScreen() {
           ) : null}
         </View>
         <View style={styles.rowRight}>
-          <Text style={styles.rowAmount}>₹{Number(item.amount).toFixed(2)}</Text>
+          <Text style={styles.rowAmount}>{formatINR(Number(item.amount))}</Text>
           <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
             <Text style={[styles.badgeText, { color: cfg.text }]}>{cfg.label}</Text>
           </View>
@@ -201,7 +202,7 @@ export default function PayoutHistoryScreen() {
                     <Feather name={selectedCfg.icon as "clock"} size={22} color={selectedCfg.text} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.modalAmount}>₹{Number(selected.amount).toFixed(2)}</Text>
+                    <Text style={styles.modalAmount}>{formatINR(Number(selected.amount))}</Text>
                     <View style={[styles.badge, { backgroundColor: selectedCfg.bg, alignSelf: "flex-start" }]}>
                       <Text style={[styles.badgeText, { color: selectedCfg.text }]}>{selectedCfg.label}</Text>
                     </View>

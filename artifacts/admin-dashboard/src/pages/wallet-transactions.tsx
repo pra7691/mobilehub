@@ -18,6 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { formatDistanceToNow, format } from "date-fns";
+import { formatINR } from "@/lib/utils";
 
 type TxType = "CREDIT" | "DEBIT" | "ADJUSTMENT";
 
@@ -201,7 +202,7 @@ export default function WalletTransactions() {
                         : "text-amber-400"
                     }`}>
                       {tx.type === "CREDIT" ? "+" : tx.type === "DEBIT" ? "−" : "±"}
-                      ₹{tx.amount.toFixed(2)}
+                      {formatINR(tx.amount)}
                     </TableCell>
                   </TableRow>
                 );

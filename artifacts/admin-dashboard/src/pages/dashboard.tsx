@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, FileQuestion, SendToBack, Wallet, ArrowUpRight, Activity } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { formatINR } from "@/lib/utils";
 
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStats();
@@ -13,7 +14,7 @@ export default function Dashboard() {
     { title: "Total Users", value: stats?.totalUsers, icon: Users, subtext: `${stats?.activeUsers || 0} active` },
     { title: "Active Tasks", value: stats?.activeTasks, icon: FileQuestion, subtext: `of ${stats?.totalTasks || 0} total` },
     { title: "Submissions", value: stats?.totalSubmissions, icon: SendToBack, subtext: `${stats?.pendingSubmissions || 0} pending` },
-    { title: "Total Earned Today", value: stats?.totalEarnedToday ? `₹${stats.totalEarnedToday.toFixed(2)}` : "₹0.00", icon: Wallet, subtext: `Total bal: ₹${stats?.totalWalletBalance?.toFixed(2) || '0.00'}` }
+    { title: "Total Earned Today", value: stats?.totalEarnedToday ? formatINR(stats.totalEarnedToday) : "₹0.00", icon: Wallet, subtext: `Total bal: ${stats?.totalWalletBalance ? formatINR(stats.totalWalletBalance) : '₹0.00'}` }
   ];
 
   return (

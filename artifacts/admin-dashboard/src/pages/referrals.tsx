@@ -42,6 +42,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Search, X, Gift, Users, CheckCircle, XCircle } from "lucide-react";
+import { formatINR } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -219,7 +220,7 @@ export default function ReferralsPage() {
           <StatsCard label="Total Referrals" value={stats.total} icon={Users} />
           <StatsCard label="Registered" value={stats.registered} icon={Gift} />
           <StatsCard label="Rewarded" value={stats.rewarded} icon={CheckCircle} />
-          <StatsCard label="Total Paid Out" value={`₹${Number(stats.totalRewardsPaid).toFixed(2)}`} icon={Gift} />
+          <StatsCard label="Total Paid Out" value={formatINR(Number(stats.totalRewardsPaid))} icon={Gift} />
         </div>
       )}
 
@@ -303,7 +304,7 @@ export default function ReferralsPage() {
                     <TableCell className="text-muted-foreground text-sm">{fmt(r.registeredAt)}</TableCell>
                     <TableCell>
                       {r.rewardAmount != null
-                        ? <span className="text-emerald-500 font-medium">₹{r.rewardAmount}</span>
+                        ? <span className="text-emerald-500 font-medium">{formatINR(Number(r.rewardAmount))}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                   </TableRow>
@@ -362,7 +363,7 @@ export default function ReferralsPage() {
               {selectedReferral.rewardAmount != null && (
                 <div>
                   <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Reward</p>
-                  <DetailRow label="Amount" value={<span className="text-emerald-500">₹{selectedReferral.rewardAmount}</span>} />
+                  <DetailRow label="Amount" value={<span className="text-emerald-500">{formatINR(Number(selectedReferral.rewardAmount))}</span>} />
                   <DetailRow label="Wallet TX" value={selectedReferral.rewardWalletTransactionId} />
                   <DetailRow label="Submission" value={selectedReferral.firstQualifiedSubmissionId} />
                 </div>

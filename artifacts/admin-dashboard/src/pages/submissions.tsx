@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { formatDistanceToNow, format } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatINR } from "@/lib/utils";
 
 type SubmissionStatusValue =
   | "DRAFT" | "UPLOADING" | "UNDER_REVIEW" | "APPROVED"
@@ -242,7 +243,6 @@ export default function Submissions() {
 
   const taskSnapshot = selectedSub?.taskSnapshot as TaskSnapshot | undefined;
   const snapshotAmount = selectedSub?.paymentAmountSnapshot;
-  const currency = "₹";
 
   return (
     <div className="space-y-6">
@@ -430,7 +430,7 @@ export default function Submissions() {
                   </TableCell>
                   <TableCell>{getStatusBadge(sub.status)}</TableCell>
                   <TableCell className="text-right font-mono text-sm font-medium">
-                    ₹{sub.paymentAmountSnapshot.toFixed(2)}
+                    {formatINR(sub.paymentAmountSnapshot)}
                   </TableCell>
                   <TableCell>
                     <Info className="h-4 w-4 text-muted-foreground" />
@@ -541,7 +541,7 @@ export default function Submissions() {
                       <div className="p-3 space-y-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs text-muted-foreground">
-                            Approved Amount (leave blank for {currency}{snapshotAmount?.toFixed(2)})
+                            Approved Amount (leave blank for {snapshotAmount != null ? formatINR(snapshotAmount) : "—"})
                           </Label>
                           <Input
                             type="number"
@@ -670,7 +670,7 @@ export default function Submissions() {
                   <SectionTitle>Review</SectionTitle>
                   <div className="bg-background rounded-lg border border-border p-3 space-y-1.5">
                     {selectedSub.approvedAmount != null && (
-                      <DetailRow label="Approved amount" value={`₹${Number(selectedSub.approvedAmount).toFixed(2)}`} />
+                      <DetailRow label="Approved amount" value={formatINR(Number(selectedSub.approvedAmount))} />
                     )}
                     {selectedSub.rejectionReason && (
                       <div>
@@ -702,7 +702,7 @@ export default function Submissions() {
                       {taskSnapshot.subcategory && <DetailRow label="Subcategory" value={taskSnapshot.subcategory.name} />}
                       <DetailRow
                         label="Reward"
-                        value={`₹${taskSnapshot.paymentAmount?.toFixed(2) ?? "—"}`}
+                        value={taskSnapshot.paymentAmount != null ? formatINR(taskSnapshot.paymentAmount) : "—"}
                       />
                       {taskSnapshot.minimumDurationSeconds != null && (
                         <DetailRow label="Min duration" value={`${taskSnapshot.minimumDurationSeconds}s`} />

@@ -13,12 +13,9 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useListMyWalletTransactions } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
+import { formatINR } from "@/utils/formatCurrency";
 
 const PAGE_SIZE = 20;
-
-function formatCurrency(amount: number, _currency?: string): string {
-  return `₹${amount.toFixed(2)}`;
-}
 
 function sourceLabel(sourceType: string): string {
   switch (sourceType) {
@@ -142,10 +139,10 @@ export default function WalletStatementScreen() {
                 </View>
                 <View style={styles.rowRight}>
                   <Text style={[styles.rowAmount, { color: amountColor }]}>
-                    {amountPrefix}{formatCurrency(item.amount)}
+                    {amountPrefix}{formatINR(item.amount)}
                   </Text>
                   <Text style={styles.rowBalance}>
-                    Bal: {formatCurrency(item.balanceAfter)}
+                    Bal: {formatINR(item.balanceAfter)}
                   </Text>
                 </View>
               </View>

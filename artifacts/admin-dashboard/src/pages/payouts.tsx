@@ -33,6 +33,7 @@ import {
   ChevronLeft, ChevronRight, Search, Loader2, CheckCircle2, XCircle, PlayCircle, X, Eye,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { formatINR } from "@/lib/utils";
 
 type PayoutStatus = "PENDING" | "PROCESSING" | "PAID" | "REJECTED" | "CANCELLED";
 
@@ -217,7 +218,7 @@ function DetailPanel({
               <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-border">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Amount</p>
-                  <p className="text-2xl font-bold">₹{Number(detail.amount).toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{formatINR(Number(detail.amount))}</p>
                   <p className="text-xs text-muted-foreground mt-1">{detail.currency}</p>
                 </div>
                 <div className="text-right">
@@ -443,7 +444,7 @@ export default function PayoutsPage() {
                     <span className="text-sm font-mono">{p.upiIdMasked}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="font-semibold">₹{Number(p.amount).toFixed(2)}</span>
+                    <span className="font-semibold">{formatINR(Number(p.amount))}</span>
                   </TableCell>
                   <TableCell>{statusBadge(p.status)}</TableCell>
                   <TableCell>
