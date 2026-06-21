@@ -17,8 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Layers, Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Layers, Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Languages, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslate } from "@/hooks/useTranslate";
 
 export default function Subcategories() {
   const queryClient = useQueryClient();
@@ -43,6 +44,7 @@ export default function Subcategories() {
   const deleteMutation = useDeleteSubcategory();
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListSubcategoriesQueryKey() });
+  const { translateBatch, translating } = useTranslate();
 
   const openCreate = () => {
     setEditingId(null); setNameEn(""); setNameHi(""); setDescriptionEn(""); setDescriptionHi("");
@@ -234,6 +236,21 @@ export default function Subcategories() {
                 </div>
               </TabsContent>
               <TabsContent value="hi" className="space-y-3 mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={translating || !nameEn.trim()}
+                  onClick={async () => {
+                    const [translatedName, translatedDesc] = await translateBatch([nameEn, descriptionEn]);
+                    setNameHi(translatedName);
+                    setDescriptionHi(translatedDesc);
+                  }}
+                  className="gap-1.5 border-gray-700 text-gray-300 hover:text-white"
+                >
+                  {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                  Translate from English
+                </Button>
                 <div className="space-y-1.5">
                   <Label>नाम (हिंदी)</Label>
                   <Input dir="auto" value={nameHi} onChange={e => setNameHi(e.target.value)} placeholder="प्रोडक्ट फोटोग्राफी" className="bg-gray-800 border-gray-700 text-white" />

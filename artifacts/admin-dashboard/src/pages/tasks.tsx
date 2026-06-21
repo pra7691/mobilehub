@@ -29,7 +29,8 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ListTodo, Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Copy, Eye, Video, Image, Mic, X, Plus as PlusIcon, CheckCircle2, XCircle } from "lucide-react";
+import { ListTodo, Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Copy, Eye, Video, Image, Mic, X, Plus as PlusIcon, CheckCircle2, XCircle, Languages, Loader2 } from "lucide-react";
+import { useTranslate } from "@/hooks/useTranslate";
 import { toast } from "sonner";
 
 const COLLECTION_TYPE_COLORS: Record<string, string> = {
@@ -195,6 +196,7 @@ export default function Tasks() {
   const duplicateMutation = useDuplicateTask();
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+  const { translateBatch, translating } = useTranslate();
 
   const openCreate = () => { setEditingId(null); setForm(defaultForm()); setDialogOpen(true); };
   const openEdit = (t: Task) => { setEditingId(t.id); setForm(taskToForm(t)); setDialogOpen(true); };
@@ -556,6 +558,29 @@ export default function Tasks() {
                   <ListEditor label="Don'ts ✗" items={form.donts} onChange={v => setField("donts", v)} />
                 </TabsContent>
                 <TabsContent value="content-hi" className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={translating || !form.title.trim()}
+                    onClick={async () => {
+                      const [titleHi, descriptionHi, detailedInstructionsHi, ...dosDontsHi] = await translateBatch([
+                        form.title, form.description, form.detailedInstructions,
+                        ...form.dos, ...form.donts,
+                      ]);
+                      const dosHi = dosDontsHi.slice(0, form.dos.length);
+                      const dontsHi = dosDontsHi.slice(form.dos.length);
+                      setField("titleHi", titleHi);
+                      setField("descriptionHi", descriptionHi);
+                      setField("detailedInstructionsHi", detailedInstructionsHi);
+                      setField("dosHi", dosHi);
+                      setField("dontsHi", dontsHi);
+                    }}
+                    className="gap-1.5 border-gray-700 text-gray-300 hover:text-white"
+                  >
+                    {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                    Translate from English
+                  </Button>
                   <div className="space-y-1.5">
                     <Label>शीर्षक (हिंदी)</Label>
                     <input dir="auto" value={form.titleHi} onChange={e => setField("titleHi", e.target.value)} placeholder="रिटेल उत्पाद का फ्रंट व्यू कैप्चर करें" className="flex h-9 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-1 text-sm text-white shadow-sm transition-colors" />

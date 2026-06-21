@@ -31,8 +31,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Trash2, GripVertical, HelpCircle } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, GripVertical, HelpCircle, Languages } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslate } from "@/hooks/useTranslate";
 
 interface FaqItem {
   id: string;
@@ -49,6 +50,7 @@ interface FaqItem {
 export default function FaqPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { translateBatch, translating } = useTranslate();
 
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -239,6 +241,20 @@ export default function FaqPage() {
                 </div>
               </TabsContent>
               <TabsContent value="hi" className="space-y-3 mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={translating || !form.questionEn.trim()}
+                  onClick={async () => {
+                    const [questionHi, answerHi] = await translateBatch([form.questionEn, form.answerEn]);
+                    setForm(f => ({ ...f, questionHi, answerHi }));
+                  }}
+                  className="gap-1.5"
+                >
+                  {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                  Translate from English
+                </Button>
                 <div className="space-y-2">
                   <Label>प्रश्न (हिंदी)</Label>
                   <Input dir="auto" value={form.questionHi} onChange={(e) => setForm(f => ({ ...f, questionHi: e.target.value }))} placeholder="Capto क्या है?" />

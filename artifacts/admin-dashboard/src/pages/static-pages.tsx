@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, FileText, Languages } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslate } from "@/hooks/useTranslate";
 
 interface StaticPage {
   id: string;
@@ -42,6 +43,7 @@ const SLUG_SUGGESTIONS = ["privacy-policy", "terms-and-conditions", "about-us", 
 export default function StaticPagesAdmin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { translateBatch, translating } = useTranslate();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -209,6 +211,20 @@ export default function StaticPagesAdmin() {
                 </div>
               </TabsContent>
               <TabsContent value="hi" className="space-y-3 mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={translating || !form.titleEn.trim()}
+                  onClick={async () => {
+                    const [titleHi, contentHi] = await translateBatch([form.titleEn, form.contentEn]);
+                    setForm(f => ({ ...f, titleHi, contentHi }));
+                  }}
+                  className="gap-1.5"
+                >
+                  {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                  Translate from English
+                </Button>
                 <div className="space-y-2">
                   <Label>शीर्षक (हिंदी)</Label>
                   <Input dir="auto" value={form.titleHi} onChange={(e) => setForm(f => ({ ...f, titleHi: e.target.value }))} placeholder="गोपनीयता नीति" />
