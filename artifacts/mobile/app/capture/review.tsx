@@ -37,6 +37,56 @@ const TYPE_ICON: Record<string, string> = {
   AUDIO: "🎙️",
 };
 
+// ─── Audio Playback Component ─────────────────────────────────────────────────
+// Isolated so useAudioPlayer is only called when a valid URI is available.
+// Never pass null/undefined to useAudioPlayer — crashes the native constructor.
+function AudioPlaybackControls({
+  uri,
+  durationSeconds,
+}: {
+  uri: string;
+  durationSeconds?: number | null;
+}) {
+  const player = useAudioPlayer({ uri });
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const toggle = useCallback(() => {
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+    } else {
+      player.play();
+      setIsPlaying(true);
+    }
+  }, [player, isPlaying]);
+
+  return (
+    <View style={styles.audioPreview}>
+      <View style={styles.audioIconCircle}>
+        <Feather name="mic" size={40} color="#06b6d4" />
+      </View>
+      <TouchableOpacity style={styles.playAudioBtn} onPress={toggle}>
+        <Feather
+          name={isPlaying ? "pause" : "play"}
+          size={24}
+          color="#0f1117"
+        />
+        <Text style={styles.playAudioBtnText}>
+          {isPlaying ? "Pause Preview" : "Play Preview"}
+        </Text>
+      </TouchableOpacity>
+      {durationSeconds != null && (
+        <Text style={styles.audioDuration}>
+          Duration:{" "}
+          {Math.floor(durationSeconds / 60)}:
+          {(durationSeconds % 60).toString().padStart(2, "0")}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+// ─── Review Screen ────────────────────────────────────────────────────────────
 export default function ReviewScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -58,9 +108,10 @@ export default function ReviewScreen() {
   const [submitProgress, setSubmitProgress] = useState<SubmitProgress | null>(null);
   const [submittedToast, setSubmittedToast] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
-  const [audioPlaying, setAudioPlaying] = useState(false);
   const [isDraftMode, setIsDraftMode] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(draftId);
+
+  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     if (captureData || !draftId) return;
@@ -81,14 +132,6 @@ export default function ReviewScreen() {
       setLoadingDraft(false);
     });
   }, [draftId, captureData]);
-
-  const audioUri =
-    captureData?.collectionType === "AUDIO"
-      ? captureData.mediaUris[0] ?? null
-      : null;
-  const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
-
-  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     return () => {
@@ -249,6 +292,11 @@ export default function ReviewScreen() {
     );
   }
 
+  const audioUri =
+    captureData.collectionType === "AUDIO"
+      ? (captureData.mediaUris[0] ?? null)
+      : null;
+
   return (
     <SafeAreaView style={styles.container}>
       {savedToast && (
@@ -338,42 +386,22 @@ export default function ReviewScreen() {
             </View>
           )}
 
-          {captureData.collectionType === "AUDIO" && (
+          {/* AudioPlaybackControls is only mounted when collectionType is AUDIO
+              and a valid URI exists. This prevents useAudioPlayer from ever
+              receiving null, which crashes the native AudioPlayer constructor. */}
+          {captureData.collectionType === "AUDIO" && audioUri && (
+            <AudioPlaybackControls
+              uri={audioUri}
+              durationSeconds={captureData.durationSeconds}
+            />
+          )}
+
+          {captureData.collectionType === "AUDIO" && !audioUri && (
             <View style={styles.audioPreview}>
               <View style={styles.audioIconCircle}>
-                <Feather name="mic" size={40} color="#06b6d4" />
+                <Feather name="alert-circle" size={40} color="#ef4444" />
               </View>
-              <TouchableOpacity
-                style={styles.playAudioBtn}
-                onPress={() => {
-                  if (!player) return;
-                  if (audioPlaying) {
-                    player.pause();
-                    setAudioPlaying(false);
-                  } else {
-                    player.play();
-                    setAudioPlaying(true);
-                  }
-                }}
-              >
-                <Feather
-                  name={audioPlaying ? "pause" : "play"}
-                  size={24}
-                  color="#0f1117"
-                />
-                <Text style={styles.playAudioBtnText}>
-                  {audioPlaying ? "Pause Preview" : "Play Preview"}
-                </Text>
-              </TouchableOpacity>
-              {captureData.durationSeconds != null && (
-                <Text style={styles.audioDuration}>
-                  Duration:{" "}
-                  {Math.floor(captureData.durationSeconds / 60)}:
-                  {(captureData.durationSeconds % 60)
-                    .toString()
-                    .padStart(2, "0")}
-                </Text>
-              )}
+              <Text style={styles.audioDuration}>Audio file could not be loaded.</Text>
             </View>
           )}
         </View>
@@ -428,7 +456,6 @@ export default function ReviewScreen() {
           </View>
         )}
 
-        {/* Progress indicator during submission */}
         {submitting && submitProgress && (
           <View style={styles.progressCard}>
             <ActivityIndicator color="#8b5cf6" size="small" />
@@ -457,7 +484,6 @@ export default function ReviewScreen() {
         )}
 
         <View style={styles.actions}>
-          {/* Submit button */}
           <TouchableOpacity
             style={[styles.submitBtn, (submitting || saving) && styles.btnDisabled]}
             onPress={handleSubmit}
@@ -473,7 +499,6 @@ export default function ReviewScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Save draft button */}
           <TouchableOpacity
             style={[styles.saveDraftBtn, (submitting || saving) && styles.btnDisabled]}
             onPress={handleSaveDraft}

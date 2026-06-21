@@ -167,7 +167,7 @@ export default function TaskDetailScreen() {
     task.audioRequired;
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <SafeAreaView style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
         <Text style={styles.backText}>‹ Back</Text>
       </TouchableOpacity>

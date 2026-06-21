@@ -46,6 +46,47 @@ function formatTime(seconds: number): string {
   return `${m}:${s}`;
 }
 
+// ─── Recorded Audio Playback ──────────────────────────────────────────────────
+// Isolated component so useAudioPlayer is only ever called with a valid URI.
+// Never pass null/undefined to useAudioPlayer — crashes native AudioPlayer constructor.
+function RecordedAudioPlayer({
+  uri,
+  elapsed,
+}: {
+  uri: string;
+  elapsed: number;
+}) {
+  const player = useAudioPlayer({ uri });
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const toggle = useCallback(() => {
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+    } else {
+      player.play();
+      setIsPlaying(true);
+    }
+  }, [player, isPlaying]);
+
+  return (
+    <View style={styles.playbackRow}>
+      <TouchableOpacity style={styles.playBtn} onPress={toggle}>
+        <Feather
+          name={isPlaying ? "pause" : "play"}
+          size={22}
+          color="#06b6d4"
+        />
+      </TouchableOpacity>
+      <Text style={styles.playbackLabel}>
+        {isPlaying ? "Playing…" : "Tap to preview"}
+      </Text>
+      <Text style={styles.playbackDuration}>{formatTime(elapsed)}</Text>
+    </View>
+  );
+}
+
+// ─── Recording State ──────────────────────────────────────────────────────────
 type RecordingState = "idle" | "recording" | "paused" | "stopped";
 
 export default function AudioCaptureScreen() {
@@ -60,9 +101,6 @@ export default function AudioCaptureScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const player = useAudioPlayer(recordedUri ? { uri: recordedUri } : null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -190,14 +228,12 @@ export default function AudioCaptureScreen() {
   }, [recorder]);
 
   const stopRecording = useCallback(async () => {
-    // Validate min duration
     if (minDuration > 0 && elapsed < minDuration) {
       setError(
         `Minimum ${minDuration} seconds required. Currently ${elapsed}s.`
       );
       return;
     }
-    // Validate max duration
     if (maxDuration > 0 && elapsed > maxDuration) {
       setError(`Maximum ${maxDuration} seconds exceeded.`);
       return;
@@ -222,19 +258,7 @@ export default function AudioCaptureScreen() {
     recordingStateRef.current = "idle";
     setElapsed(0);
     setError(null);
-    setIsPlaying(false);
   }, []);
-
-  const togglePlayback = useCallback(() => {
-    if (!player) return;
-    if (isPlaying) {
-      player.pause();
-      setIsPlaying(false);
-    } else {
-      player.play();
-      setIsPlaying(true);
-    }
-  }, [player, isPlaying]);
 
   const handleContinue = useCallback(() => {
     if (!recordedUri) return;
@@ -346,21 +370,10 @@ export default function AudioCaptureScreen() {
           </View>
         )}
 
-        {/* Playback (after stopping) */}
+        {/* Playback — only mounted when a valid URI exists to prevent
+            useAudioPlayer from receiving null (crashes native constructor) */}
         {recordingState === "stopped" && recordedUri && (
-          <View style={styles.playbackRow}>
-            <TouchableOpacity style={styles.playBtn} onPress={togglePlayback}>
-              <Feather
-                name={isPlaying ? "pause" : "play"}
-                size={22}
-                color="#06b6d4"
-              />
-            </TouchableOpacity>
-            <Text style={styles.playbackLabel}>
-              {isPlaying ? "Playing…" : "Tap to preview"}
-            </Text>
-            <Text style={styles.playbackDuration}>{formatTime(elapsed)}</Text>
-          </View>
+          <RecordedAudioPlayer uri={recordedUri} elapsed={elapsed} />
         )}
 
         {/* Controls */}

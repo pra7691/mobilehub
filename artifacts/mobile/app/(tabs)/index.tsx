@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { Feather } from "@expo/vector-icons";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const BANNER_HEIGHT = Math.round(SCREEN_WIDTH * (7 / 16));
@@ -59,11 +60,23 @@ function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss: (id: s
   );
 }
 
-// ─── Banner Skeleton ──────────────────────────────────────────────────────────
+// ─── Skeleton Loaders ─────────────────────────────────────────────────────────
 function BannerSkeleton() {
   return (
     <View style={styles.bannerContainer}>
       <View style={[styles.bannerSlide, styles.bannerSkeleton]} />
+    </View>
+  );
+}
+
+function CategorySkeleton() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonIcon} />
+      <View style={styles.skeletonBody}>
+        <View style={styles.skeletonLine} />
+        <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+      </View>
     </View>
   );
 }
@@ -193,21 +206,45 @@ function BannerCarousel({ banners, autoSlideSeconds }: { banners: PublicBanner[]
 export default function CategoriesScreen() {
   const router = useRouter();
   const { language, t } = useLanguage();
+  const { isLoading: authLoading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [dismissedNotices, setDismissedNotices] = useState<Set<string>>(new Set());
 
-  const { data, isLoading, refetch } = useListCategories({ isActive: true, limit: 50, language: language as any });
-  const { data: notices = [] } = useGetPublicNotices({ language: language as any }) as { data: Notice[] };
+  // Don't fire queries until auth hydration is done to prevent
+  // race conditions where requests go out without a valid token.
+  const queriesEnabled = !authLoading;
+
+  const {
+    data,
+    isLoading: categoriesLoading,
+    isFetching: categoriesFetching,
+    isError: categoriesError,
+    refetch,
+  } = useListCategories(
+    { isActive: true, limit: 50, language: language as any },
+    { query: { enabled: queriesEnabled } }
+  );
+
+  const { data: notices = [] } = useGetPublicNotices(
+    { language: language as any },
+    { query: { enabled: queriesEnabled } }
+  ) as { data: Notice[] };
 
   const {
     data: bannerData,
     isLoading: bannersLoading,
     refetch: refetchBanners,
     isError: bannersError,
-  } = useGetBanners({ language: language as any });
+  } = useGetBanners(
+    { language: language as any },
+    { query: { enabled: queriesEnabled } }
+  );
   const banners: PublicBanner[] = bannersError ? [] : ((bannerData as PublicBanner[]) ?? []);
 
-  const { data: bannerSettingsData } = useGetAppSettingsBanner();
+  const { data: bannerSettingsData } = useGetAppSettingsBanner(
+    {},
+    { query: { enabled: queriesEnabled } }
+  );
   const autoSlideSeconds: number = (bannerSettingsData as any)?.autoSlideSeconds ?? 5;
 
   const visibleNotices = (notices as Notice[]).filter((n) => n.isActive && !dismissedNotices.has(n.id));
@@ -223,26 +260,66 @@ export default function CategoriesScreen() {
     setDismissedNotices((prev) => new Set([...prev, id]));
   }
 
-  if (isLoading && !data) {
+  // ── State 1: Auth or initial categories still loading ────────────────────
+  const isInitialLoad = authLoading || (categoriesLoading && !data);
+  if (isInitialLoad) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Capto</Text>
           <Text style={styles.headerSubtitle}>{t("home.browseCategories")}</Text>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#06b6d4" size="large" />
+        <ScrollView contentContainerStyle={styles.skeletonList}>
+          <BannerSkeleton />
+          {[1, 2, 3].map((i) => <CategorySkeleton key={i} />)}
+        </ScrollView>
+        <View style={styles.loadingFooter}>
+          <ActivityIndicator color="#06b6d4" size="small" />
+          <Text style={styles.loadingFooterText}>Loading tasks…</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  // ── State 2: Request failed (no cached data) ──────────────────────────────
+  if (categoriesError && !data) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Capto</Text>
+          <Text style={styles.headerSubtitle}>{t("home.browseCategories")}</Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Feather name="wifi-off" size={40} color="#374151" />
+          <Text style={styles.errorTitle}>Couldn't load tasks.</Text>
+          <Text style={styles.errorSubtitle}>
+            Check your internet connection and try again.
+          </Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+            <Feather name="refresh-cw" size={15} color="#0f1117" />
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── State 3 & 4: Data (or empty) — with optional updating indicator ───────
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Capto</Text>
         <Text style={styles.headerSubtitle}>{t("home.browseCategories")}</Text>
       </View>
+
+      {/* Subtle "Updating tasks…" strip shown when background refetch is in progress
+          but we already have cached data to display. Never replaces content. */}
+      {categoriesFetching && !categoriesLoading && (
+        <View style={styles.updatingBar}>
+          <ActivityIndicator color="#06b6d4" size="small" />
+          <Text style={styles.updatingText}>Checking for new tasks…</Text>
+        </View>
+      )}
 
       <FlatList
         data={categories}
@@ -284,11 +361,19 @@ export default function CategoriesScreen() {
           />
         )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📂</Text>
-            <Text style={styles.emptyText}>{t("home.noCategories")}</Text>
-            <Text style={styles.emptySubtext}>{t("home.noCategoriesSubtitle")}</Text>
-          </View>
+          // Only show the empty state after a confirmed successful response with no data.
+          // Never show it while loading, fetching, or in an error state.
+          !categoriesFetching && !categoriesLoading && !categoriesError ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>📂</Text>
+              <Text style={styles.emptyText}>{t("home.noCategories")}</Text>
+              <Text style={styles.emptySubtext}>{t("home.noCategoriesSubtitle")}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+                <Feather name="refresh-cw" size={15} color="#0f1117" />
+                <Text style={styles.retryBtnText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
       />
     </SafeAreaView>
@@ -300,7 +385,77 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, alignItems: "center" },
   headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#ffffff", textAlign: "center" },
   headerSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", marginTop: 2, textAlign: "center" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  // Loading skeleton
+  skeletonList: { paddingBottom: 24 },
+  skeletonCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#141414",
+    borderRadius: 14,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#1f1f1f",
+    gap: 14,
+  },
+  skeletonIcon: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#1f2937" },
+  skeletonBody: { flex: 1, gap: 10 },
+  skeletonLine: { height: 14, borderRadius: 7, backgroundColor: "#1f2937" },
+  skeletonLineShort: { width: "60%" },
+
+  // Loading footer strip
+  loadingFooter: {
+    position: "absolute",
+    bottom: 90,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#141414",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+  },
+  loadingFooterText: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#6b7280" },
+
+  // Updating strip (background refetch with cached data visible)
+  updatingBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 6,
+    backgroundColor: "#0c1a27",
+    borderBottomWidth: 1,
+    borderBottomColor: "#164e63",
+  },
+  updatingText: { fontSize: 12, fontFamily: "Inter_500Medium", color: "#0891b2" },
+
+  // Error state
+  errorContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  errorTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", color: "#ffffff", textAlign: "center" },
+  errorSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", textAlign: "center", lineHeight: 20 },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#06b6d4",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 8,
+  },
+  retryBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#0f1117" },
 
   // Banner carousel
   bannerContainer: { marginBottom: 12 },
@@ -354,8 +509,10 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 11, fontFamily: "Inter_500Medium", color: "#9ca3af" },
   metaTextCyan: { color: "#22d3ee" },
   cardArrow: { fontSize: 22, color: "#374151", marginLeft: 8 },
-  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, paddingHorizontal: 40 },
-  emptyIcon: { fontSize: 52, marginBottom: 16 },
-  emptyText: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#ffffff", marginBottom: 8 },
+
+  // Empty state (confirmed empty: loaded, no error, no data)
+  emptyContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, paddingHorizontal: 40, gap: 12 },
+  emptyIcon: { fontSize: 52, marginBottom: 4 },
+  emptyText: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: "#ffffff", marginBottom: 4 },
   emptySubtext: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#6b7280", textAlign: "center", lineHeight: 20 },
 });
