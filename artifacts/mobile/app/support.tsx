@@ -8,8 +8,8 @@ import {
   ScrollView,
   Linking,
   Alert,
-  Clipboard,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -45,9 +45,9 @@ export default function SupportScreen() {
     });
   }
 
-  function copyEmail() {
+  async function copyEmail() {
     if (!support?.email) return;
-    Clipboard.setString(support.email);
+    await Clipboard.setStringAsync(support.email);
     Alert.alert(t("support.copied"), support.email);
   }
 

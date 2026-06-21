@@ -10,17 +10,17 @@ export class ReferralsController {
   constructor(private service: ReferralsService) {}
 
   @Get('me')
-  getMyReferralSummary(@Request() req: { user: { userId: string } }) {
-    return this.service.getMyReferralSummary(req.user.userId);
+  getMyReferralSummary(@Request() req: { user: { sub: string } }) {
+    return this.service.getMyReferralSummary(req.user.sub);
   }
 
   @Get('me/history')
   getMyReferralHistory(
-    @Request() req: { user: { userId: string } },
+    @Request() req: { user: { sub: string } },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.service.getMyReferralHistory(req.user.userId, {
+    return this.service.getMyReferralHistory(req.user.sub, {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
@@ -29,16 +29,16 @@ export class ReferralsController {
   @Post('validate')
   validateCode(
     @Body() body: ValidateReferralDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: { user: { sub: string } },
   ) {
-    return this.service.validateCode(body.referralCode, req.user.userId);
+    return this.service.validateCode(body.referralCode, req.user.sub);
   }
 
   @Post('apply')
   applyReferralCode(
     @Body() body: ApplyReferralDto,
-    @Request() req: { user: { userId: string } },
+    @Request() req: { user: { sub: string } },
   ) {
-    return this.service.applyReferralCode(body.referralCode, req.user.userId);
+    return this.service.applyReferralCode(body.referralCode, req.user.sub);
   }
 }

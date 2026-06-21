@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Clipboard } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { useGetMyReferralSummary, useGetMyReferralHistory } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -69,7 +69,7 @@ export default function ReferralScreen() {
 
   async function handleCopy() {
     if (!summary?.referralCode) return;
-    Clipboard.setString(summary.referralCode);
+    await Clipboard.setStringAsync(summary.referralCode);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     toast.show(t("referral.codeCopied"));
   }
