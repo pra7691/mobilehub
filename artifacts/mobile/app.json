@@ -27,7 +27,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.verbosetechlabs.tarzi",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -44,6 +44,7 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
+      "./plugins/withGradleNetworkTimeout",
       [
         "expo-splash-screen",
         {
