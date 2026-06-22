@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "fc253962-05f0-43a9-a936-34f8ebe414d1"
+      }
+    },
+    "android": {
+      "package": "com.verbosetechlabs.tarzi"
+    }
+  }
+}

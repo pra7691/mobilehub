@@ -1,0 +1,63 @@
+Fix the EAS Android build failure:
+
+`pnpm install --frozen-lockfile exited with non-zero code: 1`
+
+This is happening during EAS Build dependency installation before the Android build starts.
+
+Do not ignore the error and do not permanently disable frozen lockfile checks.
+
+Tasks:
+
+1. Inspect the detailed EAS “Install dependencies” log and identify the exact package/package.json mismatch causing pnpm frozen-lockfile failure.
+
+2. From the repository root, identify the correct pnpm workspace root:
+
+* Find `pnpm-workspace.yaml`
+* Find the root `package.json`
+* Find the committed `pnpm-lock.yaml`
+* Confirm which workspace contains the Expo mobile app used by EAS Build.
+
+3. Regenerate the lockfile correctly:
+
+* Use the repository’s intended pnpm version from `packageManager` in root package.json, if present.
+* Run dependency install from the workspace root, not only from a subfolder.
+* Update `pnpm-lock.yaml` so it matches every package.json in the monorepo.
+* Do not delete lockfile permanently.
+* Do not switch package managers.
+* Do not use npm/yarn if this project is pnpm-based.
+
+4. Check for common causes:
+
+* package.json changed but pnpm-lock.yaml was not updated
+* Expo package added/removed without regenerating lockfile
+* workspace dependency mismatch
+* `file:` or `workspace:` dependency path issue
+* incompatible pnpm version
+* missing package in lockfile
+* lockfile was generated from a subdirectory instead of workspace root
+
+5. After fixing:
+
+* Run `pnpm install --frozen-lockfile` successfully from the same root EAS uses.
+* Run mobile typecheck.
+* Run API typecheck.
+* Run admin-dashboard typecheck.
+* Commit/save the updated `pnpm-lock.yaml`.
+* Do not change unrelated app functionality.
+
+6. Verify EAS config:
+
+* Confirm EAS is building from the correct project root.
+* Confirm the Android production profile points to the Expo mobile app correctly.
+* Confirm no custom install command is using a wrong working directory.
+
+7. Retry:
+   `eas build --platform android --profile production`
+
+At the end provide:
+
+* Exact root cause from the EAS install log
+* Files changed
+* pnpm version used
+* Confirmation that `pnpm install --frozen-lockfile` now passes locally
+* Confirmation that the production EAS build was retried
