@@ -15,6 +15,8 @@
       }
     },
     "production": {
+      "corepack": true,
+      "pnpm": "10.26.1",
       "distribution": "store",
       "android": {
         "buildType": "app-bundle",
