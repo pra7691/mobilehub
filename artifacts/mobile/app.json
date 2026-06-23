@@ -27,7 +27,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.verbosetechlabs.tarzi",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
