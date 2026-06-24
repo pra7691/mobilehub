@@ -23,7 +23,8 @@
       },
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://mobile-data-hub.replit.app/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://mobile-data-hub.replit.app/api",
+        "NODE_PATH": "/home/expo/workingdir/build/artifacts/mobile/node_modules:/home/expo/workingdir/build/node_modules"
       }
     }
   },
