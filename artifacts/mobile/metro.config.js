@@ -1,5 +1,6 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
+const fs = require("fs");
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
@@ -40,21 +41,27 @@ config.resolver.nodeModulesPaths = [
 
 // Resolve the @/ path alias (from tsconfig "paths": { "@/*": ["./*"] })
 // explicitly in Metro so it works when bundled from EAS (workspace root cwd).
-const defaultResolveRequest = config.resolver.resolveRequest;
+// We return the resolution object directly (sourceFile) rather than
+// re-calling context.resolveRequest with an absolute path, which Metro
+// does not handle reliably.
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName.startsWith("@/")) {
-    const resolved = path.resolve(projectRoot, moduleName.slice(2));
-    return (defaultResolveRequest || context.resolveRequest)(
-      context,
-      resolved,
-      platform
-    );
+    const rel = moduleName.slice(2); // strip leading "@/"
+    const base = path.resolve(projectRoot, rel);
+    const exts = ["ts", "tsx", "js", "jsx", "json"];
+    // Try file directly with each extension
+    for (const ext of exts) {
+      const filePath = `${base}.${ext}`;
+      if (fs.existsSync(filePath)) return { type: "sourceFile", filePath };
+    }
+    // Try index file inside a directory
+    for (const ext of exts) {
+      const filePath = path.join(base, `index.${ext}`);
+      if (fs.existsSync(filePath)) return { type: "sourceFile", filePath };
+    }
+    // Fall through — let Metro report the missing module normally
   }
-  return (defaultResolveRequest || context.resolveRequest)(
-    context,
-    moduleName,
-    platform
-  );
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = config;
