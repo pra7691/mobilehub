@@ -38,4 +38,23 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
+// Resolve the @/ path alias (from tsconfig "paths": { "@/*": ["./*"] })
+// explicitly in Metro so it works when bundled from EAS (workspace root cwd).
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName.startsWith("@/")) {
+    const resolved = path.resolve(projectRoot, moduleName.slice(2));
+    return (defaultResolveRequest || context.resolveRequest)(
+      context,
+      resolved,
+      platform
+    );
+  }
+  return (defaultResolveRequest || context.resolveRequest)(
+    context,
+    moduleName,
+    platform
+  );
+};
+
 module.exports = config;
