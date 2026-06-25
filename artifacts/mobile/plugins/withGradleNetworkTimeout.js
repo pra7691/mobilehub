@@ -133,7 +133,26 @@ const withGradleNetworkTimeout = (config) => {
         console.log('[withGradleNetworkTimeout] Set networkTimeout=60000 in gradle-wrapper.properties');
       }
 
-      // 2. Strip blocked permissions from the main source manifest
+      // 2. Set org.gradle.java.home in gradle.properties so the Gradle daemon
+      //    uses Java 17 regardless of the shell JAVA_HOME.  The EAS Ubuntu worker
+      //    ships Java 17 at this well-known path; Java 11 is the system default
+      //    but AGP requires 17.
+      const gradlePropertiesPath = path.join(platformRoot, 'gradle.properties');
+      if (!fs.existsSync(gradlePropertiesPath)) {
+        console.warn('[withGradleNetworkTimeout] gradle.properties not found at:', gradlePropertiesPath);
+      } else {
+        const JAVA17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64';
+        let gp = fs.readFileSync(gradlePropertiesPath, 'utf8');
+        if (gp.includes('org.gradle.java.home=')) {
+          gp = gp.replace(/^org\.gradle\.java\.home=.*$/m, `org.gradle.java.home=${JAVA17_HOME}`);
+        } else {
+          gp = gp.trimEnd() + `\norg.gradle.java.home=${JAVA17_HOME}\n`;
+        }
+        fs.writeFileSync(gradlePropertiesPath, gp);
+        console.log(`[withGradleNetworkTimeout] Set org.gradle.java.home=${JAVA17_HOME} in gradle.properties`);
+      }
+
+      // 3. Strip blocked permissions from the main source manifest
       const manifestPath = path.join(
         platformRoot,
         'app',
