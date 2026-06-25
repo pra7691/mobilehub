@@ -87,10 +87,6 @@
       "reactCompiler": true,
       "baseUrl": "/mobile"
     },
-    "extra": {
-      "eas": {
-        "projectId": "85cd9282-6693-4098-b2f7-ede669317a8d"
-      }
-    }
+    "extra": {}
   }
 }
