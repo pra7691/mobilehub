@@ -31,7 +31,8 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -87,6 +88,11 @@
       "reactCompiler": true,
       "baseUrl": "/mobile"
     },
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "7de0a784-0329-44f7-9569-34ffb768733b"
+      }
+    },
+    "owner": "verbosetech"
   }
 }
