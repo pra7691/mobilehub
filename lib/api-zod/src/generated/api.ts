@@ -1320,6 +1320,7 @@ export const createUploadSessionBodyPartSizeMin = 5242880;
 
 
 export const CreateUploadSessionBody = zod.object({
+  "idempotencyKey": zod.string().optional().describe('Client-supplied unique key; repeated calls with the same key return the existing session.'),
   "submissionId": zod.string().optional(),
   "mediaType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
   "mimeType": zod.string(),
@@ -1339,6 +1340,7 @@ export const GetUploadSessionParams = zod.object({
 
 export const GetUploadSessionResponse = zod.object({
   "id": zod.string(),
+  "idempotencyKey": zod.string().nullish(),
   "userId": zod.string(),
   "submissionId": zod.string().nullish(),
   "mediaId": zod.string().nullish(),
@@ -1346,16 +1348,16 @@ export const GetUploadSessionResponse = zod.object({
   "storageProvider": zod.string(),
   "bucket": zod.string(),
   "storageKey": zod.string(),
-  "uploadId": zod.string().nullish(),
+  "remoteSessionId": zod.string().nullish().describe('Provider-assigned upload ID (S3 multipart upload ID; null for virtual sessions)'),
   "isVirtual": zod.boolean().describe('True for Replit\/single-PUT sessions; false for S3 multipart'),
-  "status": zod.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'ABORTED', 'FAILED']),
+  "status": zod.enum(['CREATED', 'ACTIVE', 'COMPLETING', 'COMPLETED', 'ABORTED', 'FAILED']),
   "mediaType": zod.string(),
   "mimeType": zod.string(),
   "originalFileName": zod.string().nullish(),
   "fileSize": zod.number().nullish(),
   "partSize": zod.number().nullish(),
   "totalParts": zod.number().nullish(),
-  "uploadedParts": zod.array(zod.unknown()),
+  "completedParts": zod.array(zod.unknown()).describe('Parts reported on complete (etag + partNumber for S3; empty for virtual)'),
   "parts": zod.array(zod.object({
   "partNumber": zod.number(),
   "uploadUrl": zod.string()

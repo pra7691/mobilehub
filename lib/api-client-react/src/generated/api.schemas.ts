@@ -1692,6 +1692,8 @@ export const CreateUploadSessionRequestMediaType = {
 } as const;
 
 export interface CreateUploadSessionRequest {
+  /** Client-supplied unique key; repeated calls with the same key return the existing session. */
+  idempotencyKey?: string;
   submissionId?: string;
   mediaType: CreateUploadSessionRequestMediaType;
   mimeType: string;
@@ -1716,8 +1718,9 @@ export type UploadSessionResponseStatus = typeof UploadSessionResponseStatus[key
 
 
 export const UploadSessionResponseStatus = {
-  PENDING: 'PENDING',
-  IN_PROGRESS: 'IN_PROGRESS',
+  CREATED: 'CREATED',
+  ACTIVE: 'ACTIVE',
+  COMPLETING: 'COMPLETING',
   COMPLETED: 'COMPLETED',
   ABORTED: 'ABORTED',
   FAILED: 'FAILED',
@@ -1725,6 +1728,7 @@ export const UploadSessionResponseStatus = {
 
 export interface UploadSessionResponse {
   id: string;
+  idempotencyKey?: string | null;
   userId: string;
   submissionId?: string | null;
   mediaId?: string | null;
@@ -1732,7 +1736,8 @@ export interface UploadSessionResponse {
   storageProvider: string;
   bucket: string;
   storageKey: string;
-  uploadId?: string | null;
+  /** Provider-assigned upload ID (S3 multipart upload ID; null for virtual sessions) */
+  remoteSessionId?: string | null;
   /** True for Replit/single-PUT sessions; false for S3 multipart */
   isVirtual: boolean;
   status: UploadSessionResponseStatus;
@@ -1742,7 +1747,8 @@ export interface UploadSessionResponse {
   fileSize?: number | null;
   partSize?: number | null;
   totalParts?: number | null;
-  uploadedParts: unknown[];
+  /** Parts reported on complete (etag + partNumber for S3; empty for virtual) */
+  completedParts: unknown[];
   /** Pre-signed part URLs returned at creation (virtual=part 1; S3=requested parts) */
   parts: UploadSessionPartUrl[];
   expiresAt: string;

@@ -5782,6 +5782,9 @@ components:
     CreateUploadSessionRequest:
       type: object
       properties:
+        idempotencyKey:
+          type: string
+          description: Client-supplied unique key; repeated calls with the same key return the existing session.
         submissionId:
           type: string
         mediaType:
@@ -5819,6 +5822,9 @@ components:
       properties:
         id:
           type: string
+        idempotencyKey:
+          type: string
+          nullable: true
         userId:
           type: string
         submissionId:
@@ -5836,15 +5842,16 @@ components:
           type: string
         storageKey:
           type: string
-        uploadId:
+        remoteSessionId:
           type: string
           nullable: true
+          description: Provider-assigned upload ID (S3 multipart upload ID; null for virtual sessions)
         isVirtual:
           type: boolean
           description: True for Replit/single-PUT sessions; false for S3 multipart
         status:
           type: string
-          enum: [PENDING, IN_PROGRESS, COMPLETED, ABORTED, FAILED]
+          enum: [CREATED, ACTIVE, COMPLETING, COMPLETED, ABORTED, FAILED]
         mediaType:
           type: string
         mimeType:
@@ -5861,9 +5868,10 @@ components:
         totalParts:
           type: integer
           nullable: true
-        uploadedParts:
+        completedParts:
           type: array
           items: {}
+          description: Parts reported on complete (etag + partNumber for S3; empty for virtual)
         parts:
           type: array
           items:
@@ -5896,7 +5904,7 @@ components:
         - status
         - mediaType
         - mimeType
-        - uploadedParts
+        - completedParts
         - parts
         - expiresAt
         - createdAt

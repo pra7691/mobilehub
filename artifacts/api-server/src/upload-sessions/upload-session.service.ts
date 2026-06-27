@@ -22,6 +22,7 @@ function computeTotalParts(fileSize: number, partSize: number): number {
 
 function formatSession(s: {
   id: string;
+  idempotencyKey: string | null;
   userId: string;
   submissionId: string | null;
   mediaId: string | null;
@@ -29,7 +30,7 @@ function formatSession(s: {
   storageProvider: string;
   bucket: string;
   storageKey: string;
-  uploadId: string | null;
+  remoteSessionId: string | null;
   isVirtual: boolean;
   status: UploadSessionStatus;
   mediaType: string;
@@ -38,7 +39,7 @@ function formatSession(s: {
   fileSize: bigint | null;
   partSize: number | null;
   totalParts: number | null;
-  uploadedParts: unknown;
+  completedParts: unknown;
   expiresAt: Date;
   completedAt: Date | null;
   abortedAt: Date | null;
@@ -60,10 +61,11 @@ export class UploadSessionService {
     private readonly storage: StorageService,
   ) {}
 
-  // ─── POST /upload-sessions ─────────────────────────────────────────────────
+  // ─── POST /submissions/upload-sessions ─────────────────────────────────────
   async create(
     userId: string,
     body: {
+      idempotencyKey?: string;
       submissionId?: string;
       mediaType: string;
       mimeType: string;
@@ -78,6 +80,16 @@ export class UploadSessionService {
       throw new BadRequestException(
         `Invalid mediaType. Must be one of: ${validTypes.join(', ')}`,
       );
+    }
+
+    // Idempotent create: return existing session if same key
+    if (body.idempotencyKey) {
+      const existing = await this.prisma.uploadSession.findUnique({
+        where: { idempotencyKey: body.idempotencyKey },
+      });
+      if (existing && existing.userId === userId) {
+        return { ...formatSession(existing), parts: [] };
+      }
     }
 
     if (body.submissionId) {
@@ -108,22 +120,23 @@ export class UploadSessionService {
 
     const session = await this.prisma.uploadSession.create({
       data: {
+        idempotencyKey: body.idempotencyKey ?? null,
         userId,
         submissionId: body.submissionId ?? null,
         storageProfileId: profileId,
         storageProvider: providerType,
         bucket,
         storageKey,
-        uploadId,
+        remoteSessionId: uploadId,
         isVirtual,
-        status: 'PENDING',
+        status: 'CREATED',
         mediaType: body.mediaType,
         mimeType: body.mimeType,
         originalFileName: body.originalFileName ?? null,
         fileSize: body.fileSize ? BigInt(body.fileSize) : null,
         partSize,
         totalParts,
-        uploadedParts: [],
+        completedParts: [],
         expiresAt,
       },
     });
@@ -157,22 +170,22 @@ export class UploadSessionService {
       }
     }
 
-    // Mark IN_PROGRESS if we already handed out part URLs
+    // Mark ACTIVE once we've handed out part URLs
     if (parts.length > 0) {
       await this.prisma.uploadSession.update({
         where: { id: session.id },
-        data: { status: 'IN_PROGRESS' },
+        data: { status: 'ACTIVE' },
       });
     }
 
     return {
       ...formatSession(session),
-      status: parts.length > 0 ? 'IN_PROGRESS' : 'PENDING',
+      status: parts.length > 0 ? 'ACTIVE' : 'CREATED',
       parts,
     };
   }
 
-  // ─── GET /upload-sessions/:id ──────────────────────────────────────────────
+  // ─── GET /submissions/upload-sessions/:id ──────────────────────────────────
   async findOne(userId: string, id: string) {
     const session = await this.prisma.uploadSession.findUnique({ where: { id } });
     if (!session) throw new NotFoundException('Upload session not found');
@@ -180,7 +193,7 @@ export class UploadSessionService {
     return formatSession(session);
   }
 
-  // ─── POST /upload-sessions/:id/refresh-urls ────────────────────────────────
+  // ─── POST /submissions/upload-sessions/:id/refresh-urls ────────────────────
   async refreshUrls(
     userId: string,
     id: string,
@@ -189,7 +202,7 @@ export class UploadSessionService {
     const session = await this.prisma.uploadSession.findUnique({ where: { id } });
     if (!session) throw new NotFoundException('Upload session not found');
     if (session.userId !== userId) throw new ForbiddenException('Access denied');
-    if (session.status === 'COMPLETED') {
+    if (session.status === 'COMPLETED' || session.status === 'COMPLETING') {
       throw new ConflictException('Upload session is already completed');
     }
     if (session.status === 'ABORTED') {
@@ -198,8 +211,8 @@ export class UploadSessionService {
     if (new Date() > session.expiresAt) {
       throw new BadRequestException('Upload session has expired');
     }
-    if (!session.uploadId) {
-      throw new BadRequestException('Upload session has no uploadId');
+    if (!session.remoteSessionId) {
+      throw new BadRequestException('Upload session has no remoteSessionId');
     }
     if (!body.partNumbers || body.partNumbers.length === 0) {
       throw new BadRequestException('partNumbers must be a non-empty array');
@@ -226,24 +239,24 @@ export class UploadSessionService {
     for (const partNumber of body.partNumbers) {
       const { uploadUrl } = await provider.generatePartUploadUrl({
         storageKey: session.storageKey,
-        uploadId: session.uploadId,
+        uploadId: session.remoteSessionId,
         partNumber,
       });
       parts.push({ partNumber, uploadUrl });
     }
 
-    // Mark IN_PROGRESS on first URL request
-    if (session.status === 'PENDING') {
+    // Mark ACTIVE on first URL request
+    if (session.status === 'CREATED') {
       await this.prisma.uploadSession.update({
         where: { id },
-        data: { status: 'IN_PROGRESS' },
+        data: { status: 'ACTIVE' },
       });
     }
 
     return { parts, expiresIn: PART_URL_TTL };
   }
 
-  // ─── POST /upload-sessions/:id/complete ───────────────────────────────────
+  // ─── POST /submissions/upload-sessions/:id/complete ────────────────────────
   async complete(
     userId: string,
     id: string,
@@ -257,35 +270,46 @@ export class UploadSessionService {
     if (!session) throw new NotFoundException('Upload session not found');
     if (session.userId !== userId) throw new ForbiddenException('Access denied');
 
-    // Idempotent: already completed — return existing result
-    if (session.status === 'COMPLETED' && session.mediaId) {
-      const media = await this.prisma.submissionMedia.findUnique({
-        where: { id: session.mediaId },
-        select: { mediaUrl: true },
-      });
+    // Fully idempotent: any COMPLETED session returns stored result without re-calling provider
+    if (session.status === 'COMPLETED') {
+      const mediaUrl = session.mediaId
+        ? (await this.prisma.submissionMedia.findUnique({
+            where: { id: session.mediaId },
+            select: { mediaUrl: true },
+          }))?.mediaUrl ?? session.storageKey
+        : session.storageKey;
       return {
         mediaId: session.mediaId,
         storageKey: session.storageKey,
-        mediaUrl: media?.mediaUrl ?? session.storageKey,
+        mediaUrl,
       };
     }
 
+    if (session.status === 'COMPLETING') {
+      throw new ConflictException('Upload session completion is already in progress');
+    }
     if (session.status === 'ABORTED') {
       throw new ConflictException('Upload session has been aborted');
     }
 
+    // Mark COMPLETING to prevent concurrent duplicate completions
+    await this.prisma.uploadSession.update({
+      where: { id },
+      data: { status: 'COMPLETING' },
+    });
+
     const provider = await this.storage.getProviderForProfileId(session.storageProfileId);
 
-    const completedParts = body.parts ?? [];
+    const incomingParts = body.parts ?? [];
     const { mediaUrl } = await provider.completeMultipartUpload({
       storageKey: session.storageKey,
-      uploadId: session.uploadId ?? '',
-      parts: completedParts,
+      uploadId: session.remoteSessionId ?? '',
+      parts: incomingParts,
     });
 
     const submissionId = body.submissionId ?? session.submissionId;
 
-    // Create/update SubmissionMedia idempotently via upsert on (submissionId, sortOrder)
+    // Upsert SubmissionMedia idempotently via (submissionId, sortOrder)
     let mediaId: string | null = null;
     if (submissionId) {
       const submission = await this.prisma.submission.findUnique({
@@ -318,7 +342,7 @@ export class UploadSessionService {
       mediaId = media.id;
     }
 
-    // Persist uploaded parts + mark completed atomically
+    // Persist completedParts + mark COMPLETED atomically
     await this.prisma.uploadSession.update({
       where: { id },
       data: {
@@ -326,7 +350,7 @@ export class UploadSessionService {
         completedAt: new Date(),
         mediaId: mediaId ?? undefined,
         submissionId: submissionId ?? undefined,
-        uploadedParts: completedParts as object[],
+        completedParts: incomingParts as object[],
       },
     });
 
@@ -337,7 +361,7 @@ export class UploadSessionService {
     return { mediaId, storageKey: session.storageKey, mediaUrl };
   }
 
-  // ─── DELETE /upload-sessions/:id ──────────────────────────────────────────
+  // ─── DELETE /submissions/upload-sessions/:id ───────────────────────────────
   async abort(userId: string, id: string) {
     const session = await this.prisma.uploadSession.findUnique({ where: { id } });
     if (!session) throw new NotFoundException('Upload session not found');
@@ -355,7 +379,7 @@ export class UploadSessionService {
     try {
       await provider.abortMultipartUpload({
         storageKey: session.storageKey,
-        uploadId: session.uploadId ?? '',
+        uploadId: session.remoteSessionId ?? '',
       });
     } catch (err) {
       this.logger.warn(

@@ -752,8 +752,9 @@ model StorageProfile {
 }
 
 enum UploadSessionStatus {
-  PENDING
-  IN_PROGRESS
+  CREATED
+  ACTIVE
+  COMPLETING
   COMPLETED
   ABORTED
   FAILED
@@ -761,6 +762,7 @@ enum UploadSessionStatus {
 
 model UploadSession {
   id               String              @id @default(cuid())
+  idempotencyKey   String?             @unique
   userId           String
   submissionId     String?
   mediaId          String?             @unique
@@ -768,16 +770,16 @@ model UploadSession {
   storageProvider  String
   bucket           String
   storageKey       String
-  uploadId         String?
+  remoteSessionId  String?
   isVirtual        Boolean             @default(false)
-  status           UploadSessionStatus @default(PENDING)
+  status           UploadSessionStatus @default(CREATED)
   mediaType        String
   mimeType         String
   originalFileName String?
   fileSize         BigInt?
   partSize         Int?
   totalParts       Int?
-  uploadedParts    Json                @default("[]")
+  completedParts   Json                @default("[]")
   expiresAt        DateTime
   completedAt      DateTime?
   abortedAt        DateTime?
