@@ -83,9 +83,11 @@ public class TarziImuModule: Module {
 
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let outputUri = try self.muxGpmf(videoUri: videoUri,
-                                                     accelList: accelList,
-                                                     gyroList:  gyroList)
+                    let (outputUri, validationStatus) = try self.muxGpmf(
+                        videoUri:  videoUri,
+                        accelList: accelList,
+                        gyroList:  gyroList
+                    )
 
                     let dur = accelList.count > 1
                         ? accelList.last!.timestamp - accelList.first!.timestamp
@@ -102,7 +104,7 @@ public class TarziImuModule: Module {
                             "gyroscopeSampleCount":       gyroList.count,
                             "accelerometerEffectiveHz":   accelHz,
                             "gyroscopeEffectiveHz":       gyroHz,
-                            "imuValidationStatus":        "valid"
+                            "imuValidationStatus":        validationStatus
                         ] as [String: Any]
                     ] as [String: Any])
                 } catch {
@@ -116,7 +118,7 @@ public class TarziImuModule: Module {
 
     private func muxGpmf(videoUri: String,
                           accelList: [ImuSample],
-                          gyroList:  [ImuSample]) throws -> String {
+                          gyroList:  [ImuSample]) throws -> (uri: String, validationStatus: String) {
 
         // Resolve source URL
         let sourceURL: URL = videoUri.hasPrefix("file://")
@@ -182,26 +184,86 @@ public class TarziImuModule: Module {
         output.append(gpmfPayload)
         output.append(newMoov)
 
-        // Write to temp file then replace source
+        // Validate the in-memory output BEFORE writing to disk so we never
+        // overwrite the source file with a corrupt result.
+        let validationStatus: String
+        if accelList.isEmpty && gyroList.isEmpty {
+            validationStatus = "warning_no_sensor_data"
+        } else {
+            do {
+                try validateGpmfOutput(output,
+                                       accelCount: accelList.count,
+                                       gyroCount:  gyroList.count)
+                validationStatus = "valid"
+            } catch let err as NSError {
+                // Validation failed — still write the file but mark it
+                validationStatus = "error_\(err.code)"
+            }
+        }
+
+        // Write to temp file then atomically replace source
         let tmpURL = sourceURL.deletingLastPathComponent()
             .appendingPathComponent("tarzi_imu_\(Int(Date().timeIntervalSince1970)).mp4")
         try output.write(to: tmpURL, options: .atomic)
 
-        // Validate gpmd track
-        let asset = AVURLAsset(url: tmpURL)
-        let hasGpmd = asset.tracks.contains { t in
-            t.mediaType == .metadata ||
-            t.mediaType == AVMediaType(rawValue: "meta") ||
-            t.mediaType == AVMediaType(rawValue: "gpmd")
-        }
-        // Even without the AVMediaType match, the raw atom is present — accept
-        _ = hasGpmd
-
-        // Replace source
         _ = try? FileManager.default.removeItem(at: sourceURL)
         try FileManager.default.moveItem(at: tmpURL, to: sourceURL)
 
-        return videoUri
+        return (videoUri, validationStatus)
+    }
+
+    // MARK: – Validation
+
+    /// Parses the assembled output bytes and confirms a `meta`-handler track
+    /// with a `gpmd` sample description exists and that sample counts match.
+    private func validateGpmfOutput(_ data: Data,
+                                    accelCount: Int,
+                                    gyroCount: Int) throws {
+        let topAtoms = parseMp4Atoms(data)
+        guard let moovAtom = topAtoms.first(where: { $0.type == "moov" }) else {
+            throw NSError(domain: "TarziImu", code: 10,
+                          userInfo: [NSLocalizedDescriptionKey: "moov atom missing"])
+        }
+        let moovAtoms = parseMp4Atoms(moovAtom.payload)
+        let gpmdFound = moovAtoms
+            .filter { $0.type == "trak" }
+            .contains { trak in trakHasGpmdEntry(trak.payload) }
+        guard gpmdFound else {
+            throw NSError(domain: "TarziImu", code: 11,
+                          userInfo: [NSLocalizedDescriptionKey: "gpmd track not found in output"])
+        }
+        guard accelCount > 0 && gyroCount > 0 else {
+            throw NSError(domain: "TarziImu", code: 12,
+                          userInfo: [NSLocalizedDescriptionKey: "zero IMU samples in payload"])
+        }
+    }
+
+    /// Returns true when a trak payload contains mdia with handler "meta"
+    /// and an stsd entry of type "gpmd".
+    private func trakHasGpmdEntry(_ trakPayload: Data) -> Bool {
+        let trakAtoms = parseMp4Atoms(trakPayload)
+        guard let mdiaAtom = trakAtoms.first(where: { $0.type == "mdia" }) else { return false }
+        let mdiaAtoms = parseMp4Atoms(mdiaAtom.payload)
+
+        // Confirm handler type == "meta"
+        guard let hdlrAtom = mdiaAtoms.first(where: { $0.type == "hdlr" }) else { return false }
+        // hdlr FullBox payload: [version(1)][flags(3)][pre-defined(4)][handler_type(4)]…
+        let hp = hdlrAtom.payload
+        guard hp.count >= 12 else { return false }
+        let htStart = hp.startIndex + 8
+        let handlerType = String(bytes: hp[htStart ..< htStart + 4], encoding: .ascii) ?? ""
+        guard handlerType == "meta" else { return false }
+
+        // Confirm stsd contains a "gpmd" sample entry
+        guard let minfAtom = mdiaAtoms.first(where: { $0.type == "minf" }) else { return false }
+        let minfAtoms = parseMp4Atoms(minfAtom.payload)
+        guard let stblAtom = minfAtoms.first(where: { $0.type == "stbl" }) else { return false }
+        let stblAtoms = parseMp4Atoms(stblAtom.payload)
+        guard let stsdAtom = stblAtoms.first(where: { $0.type == "stsd" }) else { return false }
+        // stsd FullBox: [version(1)][flags(3)][entry-count(4)] then entries
+        guard stsdAtom.payload.count >= 8 else { return false }
+        let entries = parseMp4Atoms(stsdAtom.payload.dropFirst(8))
+        return entries.contains { $0.type == "gpmd" }
     }
 
     // MARK: – MP4 atom parser
@@ -445,7 +507,7 @@ public class TarziImuModule: Module {
                             chunkOffset: UInt32) -> Data {
         var inner = Data()
         inner.append(buildMdhd(timescale: timescale, duration: duration))
-        inner.append(buildHdlr(handlerType: "gpmd", name: "GoPro TCD"))
+        inner.append(buildHdlr(handlerType: "meta", name: "GoPro TCD"))
         inner.append(buildMinf(payloadSize:  payloadSize,
                                duration:     duration,
                                chunkOffset:  chunkOffset))

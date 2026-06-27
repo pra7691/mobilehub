@@ -3,32 +3,17 @@ const { withAndroidManifest } = require('expo/config-plugins');
 /**
  * Expo config plugin for the tarzi-imu native module.
  *
- * Ensures the Android manifest declares the BODY_SENSORS permission so
- * SensorManager can access accelerometer and gyroscope data.
+ * Standard accelerometer and gyroscope sensors on Android do NOT require
+ * any special manifest permission — they are accessible without any
+ * uses-permission declaration. Only HIGH_SAMPLING_RATE_SENSORS (API 31+,
+ * needed above 200 Hz) or BODY_SENSORS (body-worn heart-rate sensors) would
+ * require explicit declarations, and neither applies here.
  *
- * NOTE: android.permission.HIGH_SAMPLING_RATE_SENSORS (API 31+) is intentionally
- * omitted — SENSOR_DELAY_GAME operates below the 200 Hz threshold that requires it.
+ * This plugin is a placeholder that can be extended if Expo prebuild needs
+ * any Android-specific customisation for the tarzi-imu module in the future.
  */
 const withTarziImu = (config) => {
-  return withAndroidManifest(config, (config) => {
-    const manifest = config.modResults.manifest;
-
-    if (!manifest['uses-permission']) {
-      manifest['uses-permission'] = [];
-    }
-
-    const SENSOR_PERM = 'android.permission.BODY_SENSORS';
-    const already = manifest['uses-permission'].some(
-      (p) => p.$?.['android:name'] === SENSOR_PERM
-    );
-
-    if (!already) {
-      manifest['uses-permission'].push({ $: { 'android:name': SENSOR_PERM } });
-      console.log(`[withTarziImu] Added ${SENSOR_PERM}`);
-    }
-
-    return config;
-  });
+  return withAndroidManifest(config, (cfg) => cfg);
 };
 
 module.exports = withTarziImu;

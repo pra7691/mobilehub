@@ -95,7 +95,7 @@ class TarziImuModule : Module() {
 
             Thread {
                 try {
-                    val outputUri = muxGpmf(videoUri, accelList, gyroList)
+                    val (outputUri, validationStatus) = muxGpmf(videoUri, accelList, gyroList)
                     val accelHz = if (durationSec > 0) accelList.size / durationSec else 0.0
                     val gyroHz = if (durationSec > 0) gyroList.size / durationSec else 0.0
                     promise.resolve(mapOf(
@@ -107,7 +107,7 @@ class TarziImuModule : Module() {
                             "gyroscopeSampleCount" to gyroList.size,
                             "accelerometerEffectiveHz" to accelHz,
                             "gyroscopeEffectiveHz" to gyroHz,
-                            "imuValidationStatus" to "valid"
+                            "imuValidationStatus" to validationStatus
                         )
                     ))
                 } catch (e: Exception) {
@@ -123,7 +123,7 @@ class TarziImuModule : Module() {
         sourceUri: String,
         accelList: List<ImuSample>,
         gyroList: List<ImuSample>
-    ): String {
+    ): Pair<String, String> {
         val gpmfPayload = buildGpmfPayload(accelList, gyroList)
         val ctx = appContext.reactContext!!
 
@@ -193,8 +193,15 @@ class TarziImuModule : Module() {
         muxer.release()
         extractor.release()
 
-        // Validate: confirm gpmd track exists in the output
-        validateGpmdTrack(outFile.absolutePath)
+        // Validate the output: confirm gpmd track exists and has a non-empty sample.
+        // A missing/empty gpmd track is non-fatal — we still swap the file but
+        // surface the problem in the returned validation status.
+        val validationStatus = when {
+            accelList.isEmpty() && gyroList.isEmpty() ->
+                "warning_no_sensor_data"
+            else ->
+                validateGpmdTrack(outFile.absolutePath, accelList.size, gyroList.size)
+        }
 
         // Swap files: replace source with output
         sourceFile.delete()
@@ -203,18 +210,45 @@ class TarziImuModule : Module() {
             outFile.delete()
         }
 
-        return sourceUri
+        return Pair(sourceUri, validationStatus)
     }
 
-    private fun validateGpmdTrack(path: String) {
+    /**
+     * Inspects the muxed MP4 and returns a validation status string.
+     *
+     * Checks:
+     *  1. A track with MIME "application/gpmd" (or containing "gpmd") exists.
+     *  2. That track yields at least one readable sample of non-zero size.
+     *  3. Sensor sample counts are > 0.
+     */
+    private fun validateGpmdTrack(
+        path: String,
+        accelCount: Int,
+        gyroCount: Int
+    ): String {
         val v = MediaExtractor()
-        v.setDataSource(path)
-        val hasGpmd = (0 until v.trackCount).any { i ->
-            val fmt = v.getTrackFormat(i)
-            fmt.getString(MediaFormat.KEY_MIME)?.contains("gpmd", ignoreCase = true) == true
+        return try {
+            v.setDataSource(path)
+            var gpmdTrackIdx = -1
+            for (i in 0 until v.trackCount) {
+                val mime = v.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: ""
+                if (mime.contains("gpmd", ignoreCase = true)) {
+                    gpmdTrackIdx = i; break
+                }
+            }
+            if (gpmdTrackIdx < 0) return "error_no_gpmd_track"
+
+            // Read the first sample to confirm it is non-empty
+            v.selectTrack(gpmdTrackIdx)
+            val buf = ByteBuffer.allocate(64)
+            val sz = v.readSampleData(buf, 0)
+            if (sz <= 0) return "error_empty_gpmd_sample"
+
+            if (accelCount == 0 || gyroCount == 0) "warning_partial_sensor_data"
+            else "valid"
+        } finally {
+            v.release()
         }
-        v.release()
-        if (!hasGpmd) throw RuntimeException("GPMD track not found in output MP4")
     }
 
     // ── GPMF binary builder ───────────────────────────────────────────────────
