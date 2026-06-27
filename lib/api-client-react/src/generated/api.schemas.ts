@@ -338,6 +338,8 @@ export interface Task {
   requiredOrientation: TaskRequiredOrientation;
   audioRequired: boolean;
   pauseAllowed: boolean;
+  recordImu: boolean;
+  imuRequired: boolean;
   maxSubmissionsPerUser?: number;
   maxTotalSubmissions?: number;
   startDate?: string;
@@ -417,6 +419,8 @@ export interface CreateTaskRequest {
   requiredOrientation?: CreateTaskRequestRequiredOrientation;
   audioRequired?: boolean;
   pauseAllowed?: boolean;
+  recordImu?: boolean;
+  imuRequired?: boolean;
   maxSubmissionsPerUser?: number;
   maxTotalSubmissions?: number;
   startDate?: string;
@@ -493,6 +497,8 @@ export interface UpdateTaskRequest {
   requiredOrientation?: UpdateTaskRequestRequiredOrientation;
   audioRequired?: boolean;
   pauseAllowed?: boolean;
+  recordImu?: boolean;
+  imuRequired?: boolean;
   maxSubmissionsPerUser?: number;
   maxTotalSubmissions?: number;
   startDate?: string;

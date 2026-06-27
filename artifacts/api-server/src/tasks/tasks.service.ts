@@ -22,6 +22,7 @@ interface TaskDto {
   minimumImageCount?: number; maximumImageCount?: number; preferredFps?: number;
   minimumFps?: number; preferredCamera?: CameraPreference; preferredLens?: LensPreference;
   requiredOrientation?: OrientationRequirement; audioRequired?: boolean; pauseAllowed?: boolean;
+  recordImu?: boolean; imuRequired?: boolean;
   maxSubmissionsPerUser?: number; maxTotalSubmissions?: number;
   startDate?: string; endDate?: string; displayOrder?: number; status?: TaskStatus;
 }
@@ -38,6 +39,7 @@ type TaskRow = {
   minimumImageCount: number | null; maximumImageCount: number | null; preferredFps: number | null;
   minimumFps: number | null; preferredCamera: CameraPreference; preferredLens: LensPreference;
   requiredOrientation: OrientationRequirement; audioRequired: boolean; pauseAllowed: boolean;
+  recordImu: boolean; imuRequired: boolean;
   maxSubmissionsPerUser: number | null; maxTotalSubmissions: number | null;
   startDate: Date | null; endDate: Date | null; displayOrder: number; status: TaskStatus;
   createdAt: Date; updatedAt: Date; deletedAt: Date | null;
@@ -143,6 +145,8 @@ export class TasksService {
         requiredOrientation: dto.requiredOrientation ?? OrientationRequirement.ANY,
         audioRequired: dto.audioRequired ?? false,
         pauseAllowed: dto.pauseAllowed ?? true,
+        recordImu: dto.recordImu ?? false,
+        imuRequired: dto.imuRequired ?? false,
         maxSubmissionsPerUser: dto.maxSubmissionsPerUser,
         maxTotalSubmissions: dto.maxTotalSubmissions,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,

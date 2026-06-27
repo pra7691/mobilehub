@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
+import type { ImuCaptureSummary } from "./captureStore";
 
 export type CollectionType = "VIDEO" | "IMAGE" | "AUDIO";
 
@@ -13,6 +14,8 @@ export interface LocalDraft {
   mediaUris: string[];
   durationSeconds?: number;
   imageCount?: number;
+  imuMetadata?: ImuCaptureSummary;
+  imuRequired?: boolean;
   createdAt: string;
   status: "ready_to_upload";
 }

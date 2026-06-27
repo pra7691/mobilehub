@@ -123,6 +123,8 @@ export default function ReviewScreen() {
           collectionType: draft.collectionType,
           mediaUris: draft.mediaUris,
           durationSeconds: draft.durationSeconds,
+          imuMetadata: draft.imuMetadata,
+          imuRequired: draft.imuRequired,
         };
         setPendingCapture(data);
         setCaptureData(data);
@@ -194,6 +196,8 @@ export default function ReviewScreen() {
           captureData.collectionType === "IMAGE"
             ? savedUris.length
             : undefined,
+        imuMetadata: captureData.imuMetadata,
+        imuRequired: captureData.imuRequired,
         createdAt: new Date().toISOString(),
         status: "ready_to_upload",
       });

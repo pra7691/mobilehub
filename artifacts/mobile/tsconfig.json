@@ -8,6 +8,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@workspace/tarzi-imu": [
+        "../../modules/tarzi-imu/src/index"
       ]
     }
   },

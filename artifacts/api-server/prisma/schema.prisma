@@ -303,6 +303,8 @@ model Task {
   requiredOrientation    OrientationRequirement @default(ANY)
   audioRequired          Boolean                @default(false)
   pauseAllowed           Boolean                @default(true)
+  recordImu              Boolean                @default(false)
+  imuRequired            Boolean                @default(false)
   maxSubmissionsPerUser  Int?
   maxTotalSubmissions    Int?
   startDate              DateTime?

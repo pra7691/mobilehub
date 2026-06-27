@@ -38,6 +38,8 @@ class CreateTaskBody {
   @IsOptional() @IsEnum(OrientationRequirement) requiredOrientation?: OrientationRequirement;
   @IsOptional() @IsBoolean() audioRequired?: boolean;
   @IsOptional() @IsBoolean() pauseAllowed?: boolean;
+  @IsOptional() @IsBoolean() recordImu?: boolean;
+  @IsOptional() @IsBoolean() imuRequired?: boolean;
   @IsOptional() @IsNumber() @Type(() => Number) maxSubmissionsPerUser?: number;
   @IsOptional() @IsNumber() @Type(() => Number) maxTotalSubmissions?: number;
   @IsOptional() @IsString() startDate?: string;
@@ -79,6 +81,8 @@ class UpdateTaskBody {
   @IsOptional() @IsEnum(OrientationRequirement) requiredOrientation?: OrientationRequirement;
   @IsOptional() @IsBoolean() audioRequired?: boolean;
   @IsOptional() @IsBoolean() pauseAllowed?: boolean;
+  @IsOptional() @IsBoolean() recordImu?: boolean;
+  @IsOptional() @IsBoolean() imuRequired?: boolean;
   @IsOptional() @IsNumber() @Type(() => Number) maxSubmissionsPerUser?: number;
   @IsOptional() @IsNumber() @Type(() => Number) maxTotalSubmissions?: number;
   @IsOptional() @IsString() startDate?: string;

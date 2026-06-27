@@ -3252,6 +3252,10 @@ components:
           type: boolean
         pauseAllowed:
           type: boolean
+        recordImu:
+          type: boolean
+        imuRequired:
+          type: boolean
         maxSubmissionsPerUser:
           type: integer
         maxTotalSubmissions:
@@ -3287,6 +3291,8 @@ components:
         - requiredOrientation
         - audioRequired
         - pauseAllowed
+        - recordImu
+        - imuRequired
         - displayOrder
         - status
         - submissionCount
@@ -3349,6 +3355,10 @@ components:
         audioRequired:
           type: boolean
         pauseAllowed:
+          type: boolean
+        recordImu:
+          type: boolean
+        imuRequired:
           type: boolean
         maxSubmissionsPerUser:
           type: integer
@@ -3421,6 +3431,10 @@ components:
         audioRequired:
           type: boolean
         pauseAllowed:
+          type: boolean
+        recordImu:
+          type: boolean
+        imuRequired:
           type: boolean
         maxSubmissionsPerUser:
           type: integer
