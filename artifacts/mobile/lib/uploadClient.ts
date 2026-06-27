@@ -441,13 +441,12 @@ async function _runUpload(
       draft = await persistUpdate(draft, { submissionId });
     } catch (err) {
       const status = extractHttpStatus(err);
-      const isFinal =
-        status !== undefined && status >= 400 && status < 500 && !isRetryableStatus(status);
+      // Non-retryable 4xx (400, 403, 404, etc.) are user-recoverable — the user can
+      // correct the issue (re-submit, re-authenticate, etc.) without losing the draft.
+      // Only network/server failures with no HTTP status go to FAIL_FINAL.
       draft = await applyTransition(
         draft,
-        isFinal
-          ? { type: "FAIL_FINAL", lastErrorCode: status ? String(status) : "INITIATE_FAILED" }
-          : { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "INITIATE_FAILED" },
+        { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "INITIATE_FAILED" },
         saveDraft
       );
       void logUploadError(draft, err, status, "initiate_submission");
@@ -470,6 +469,17 @@ async function _runUpload(
       const session = await getUploadSession(draft.uploadSessionId);
 
       if (session.status === "COMPLETED") {
+        // Draft is still QUEUED — QUEUED→COMPLETING is invalid in the state machine.
+        // Transition through UPLOADING first so _markComplete's COMPLETING event is legal.
+        draft = await applyTransition(
+          draft,
+          {
+            type: "START_UPLOADING",
+            sessionId: draft.uploadSessionId!,
+            reconciledParts: draft.completedParts ?? [],
+          },
+          saveDraft
+        );
         return await _markComplete(draft, submissionId, draft.completedParts ?? [], fileSize, onProgress);
       }
       if (session.status === "ABORTED" || session.status === "FAILED") {
@@ -667,8 +677,19 @@ async function _runUpload(
           continue;
         }
 
-        // Expired presigned URL — refresh then retry (doesn't count as a retry)
+        // Expired presigned URL — refresh then retry (bounded by MAX_RETRIES)
         if (isUrlExpiredStatus(httpStatus) && !isVirtual && sessionId) {
+          if (attempt >= MAX_RETRIES) {
+            draft = await applyTransition(
+              draft,
+              { type: "FAIL_RECOVERABLE", lastErrorCode: "URL_REFRESH_MAX_RETRIES" },
+              saveDraft
+            );
+            void logUploadError(draft, err, httpStatus, "url_refresh_max_retries_exceeded");
+            throw new Error(
+              "Upload failed: presigned URL could not be refreshed after too many attempts. Please try again."
+            );
+          }
           try {
             const refreshed = await refreshUploadSessionUrls(sessionId, {
               partNumbers: [partNumber],
