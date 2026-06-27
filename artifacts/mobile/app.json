@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.verbosetechlabs.tarzi",
       "infoPlist": {
         "NSCameraUsageDescription": "Tarzi needs camera access to capture photo and video evidence for tasks.",
-        "NSMicrophoneUsageDescription": "Tarzi needs microphone access to record audio evidence and video with sound for tasks."
+        "NSMicrophoneUsageDescription": "Tarzi needs microphone access to record audio evidence and video with sound for tasks.",
+        "NSMotionUsageDescription": "Tarzi uses the accelerometer and gyroscope to embed sensor telemetry (IMU) into recorded video for task verification."
       }
     },
     "android": {
@@ -40,6 +41,7 @@
     },
     "plugins": [
       "./plugins/withGradleNetworkTimeout",
+      "./plugins/withTarziImu",
       [
         "expo-splash-screen",
         {

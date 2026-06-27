@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/tarzi-imu",
+  "version": "0.1.0",
+  "description": "Native IMU capture and GPMF embedding for Tarzi",
+  "main": "src/index",
+  "exports": {
+    ".": "./src/index"
+  },
+  "files": [
+    "src",
+    "android",
+    "ios",
+    "expo-module.config.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "expo": ">=50.0.0",
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "expo-modules-core": "~2.3.5",
+    "typescript": "~5.9.2"
+  }
+}
