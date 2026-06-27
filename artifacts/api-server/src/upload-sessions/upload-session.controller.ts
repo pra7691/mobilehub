@@ -54,7 +54,7 @@ class CompleteUploadSessionDto {
   @IsOptional() @IsInt() sortOrder?: number;
 }
 
-@Controller('upload-sessions')
+@Controller('submissions/upload-sessions')
 @UseGuards(JwtAuthGuard)
 export class UploadSessionController {
   constructor(private readonly service: UploadSessionService) {}

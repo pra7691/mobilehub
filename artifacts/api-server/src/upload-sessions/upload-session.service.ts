@@ -285,7 +285,7 @@ export class UploadSessionService {
 
     const submissionId = body.submissionId ?? session.submissionId;
 
-    // Create SubmissionMedia (idempotent via session.mediaId guard above)
+    // Create/update SubmissionMedia idempotently via upsert on (submissionId, sortOrder)
     let mediaId: string | null = null;
     if (submissionId) {
       const submission = await this.prisma.submission.findUnique({
@@ -295,37 +295,27 @@ export class UploadSessionService {
       if (!submission) throw new NotFoundException('Submission not found');
       if (submission.userId !== userId) throw new ForbiddenException('Access denied');
 
-      try {
-        const media = await this.prisma.submissionMedia.create({
-          data: {
-            submissionId,
-            mediaType: session.mediaType as MediaType,
-            storageKey: session.storageKey,
-            mediaUrl,
-            storageProfileId: session.storageProfileId,
-            storageProvider: session.storageProvider,
-            bucket: session.bucket,
-            originalFileName: session.originalFileName,
-            mimeType: session.mimeType,
-            fileSize: session.fileSize,
-            sortOrder: body.sortOrder ?? 0,
-            uploadStatus: 'UPLOADED' as MediaUploadStatus,
-          },
-        });
-        mediaId = media.id;
-      } catch (err: unknown) {
-        // If media creation fails due to a race, try to find an existing one
-        // linked to this upload session (via storageKey match)
-        const existing = await this.prisma.submissionMedia.findFirst({
-          where: { submissionId, storageKey: session.storageKey },
-          select: { id: true },
-        });
-        if (existing) {
-          mediaId = existing.id;
-        } else {
-          throw err;
-        }
-      }
+      const sortOrder = body.sortOrder ?? 0;
+      const mediaData = {
+        mediaType: session.mediaType as MediaType,
+        storageKey: session.storageKey,
+        mediaUrl,
+        storageProfileId: session.storageProfileId,
+        storageProvider: session.storageProvider,
+        bucket: session.bucket,
+        originalFileName: session.originalFileName,
+        mimeType: session.mimeType,
+        fileSize: session.fileSize,
+        uploadStatus: 'UPLOADED' as MediaUploadStatus,
+      };
+
+      const media = await this.prisma.submissionMedia.upsert({
+        where: { submissionId_sortOrder: { submissionId, sortOrder } },
+        create: { submissionId, sortOrder, ...mediaData },
+        update: mediaData,
+        select: { id: true },
+      });
+      mediaId = media.id;
     }
 
     // Persist uploaded parts + mark completed atomically

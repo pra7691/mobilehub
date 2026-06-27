@@ -3047,7 +3047,7 @@ export const getCreateUploadSessionUrl = () => {
 
 
 
-  return `/api/upload-sessions`
+  return `/api/submissions/upload-sessions`
 }
 
 /**
@@ -3118,7 +3118,7 @@ export const getGetUploadSessionUrl = (id: string,) => {
 
 
 
-  return `/api/upload-sessions/${id}`
+  return `/api/submissions/upload-sessions/${id}`
 }
 
 /**
@@ -3141,7 +3141,7 @@ export const getUploadSession = async (id: string, options?: RequestInit): Promi
 
 export const getGetUploadSessionQueryKey = (id: string,) => {
     return [
-    `/api/upload-sessions/${id}`
+    `/api/submissions/upload-sessions/${id}`
     ] as const;
     }
 
@@ -3195,7 +3195,7 @@ export const getAbortUploadSessionUrl = (id: string,) => {
 
 
 
-  return `/api/upload-sessions/${id}`
+  return `/api/submissions/upload-sessions/${id}`
 }
 
 /**
@@ -3265,7 +3265,7 @@ export const getRefreshUploadSessionUrlsUrl = (id: string,) => {
 
 
 
-  return `/api/upload-sessions/${id}/refresh-urls`
+  return `/api/submissions/upload-sessions/${id}/refresh-urls`
 }
 
 /**
@@ -3337,7 +3337,7 @@ export const getCompleteUploadSessionUrl = (id: string,) => {
 
 
 
-  return `/api/upload-sessions/${id}/complete`
+  return `/api/submissions/upload-sessions/${id}/complete`
 }
 
 /**

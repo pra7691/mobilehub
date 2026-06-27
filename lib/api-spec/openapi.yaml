@@ -820,7 +820,7 @@ paths:
                     type: boolean
                 required: [deleted]
 
-  /upload-sessions:
+  /submissions/upload-sessions:
     post:
       operationId: createUploadSession
       tags: [upload-sessions]
@@ -841,7 +841,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/UploadSessionResponse"
 
-  /upload-sessions/{id}:
+  /submissions/upload-sessions/{id}:
     get:
       operationId: getUploadSession
       tags: [upload-sessions]
@@ -877,7 +877,7 @@ paths:
                     type: boolean
                 required: [aborted]
 
-  /upload-sessions/{id}/refresh-urls:
+  /submissions/upload-sessions/{id}/refresh-urls:
     post:
       operationId: refreshUploadSessionUrls
       tags: [upload-sessions]
@@ -900,7 +900,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/RefreshUrlsResponse"
 
-  /upload-sessions/{id}/complete:
+  /submissions/upload-sessions/{id}/complete:
     post:
       operationId: completeUploadSession
       tags: [upload-sessions]

@@ -402,6 +402,7 @@ model SubmissionMedia {
   submission     Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   storageProfile StorageProfile? @relation(fields: [storageProfileId], references: [id])
 
+  @@unique([submissionId, sortOrder])
   @@map("submission_media")
 }
 
