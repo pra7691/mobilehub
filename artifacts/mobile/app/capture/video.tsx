@@ -735,6 +735,14 @@ export default function VideoCaptureScreen() {
         </View>
       )}
 
+      {/* Sensor gate spinner — shown while async sensor check is in flight */}
+      {taskRecordImu && !sensorGateDone && !imuBlocked && (
+        <View style={styles.sensorGateOverlay}>
+          <ActivityIndicator size="small" color="#06b6d4" />
+          <Text style={styles.sensorGateText}>Checking motion sensors…</Text>
+        </View>
+      )}
+
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
         {canToggleCamera && !isRecording ? (
           <TouchableOpacity
@@ -747,11 +755,17 @@ export default function VideoCaptureScreen() {
           <View style={styles.iconBtn} />
         )}
 
+        {/* Record button is disabled until sensor gate resolves for IMU tasks */}
         <TouchableOpacity
-          style={[styles.recordBtn, isRecording && styles.recordBtnActive]}
+          style={[
+            styles.recordBtn,
+            isRecording && styles.recordBtnActive,
+            (imuProcessing || (taskRecordImu && !sensorGateDone)) &&
+              styles.recordBtnDisabled,
+          ]}
           onPress={isRecording ? stopRecording : () => void startRecording()}
           activeOpacity={0.8}
-          disabled={imuProcessing}
+          disabled={imuProcessing || (taskRecordImu && !sensorGateDone)}
         >
           {isRecording ? (
             <View style={styles.stopSquare} />
@@ -935,5 +949,23 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     lineHeight: 22,
+  },
+  recordBtnDisabled: { opacity: 0.45 },
+  sensorGateOverlay: {
+    position: "absolute",
+    bottom: 160,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  sensorGateText: {
+    color: "#94a3b8",
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
   },
 });
