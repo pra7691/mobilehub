@@ -249,6 +249,8 @@ export default function ReviewScreen() {
             captureData.collectionType === "IMAGE"
               ? captureData.mediaUris.length
               : undefined,
+          imuMetadata: captureData.imuMetadata,
+          imuRequired: captureData.imuRequired,
           createdAt: new Date().toISOString(),
           status: "ready_to_upload" as const,
         };

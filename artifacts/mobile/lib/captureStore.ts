@@ -1,14 +1,19 @@
 import type { CollectionType } from "./drafts";
 
 export interface ImuCaptureSummary {
-  segmentCount: number;
-  allEmbedded: boolean;
-  totalAccelerometerSamples: number;
-  totalGyroscopeSamples: number;
-  averageAccelerometerHz: number;
-  averageGyroscopeHz: number;
+  imuEmbedded: boolean;
   imuFormat: string;
+  imuTargetHz: number;
+  accelerometerSampleCount: number;
+  gyroscopeSampleCount: number;
+  accelerometerEffectiveHz: number;
+  gyroscopeEffectiveHz: number;
+  imuCaptureStartedAtRelativeMs: number;
+  imuCaptureEndedAtRelativeMs: number;
   imuValidationStatus: string;
+  deviceModel: string;
+  osVersion: string;
+  imuUnavailableReason?: string;
 }
 
 export interface PendingCapture {

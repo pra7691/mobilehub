@@ -68,7 +68,7 @@ export async function submitDraft(
   let uploadTargets: Array<{ mediaId: string; uploadUrl: string; filename: string; storageKey: string; sortOrder: number }>;
 
   // IMU upload guard — block submission if IMU data is required but not embedded
-  if (draft.imuRequired && (!draft.imuMetadata || !draft.imuMetadata.allEmbedded)) {
+  if (draft.imuRequired && draft.imuMetadata && !draft.imuMetadata.imuEmbedded) {
     throw new Error(
       "This task requires motion sensor data (IMU) to be captured. Please retake the video."
     );
@@ -81,9 +81,7 @@ export async function submitDraft(
       durationSeconds: draft.durationSeconds,
       imageCount:
         draft.collectionType === "IMAGE" ? draft.mediaUris.length : undefined,
-      captureMetadata: draft.imuMetadata
-        ? { imu: draft.imuMetadata }
-        : undefined,
+      captureMetadata: draft.imuMetadata as Record<string, unknown> | undefined,
     });
     submissionId = result.submissionId;
     uploadTargets = result.uploadTargets;

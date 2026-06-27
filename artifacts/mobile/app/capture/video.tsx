@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { CameraView, type CameraType, type FlashMode } from "expo-camera";
+import * as Device from "expo-device";
 import * as FileSystem from "expo-file-system/legacy";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -30,6 +31,7 @@ import type { ImuCaptureSummary } from "@/lib/captureStore";
 import { reportError } from "@/lib/errorReporting";
 
 const LOW_STORAGE_BYTES = 200 * 1024 * 1024; // 200 MB
+const IMU_TARGET_HZ = 100;
 
 async function hasSufficientStorage(): Promise<boolean> {
   try {
@@ -50,7 +52,18 @@ function formatTime(seconds: number): string {
   return `${m}:${s}`;
 }
 
-function buildImuSummary(metas: ImuMetadata[]): ImuCaptureSummary {
+function getDeviceModel(): string {
+  return Device.modelName ?? "unknown";
+}
+
+function getOsVersion(): string {
+  return Device.osVersion ?? "unknown";
+}
+
+function buildImuSummary(
+  metas: ImuMetadata[],
+  captureEndedAtRelativeMs: number
+): ImuCaptureSummary {
   const allEmbedded = metas.length > 0 && metas.every((m) => m.imuEmbedded);
   const totalAcc = metas.reduce((s, m) => s + m.accelerometerSampleCount, 0);
   const totalGyro = metas.reduce((s, m) => s + m.gyroscopeSampleCount, 0);
@@ -65,31 +78,38 @@ function buildImuSummary(metas: ImuMetadata[]): ImuCaptureSummary {
   const worstStatus =
     metas.find((m) => m.imuValidationStatus !== "ok")?.imuValidationStatus ??
     "ok";
-  const imuFormat = metas[0]?.imuFormat ?? "none";
 
   return {
-    segmentCount: metas.length,
-    allEmbedded,
-    totalAccelerometerSamples: totalAcc,
-    totalGyroscopeSamples: totalGyro,
-    averageAccelerometerHz: Math.round(avgAccHz * 10) / 10,
-    averageGyroscopeHz: Math.round(avgGyroHz * 10) / 10,
-    imuFormat,
+    imuEmbedded: allEmbedded,
+    imuFormat: metas[0]?.imuFormat ?? "gpmf",
+    imuTargetHz: IMU_TARGET_HZ,
+    accelerometerSampleCount: totalAcc,
+    gyroscopeSampleCount: totalGyro,
+    accelerometerEffectiveHz: Math.round(avgAccHz * 10) / 10,
+    gyroscopeEffectiveHz: Math.round(avgGyroHz * 10) / 10,
+    imuCaptureStartedAtRelativeMs: 0,
+    imuCaptureEndedAtRelativeMs: captureEndedAtRelativeMs,
     imuValidationStatus: worstStatus,
+    deviceModel: getDeviceModel(),
+    osVersion: getOsVersion(),
   };
 }
 
 /**
  * Video capture state machine.
+ *
  * expo-camera CameraView does not expose pauseRecording/resumeRecording, so
  * pause/resume is implemented via segment-based recording: each pause
- * terminates the current segment, resume starts a new one. All segment URIs
- * are collected and stored in the draft together.
+ * terminates the current segment, resume starts a new one.
  *
- * IMU lifecycle (when task.recordImu is true and native module is available):
- *   startCapture()   — called inside recordSegment(), before recordAsync()
- *   stopAndEmbed()   — called after each segment URI is produced
- *   A "Preparing motion data…" overlay is shown during stopAndEmbed.
+ * IMU lifecycle (when task.recordImu is true):
+ *   Sensor gate     — checked once when task data arrives; blocks or shows dialog
+ *   startCapture()  — called in recordSegment() before each recordAsync()
+ *   stopAndEmbed()  — called after each segment URI is produced (pause + final stop)
+ *   "Preparing motion data…" overlay shown during the final-stop embed only
+ *
+ * Error path for stopAndEmbed failure: always aborts (never navigates to review),
+ * shows prescribed message, and logs to Mobile Error Logs.
  */
 export default function VideoCaptureScreen() {
   const router = useRouter();
@@ -101,16 +121,16 @@ export default function VideoCaptureScreen() {
   const cameraRef = useRef<CameraView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Segment-based approach for pause/resume support
   const segmentsRef = useRef<string[]>([]);
-  // Durations reported by the camera for each segment (populated when available)
   const segmentDurationsRef = useRef<number[]>([]);
-  // Tracks intent when stopRecording() is called
   const actionRef = useRef<"pause" | "stop">("stop");
-  // Set to true when the app backgrounds mid-recording so we discard rather than navigate
   const backgroundedRef = useRef(false);
   // Accumulated IMU metadata per segment
   const imuSegmentMetaRef = useRef<ImuMetadata[]>([]);
+  // Session start timestamp (ms) for relative timing
+  const captureSessionStartMsRef = useRef<number>(0);
+  // Why IMU is unavailable when imuSkipped=true
+  const imuUnavailableReasonRef = useRef<string>("");
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -119,13 +139,15 @@ export default function VideoCaptureScreen() {
   const [flash, setFlash] = useState<FlashMode>("off");
   const [facing, setFacing] = useState<CameraType>("back");
   const [error, setError] = useState<string | null>(null);
-  // Shown while stopAndEmbed() is running between last segment and review navigation
+  // Overlay shown while stopAndEmbed() runs on the final stop
   const [imuProcessing, setImuProcessing] = useState(false);
-  // True when sensors are unavailable and the task requires IMU
+  // Hard block when imuRequired=true and sensors/module unavailable
   const [imuBlocked, setImuBlocked] = useState(false);
+  // True when user chose to continue without IMU (dialog confirmed)
+  const [imuSkipped, setImuSkipped] = useState(false);
+  // Sensor gate has been evaluated for this task
+  const [sensorGateDone, setSensorGateDone] = useState(false);
 
-  // Gate CameraView on focus so camera hardware releases whenever
-  // the route leaves the stack (belt-and-suspenders beyond the push→replace fix).
   const [isFocused, setIsFocused] = useState(true);
   useFocusEffect(
     useCallback(() => {
@@ -142,29 +164,71 @@ export default function VideoCaptureScreen() {
   const taskRecordImu = task?.recordImu ?? false;
   const taskImuRequired = task?.imuRequired ?? false;
 
-  // Keep elapsed ref in sync (needed in callbacks)
   useEffect(() => {
     elapsedRef.current = elapsed;
   }, [elapsed]);
 
-  // Sync facing with task preferred camera once task data arrives
   useEffect(() => {
     if (!task) return;
     if (task.preferredCamera === "FRONT") setFacing("front");
     else if (task.preferredCamera === "REAR") setFacing("back");
   }, [task?.preferredCamera]);
 
-  // Sensor availability gate — checked once when task data arrives
+  /**
+   * Sensor availability gate — evaluates once when task data is loaded.
+   *
+   * Matrix:
+   *   module unavailable + imuRequired  → hard block
+   *   module unavailable + !imuRequired → confirmation dialog → imuSkipped
+   *   sensors missing   + imuRequired  → hard block
+   *   sensors missing   + !imuRequired → confirmation dialog → imuSkipped
+   *   all OK                           → nothing (recording proceeds with IMU)
+   */
   useEffect(() => {
-    if (!taskRecordImu || !imuIsAvailable()) return;
-    void checkSensorAvailability().then((sensors: { accelerometer: boolean; gyroscope: boolean }) => {
-      if (!sensors.accelerometer || !sensors.gyroscope) {
-        if (taskImuRequired) {
-          setImuBlocked(true);
+    if (!task || !taskRecordImu || sensorGateDone) return;
+
+    const handleUnavailable = (reason: string) => {
+      if (taskImuRequired) {
+        setImuBlocked(true);
+        setSensorGateDone(true);
+      } else {
+        Alert.alert(
+          "Motion Sensors Unavailable",
+          "Motion data (IMU) cannot be captured on this device. You can still record the video without motion data.",
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => router.back(),
+            },
+            {
+              text: "Continue Anyway",
+              onPress: () => {
+                imuUnavailableReasonRef.current = reason;
+                setImuSkipped(true);
+                setSensorGateDone(true);
+              },
+            },
+          ]
+        );
+      }
+    };
+
+    if (!imuIsAvailable()) {
+      handleUnavailable("native_module_unavailable");
+      return;
+    }
+
+    void checkSensorAvailability().then(
+      (sensors: { accelerometer: boolean; gyroscope: boolean }) => {
+        if (!sensors.accelerometer || !sensors.gyroscope) {
+          handleUnavailable("sensors_unavailable");
+        } else {
+          setSensorGateDone(true);
         }
       }
-    });
-  }, [taskRecordImu, taskImuRequired]);
+    );
+  }, [task, taskRecordImu, taskImuRequired, sensorGateDone, router]);
 
   // Stop recording gracefully when app goes to background
   useEffect(() => {
@@ -172,13 +236,10 @@ export default function VideoCaptureScreen() {
       if (nextState !== "active" && isRecording) {
         if (timerRef.current) clearInterval(timerRef.current);
         if (!isPaused) {
-          // Active recording segment running — signal a background stop so
-          // recordSegment() discards instead of navigating to review
           backgroundedRef.current = true;
           actionRef.current = "stop";
           cameraRef.current?.stopRecording();
         } else {
-          // Paused: no active camera segment, reset state directly
           setIsRecording(false);
           setIsPaused(false);
           setElapsed(0);
@@ -193,7 +254,6 @@ export default function VideoCaptureScreen() {
     return () => sub.remove();
   }, [isRecording, isPaused]);
 
-  // Timer — runs only when recording and not paused
   useEffect(() => {
     if (isRecording && !isPaused) {
       timerRef.current = setInterval(() => {
@@ -215,16 +275,35 @@ export default function VideoCaptureScreen() {
     };
   }, [isRecording, isPaused, maxDuration]);
 
-  /** Record a single segment. Resolves when stopRecording() is called. */
+  const resetRecordingState = useCallback(() => {
+    setIsRecording(false);
+    setIsPaused(false);
+    setElapsed(0);
+    elapsedRef.current = 0;
+    segmentsRef.current = [];
+    segmentDurationsRef.current = [];
+    imuSegmentMetaRef.current = [];
+  }, []);
+
+  /**
+   * Record a single segment. Resolves when stopRecording() is called.
+   *
+   * IMU lifecycle per segment:
+   *   1. startCapture() before recordAsync()
+   *   2. stopAndEmbed(uri) after segment completes
+   *   3. On embed failure: always abort (show error, reset, return)
+   *   4. Overlay shown only during the final-stop embed
+   */
   const recordSegment = useCallback(async () => {
     if (!cameraRef.current) return;
 
-    // Start IMU capture before the camera segment begins
-    if (taskRecordImu && imuIsAvailable()) {
+    const imuActive = taskRecordImu && !imuSkipped && imuIsAvailable();
+
+    if (imuActive) {
       try {
         await imuStartCapture();
       } catch {
-        // Non-fatal — proceed without IMU for this segment
+        // Non-fatal start failure — IMU will be missing for this segment
       }
     }
 
@@ -235,117 +314,110 @@ export default function VideoCaptureScreen() {
       });
       if (result?.uri) {
         rawUri = result.uri;
-        // Use camera-reported duration when available to avoid timer drift
         const nativeResult = result as typeof result & { duration?: number };
         if (typeof nativeResult.duration === "number" && nativeResult.duration > 0) {
           segmentDurationsRef.current.push(nativeResult.duration);
         }
       }
     } catch {
-      // Recording cancelled or failed — no-op
+      // Recording cancelled or failed
     }
 
-    // Embed IMU data into the segment (show overlay while muxing)
-    let finalUri = rawUri;
-    if (rawUri && taskRecordImu && imuIsAvailable()) {
-      setImuProcessing(true);
+    // Embed IMU data into the segment
+    if (rawUri && imuActive) {
+      const isFinalStop = actionRef.current === "stop";
+      if (isFinalStop) setImuProcessing(true);
       try {
         const embedResult = await imuStopAndEmbed(rawUri);
-        finalUri = embedResult.uri;
         imuSegmentMetaRef.current.push(embedResult.metadata);
+        // Replace rawUri with the GPMF-embedded URI
+        rawUri = embedResult.uri;
       } catch (imuErr) {
+        if (isFinalStop) setImuProcessing(false);
+
+        const safeMessage =
+          imuErr instanceof Error
+            ? imuErr.message.slice(0, 300)
+            : "IMU embed failed";
+
         void reportError({
           errorType: "UNKNOWN",
-          message:
-            imuErr instanceof Error ? imuErr.message : "IMU embed failed",
+          message: safeMessage,
           metadata: {
-            stage: "stopAndEmbed",
+            stage: "imu_stop_and_embed",
             taskId,
             platform: Platform.OS,
-            segmentIndex: imuSegmentMetaRef.current.length,
+            deviceModel: getDeviceModel(),
+            osVersion: getOsVersion(),
           },
         });
 
-        if (taskImuRequired) {
-          // IMU is required and embed failed — abort without navigating
-          setImuProcessing(false);
-          setError(
-            "Motion data capture failed. This task requires IMU data — please retake."
-          );
-          setIsRecording(false);
-          setIsPaused(false);
-          setElapsed(0);
-          elapsedRef.current = 0;
-          segmentsRef.current = [];
-          segmentDurationsRef.current = [];
-          imuSegmentMetaRef.current = [];
-          return;
-        }
-
-        // Not required — record a failed-embed stub so the summary stays accurate
-        imuSegmentMetaRef.current.push({
-          imuEmbedded: false,
-          imuFormat: "none",
-          accelerometerSampleCount: 0,
-          gyroscopeSampleCount: 0,
-          accelerometerEffectiveHz: 0,
-          gyroscopeEffectiveHz: 0,
-          imuValidationStatus: "embed_failed",
-        });
+        setError(
+          "Motion data could not be added to this video. Please record again."
+        );
+        resetRecordingState();
+        return;
       } finally {
-        setImuProcessing(false);
+        if (isFinalStop) setImuProcessing(false);
       }
     }
 
-    if (finalUri) {
-      segmentsRef.current.push(finalUri);
+    if (rawUri) {
+      segmentsRef.current.push(rawUri);
     }
 
-    // Discarded due to app backgrounding — reset cleanly without navigating
     if (backgroundedRef.current) {
       backgroundedRef.current = false;
-      setIsRecording(false);
-      setIsPaused(false);
-      setElapsed(0);
-      elapsedRef.current = 0;
-      segmentsRef.current = [];
-      segmentDurationsRef.current = [];
-      imuSegmentMetaRef.current = [];
+      resetRecordingState();
       return;
     }
 
-    // Decide what to do based on intent
     if (actionRef.current === "pause") {
       setIsPaused(true);
     } else {
-      // "stop" — validate and navigate
-      // Prefer actual camera-reported durations when we have them for all segments
+      // "stop" — validate and navigate to review
+      const captureEndedAtMs = Date.now() - captureSessionStartMsRef.current;
+
       const duration =
         segmentDurationsRef.current.length > 0 &&
         segmentDurationsRef.current.length === segmentsRef.current.length
-          ? Math.round(
-              segmentDurationsRef.current.reduce((a, b) => a + b, 0)
-            )
+          ? Math.round(segmentDurationsRef.current.reduce((a, b) => a + b, 0))
           : elapsedRef.current;
 
       if (minDuration > 0 && duration < minDuration) {
         setError(`Recording too short. Minimum ${minDuration} seconds required.`);
-        setIsRecording(false);
-        setIsPaused(false);
-        setElapsed(0);
-        elapsedRef.current = 0;
-        segmentsRef.current = [];
-        segmentDurationsRef.current = [];
-        imuSegmentMetaRef.current = [];
+        resetRecordingState();
         return;
       }
 
       const uris = segmentsRef.current;
       if (uris.length > 0) {
-        const imuSummary =
-          imuSegmentMetaRef.current.length > 0
-            ? buildImuSummary(imuSegmentMetaRef.current)
-            : undefined;
+        let imuSummary: ImuCaptureSummary | undefined;
+
+        if (taskRecordImu) {
+          if (imuSkipped) {
+            imuSummary = {
+              imuEmbedded: false,
+              imuFormat: "none",
+              imuTargetHz: IMU_TARGET_HZ,
+              accelerometerSampleCount: 0,
+              gyroscopeSampleCount: 0,
+              accelerometerEffectiveHz: 0,
+              gyroscopeEffectiveHz: 0,
+              imuCaptureStartedAtRelativeMs: 0,
+              imuCaptureEndedAtRelativeMs: captureEndedAtMs,
+              imuValidationStatus: "skipped",
+              deviceModel: getDeviceModel(),
+              osVersion: getOsVersion(),
+              imuUnavailableReason: imuUnavailableReasonRef.current,
+            };
+          } else if (imuSegmentMetaRef.current.length > 0) {
+            imuSummary = buildImuSummary(
+              imuSegmentMetaRef.current,
+              captureEndedAtMs
+            );
+          }
+        }
 
         setPendingCapture({
           taskId: taskId ?? "",
@@ -355,67 +427,55 @@ export default function VideoCaptureScreen() {
           imuMetadata: imuSummary,
           imuRequired: taskImuRequired,
         });
-        setIsRecording(false);
-        setIsPaused(false);
-        setElapsed(0);
-        elapsedRef.current = 0;
-        segmentsRef.current = [];
-        segmentDurationsRef.current = [];
-        imuSegmentMetaRef.current = [];
-        // replace (not push) so the camera screen unmounts — prevents the camera
-        // preview from staying active behind the review screen.
+        resetRecordingState();
         router.replace(`/capture/review?taskId=${taskId ?? ""}`);
       } else {
         setError("Recording failed. Please try again.");
-        setIsRecording(false);
-        setElapsed(0);
-        elapsedRef.current = 0;
-        segmentDurationsRef.current = [];
-        imuSegmentMetaRef.current = [];
+        resetRecordingState();
       }
     }
-  }, [maxDuration, minDuration, taskId, taskRecordImu, taskImuRequired, router]);
+  }, [
+    maxDuration,
+    minDuration,
+    taskId,
+    taskRecordImu,
+    taskImuRequired,
+    imuSkipped,
+    router,
+    resetRecordingState,
+  ]);
 
   const startRecording = useCallback(async () => {
     if (isRecording) return;
     const hasSpace = await hasSufficientStorage();
+
+    const doStart = () => {
+      setError(null);
+      setElapsed(0);
+      elapsedRef.current = 0;
+      segmentsRef.current = [];
+      segmentDurationsRef.current = [];
+      imuSegmentMetaRef.current = [];
+      captureSessionStartMsRef.current = Date.now();
+      actionRef.current = "stop";
+      backgroundedRef.current = false;
+      setIsRecording(true);
+      setIsPaused(false);
+      void recordSegment();
+    };
+
     if (!hasSpace) {
       Alert.alert(
         "Low Storage",
         "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
         [
           { text: "Cancel", style: "cancel" },
-          {
-            text: "Record Anyway",
-            onPress: () => {
-              setError(null);
-              setElapsed(0);
-              elapsedRef.current = 0;
-              segmentsRef.current = [];
-              segmentDurationsRef.current = [];
-              imuSegmentMetaRef.current = [];
-              actionRef.current = "stop";
-              backgroundedRef.current = false;
-              setIsRecording(true);
-              setIsPaused(false);
-              void recordSegment();
-            },
-          },
+          { text: "Record Anyway", onPress: doStart },
         ]
       );
       return;
     }
-    setError(null);
-    setElapsed(0);
-    elapsedRef.current = 0;
-    segmentsRef.current = [];
-    segmentDurationsRef.current = [];
-    imuSegmentMetaRef.current = [];
-    actionRef.current = "stop";
-    backgroundedRef.current = false;
-    setIsRecording(true);
-    setIsPaused(false);
-    void recordSegment();
+    doStart();
   }, [isRecording, recordSegment]);
 
   const pauseRecording = useCallback(() => {
@@ -427,7 +487,7 @@ export default function VideoCaptureScreen() {
 
   const resumeRecording = useCallback(() => {
     if (!isRecording || !isPaused) return;
-    actionRef.current = "stop"; // default; will be overridden if pause is pressed again
+    actionRef.current = "stop";
     setIsPaused(false);
     void recordSegment();
   }, [isRecording, isPaused, recordSegment]);
@@ -442,20 +502,41 @@ export default function VideoCaptureScreen() {
     }
     actionRef.current = "stop";
     if (isPaused) {
-      // No active recording segment, go directly to review
+      // No active recording segment; build summary and navigate directly
+      const captureEndedAtMs = Date.now() - captureSessionStartMsRef.current;
       const duration =
         segmentDurationsRef.current.length > 0 &&
         segmentDurationsRef.current.length === segmentsRef.current.length
-          ? Math.round(
-              segmentDurationsRef.current.reduce((a, b) => a + b, 0)
-            )
+          ? Math.round(segmentDurationsRef.current.reduce((a, b) => a + b, 0))
           : elapsedRef.current;
       const uris = segmentsRef.current;
       if (uris.length > 0) {
-        const imuSummary =
-          imuSegmentMetaRef.current.length > 0
-            ? buildImuSummary(imuSegmentMetaRef.current)
-            : undefined;
+        let imuSummary: ImuCaptureSummary | undefined;
+
+        if (taskRecordImu) {
+          if (imuSkipped) {
+            imuSummary = {
+              imuEmbedded: false,
+              imuFormat: "none",
+              imuTargetHz: IMU_TARGET_HZ,
+              accelerometerSampleCount: 0,
+              gyroscopeSampleCount: 0,
+              accelerometerEffectiveHz: 0,
+              gyroscopeEffectiveHz: 0,
+              imuCaptureStartedAtRelativeMs: 0,
+              imuCaptureEndedAtRelativeMs: captureEndedAtMs,
+              imuValidationStatus: "skipped",
+              deviceModel: getDeviceModel(),
+              osVersion: getOsVersion(),
+              imuUnavailableReason: imuUnavailableReasonRef.current,
+            };
+          } else if (imuSegmentMetaRef.current.length > 0) {
+            imuSummary = buildImuSummary(
+              imuSegmentMetaRef.current,
+              captureEndedAtMs
+            );
+          }
+        }
 
         setPendingCapture({
           taskId: taskId ?? "",
@@ -465,14 +546,7 @@ export default function VideoCaptureScreen() {
           imuMetadata: imuSummary,
           imuRequired: taskImuRequired,
         });
-        setIsRecording(false);
-        setIsPaused(false);
-        setElapsed(0);
-        elapsedRef.current = 0;
-        segmentsRef.current = [];
-        segmentDurationsRef.current = [];
-        imuSegmentMetaRef.current = [];
-        // replace (not push) so the camera screen unmounts
+        resetRecordingState();
         router.replace(`/capture/review?taskId=${taskId ?? ""}`);
       } else {
         setError("No footage recorded.");
@@ -483,7 +557,17 @@ export default function VideoCaptureScreen() {
       cameraRef.current?.stopRecording();
       if (timerRef.current) clearInterval(timerRef.current);
     }
-  }, [isRecording, isPaused, minDuration, taskId, taskImuRequired, router]);
+  }, [
+    isRecording,
+    isPaused,
+    minDuration,
+    taskId,
+    taskRecordImu,
+    taskImuRequired,
+    imuSkipped,
+    router,
+    resetRecordingState,
+  ]);
 
   const handleClose = useCallback(() => {
     if (isRecording) {
@@ -499,13 +583,7 @@ export default function VideoCaptureScreen() {
               actionRef.current = "stop";
               backgroundedRef.current = true;
               cameraRef.current?.stopRecording();
-              setIsRecording(false);
-              setIsPaused(false);
-              setElapsed(0);
-              elapsedRef.current = 0;
-              segmentsRef.current = [];
-              segmentDurationsRef.current = [];
-              imuSegmentMetaRef.current = [];
+              resetRecordingState();
               router.back();
             },
           },
@@ -514,7 +592,7 @@ export default function VideoCaptureScreen() {
     } else {
       router.back();
     }
-  }, [isRecording, router]);
+  }, [isRecording, router, resetRecordingState]);
 
   const handleRetake = useCallback(() => {
     setError(null);
@@ -549,7 +627,7 @@ export default function VideoCaptureScreen() {
     );
   }
 
-  // IMU sensor blocked — task requires sensors that are unavailable on this device
+  // Hard block — sensors required but unavailable on this device
   if (imuBlocked) {
     return (
       <SafeAreaView style={styles.container}>
@@ -564,9 +642,7 @@ export default function VideoCaptureScreen() {
           <Feather name="alert-triangle" size={48} color="#f59e0b" />
           <Text style={styles.blockedTitle}>Motion Sensors Required</Text>
           <Text style={styles.blockedBody}>
-            This task requires accelerometer and gyroscope data, but your device
-            does not have the necessary sensors available. Please use a device
-            with motion sensors to complete this task.
+            This device does not support the motion sensors required for this task.
           </Text>
           <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
             <Text style={styles.closeBtnText}>Go Back</Text>
@@ -578,8 +654,6 @@ export default function VideoCaptureScreen() {
 
   return (
     <View style={styles.container}>
-      {/* CameraView only mounts while this route is focused so the camera
-          hardware releases if the route is ever left in the stack. */}
       {isFocused && (
         <CameraView
           ref={cameraRef}
@@ -591,7 +665,7 @@ export default function VideoCaptureScreen() {
         />
       )}
 
-      {/* IMU processing overlay — shown while muxing GPMF data into the last segment */}
+      {/* "Preparing motion data…" overlay — shown during final-stop IMU embedding */}
       {imuProcessing && (
         <View style={styles.imuOverlay}>
           <ActivityIndicator size="large" color="#06b6d4" />
@@ -599,8 +673,6 @@ export default function VideoCaptureScreen() {
         </View>
       )}
 
-      {/* Top bar — uses explicit insets so close/flash buttons are always
-          below the Dynamic Island / notch / status bar on all devices. */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleClose}>
           <Feather name="x" size={24} color="#fff" />
@@ -618,10 +690,14 @@ export default function VideoCaptureScreen() {
             </View>
           )}
           {taskRecordImu && (
-            <View style={styles.imuBadge}>
-              <Feather name="activity" size={11} color="#06b6d4" />
-              <Text style={styles.imuBadgeText}>
-                IMU{taskImuRequired ? " required" : ""}
+            <View style={[styles.imuBadge, imuSkipped && styles.imuBadgeSkipped]}>
+              <Feather
+                name="activity"
+                size={11}
+                color={imuSkipped ? "#f59e0b" : "#06b6d4"}
+              />
+              <Text style={[styles.imuBadgeText, imuSkipped && styles.imuBadgeTextSkipped]}>
+                {imuSkipped ? "IMU skipped" : taskImuRequired ? "IMU required" : "IMU"}
               </Text>
             </View>
           )}
@@ -639,7 +715,6 @@ export default function VideoCaptureScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Timer */}
       {isRecording && (
         <View style={styles.timerRow}>
           <View style={[styles.recDot, isPaused && styles.recDotPaused]} />
@@ -647,13 +722,10 @@ export default function VideoCaptureScreen() {
           {maxDuration > 0 && (
             <Text style={styles.maxText}>/ {formatTime(maxDuration)}</Text>
           )}
-          {isPaused && (
-            <Text style={styles.pausedLabel}>PAUSED</Text>
-          )}
+          {isPaused && <Text style={styles.pausedLabel}>PAUSED</Text>}
         </View>
       )}
 
-      {/* Error banner */}
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
@@ -663,10 +735,7 @@ export default function VideoCaptureScreen() {
         </View>
       )}
 
-      {/* Bottom controls — paddingBottom uses insets.bottom so record button
-          sits above the home indicator on all devices. */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 24 }]}>
-        {/* Left: camera flip (before recording starts) */}
         {canToggleCamera && !isRecording ? (
           <TouchableOpacity
             style={styles.iconBtn}
@@ -678,7 +747,6 @@ export default function VideoCaptureScreen() {
           <View style={styles.iconBtn} />
         )}
 
-        {/* Center: record → stop button */}
         <TouchableOpacity
           style={[styles.recordBtn, isRecording && styles.recordBtnActive]}
           onPress={isRecording ? stopRecording : () => void startRecording()}
@@ -692,7 +760,6 @@ export default function VideoCaptureScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Right: pause / resume while recording */}
         {isRecording ? (
           <TouchableOpacity
             style={styles.iconBtn}
@@ -755,7 +822,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
+  imuBadgeSkipped: {
+    backgroundColor: "rgba(245,158,11,0.15)",
+    borderColor: "rgba(245,158,11,0.4)",
+  },
   imuBadgeText: { color: "#06b6d4", fontSize: 11, fontFamily: "Inter_500Medium" },
+  imuBadgeTextSkipped: { color: "#f59e0b" },
   timerRow: {
     position: "absolute",
     top: "50%",
@@ -833,7 +905,7 @@ const styles = StyleSheet.create({
   closeBtnText: { color: "#06b6d4", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   imuOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.75)",
+    backgroundColor: "rgba(0,0,0,0.78)",
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
