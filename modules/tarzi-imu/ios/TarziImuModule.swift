@@ -163,9 +163,10 @@ public class TarziImuModule: Module {
         let existingTracks = moovAtoms.filter { $0.type == "trak" }.count
         let newTrackId     = UInt32(existingTracks + 1)
 
-        // The GPMF payload will be placed immediately after prefixBytes.
-        // chunkOffset = prefixBytes.count (absolute file offset of raw payload).
-        let chunkOffset = UInt32(prefixBytes.count)
+        // The GPMF payload is wrapped in an mdat box placed immediately after
+        // prefixBytes.  The stco chunk offset must point to the first byte of
+        // the payload DATA — i.e. after the 8-byte mdat box header.
+        let chunkOffset = UInt32(prefixBytes.count + 8)
 
         // Build GPMD trak atom
         let gpmdTrak = buildGpmdTrak(trackId:       newTrackId,
@@ -179,9 +180,12 @@ public class TarziImuModule: Module {
         newMoovInner.append(gpmdTrak)
         let newMoov = mp4Box("moov", payload: newMoovInner)
 
-        // Assemble output: [prefix] [raw gpmf payload] [new moov]
+        // Assemble output: [prefix] [mdat box containing gpmf payload] [new moov]
+        // MP4 requires all top-level bytes to live inside properly-typed atoms.
+        // stco points 8 bytes into gpmfMdat (past the size+type header).
+        let gpmfMdat = mp4Box("mdat", payload: gpmfPayload)
         var output = prefixBytes
-        output.append(gpmfPayload)
+        output.append(gpmfMdat)
         output.append(newMoov)
 
         // Validate the in-memory output BEFORE writing to disk so we never
