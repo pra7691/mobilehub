@@ -335,18 +335,33 @@ export default function VideoCaptureScreen() {
 
     // Embed IMU data into the segment
     if (rawUri && imuActive) {
+      const IMU_EMBED_TIMEOUT_MS = 30_000;
       const isFinalStop = actionRef.current === "stop";
       if (isFinalStop) setImuProcessing(true);
       try {
-        const embedResult = await imuStopAndEmbed(rawUri);
+        let timedOut = false;
+        const embedResult = await Promise.race([
+          imuStopAndEmbed(rawUri),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => {
+              timedOut = true;
+              reject(new Error("IMU_EMBED_TIMEOUT"));
+            }, IMU_EMBED_TIMEOUT_MS)
+          ),
+        ]);
+        void timedOut; // consumed via rejection path
         imuSegmentMetaRef.current.push(embedResult.metadata);
         // Replace the last entry in-place with the GPMF-embedded URI
         segmentsRef.current[segmentsRef.current.length - 1] = embedResult.uri;
       } catch (imuErr) {
         if (isFinalStop) setImuProcessing(false);
 
-        const safeMessage =
-          imuErr instanceof Error
+        const isTimeout =
+          imuErr instanceof Error && imuErr.message === "IMU_EMBED_TIMEOUT";
+
+        const safeMessage = isTimeout
+          ? "Motion data processing timed out"
+          : imuErr instanceof Error
             ? imuErr.message.slice(0, 300)
             : "IMU embed failed";
 
@@ -362,10 +377,12 @@ export default function VideoCaptureScreen() {
           },
         });
 
-        // Preserve original segment URI in segmentsRef; do not navigate to
-        // review — show error and let user re-record via the Retake action.
+        // Preserve original segment URI in segmentsRef (already pushed above);
+        // do not navigate to review — show error and let user re-record.
         setError(
-          "Motion data could not be added to this video. Please record again."
+          isTimeout
+            ? "Motion data processing timed out. Please try again."
+            : "Motion data could not be added to this video. Please record again."
         );
         setIsRecording(false);
         setIsPaused(false);
