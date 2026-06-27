@@ -6,7 +6,8 @@ import {
 } from "@workspace/api-client-react";
 import type { LocalDraft } from "./drafts";
 import { reportError } from "./errorReporting";
-import { startVideoUpload, type VideoUploadProgress } from "./uploadClient";
+import { type VideoUploadProgress } from "./uploadClient";
+import { uploadWithFallback } from "./backgroundUploadManager";
 
 export type SubmitPhase = "preparing" | "uploading" | "submitting";
 
@@ -83,7 +84,7 @@ async function _submitVideoDraft(
     );
   }
 
-  return startVideoUpload(
+  return uploadWithFallback(
     draft,
     (p) => _bridgeProgress(p, onProgress),
     signal

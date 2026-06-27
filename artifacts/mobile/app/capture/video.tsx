@@ -297,10 +297,12 @@ export default function VideoCaptureScreen() {
       const imuSummary =
         imuMetas.length > 0 ? buildImuSummary(imuMetas, captureEndedAtMs) : undefined;
       const imuRequired = taskImuRequiredRef.current;
-      const imuOk =
-        !imuRequired ||
-        (imuSummary?.imuEmbedded === true && imuSummary.imuValidationStatus === "ok");
 
+      // Always store RECORDING_INTERRUPTED so recoverAllRecordingDrafts (called
+      // on the next app launch) can perform a full validation pass and resolve
+      // the draft to LOCAL_READY, PROCESSING_IMU, or FAILED_RECOVERABLE with
+      // accurate file-existence checks. This ensures the recovery path is always
+      // exercised rather than bypassed.
       const draft: LocalDraft = {
         id: draftId,
         taskId: taskId ?? "",
@@ -313,15 +315,10 @@ export default function VideoCaptureScreen() {
         imuMetadata: imuSummary,
         imuRequired,
         createdAt: new Date().toISOString(),
-        uploadStatus: imuOk ? "LOCAL_READY" : "FAILED_RECOVERABLE",
-        lastErrorCode: imuOk ? undefined : "RECORDING_INTERRUPTED_IMU_MISSING",
+        uploadStatus: "RECORDING_INTERRUPTED",
         completedParts: [],
         retryCount: 0,
-        imuProcessingStatus: imuSummary
-          ? imuOk
-            ? "done"
-            : "failed"
-          : "pending",
+        imuProcessingStatus: imuSummary?.imuEmbedded === true ? "done" : "pending",
       };
 
       try {
@@ -478,8 +475,27 @@ export default function VideoCaptureScreen() {
         });
 
         if (isFinalStop) {
-          // Preserve original segment URI in segmentsRef (already pushed above);
-          // do not navigate to review — show error and let user re-record.
+          if (backgroundedRef.current) {
+            // App was backgrounded while the final IMU embed was in flight.
+            // We cannot show an error to a hidden app — save whatever footage
+            // was captured as an interrupted draft and reset state cleanly.
+            backgroundedRef.current = false;
+            const capturedUris = [...segmentsRef.current];
+            const capturedImuMetas = [...imuSegmentMetaRef.current];
+            const capturedElapsed = elapsedRef.current;
+            const capturedStartMs = captureSessionStartMsRef.current;
+            if (capturedUris.length > 0) {
+              void _saveInterruptedDraft(
+                capturedUris,
+                capturedImuMetas,
+                capturedElapsed,
+                capturedStartMs
+              ).catch(() => {});
+            }
+            resetRecordingState();
+            return;
+          }
+          // Not backgrounded — show error and let user re-record.
           setError(
             isTimeout
               ? "Motion data processing timed out. Please try again."
