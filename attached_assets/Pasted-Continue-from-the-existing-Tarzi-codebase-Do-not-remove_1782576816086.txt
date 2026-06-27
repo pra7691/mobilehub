@@ -1,0 +1,222 @@
+Continue from the existing Tarzi codebase.
+
+Do not remove or regress the upload, storage-provider, IMU, or draft work already completed.
+
+The prior report shows that video resilience is only partial, while audio/image recovery and background upload support are largely missing. Complete the missing reliability work below. Do not only create stubs, TODOs, interfaces, or documentation.
+
+## Goal
+
+Make capture and uploads reliable for VIDEO, AUDIO, and IMAGE tasks when the app is minimized, screen is locked, Internet drops, app restarts, storage provider changes, or processing is interrupted.
+
+Never falsely claim an upload or recording continued when the OS does not support it.
+
+## 1. Complete IMU persistence and GPMF recovery
+
+For IMU-required video tasks:
+
+* Write timestamped accelerometer and gyroscope samples incrementally to an app-private temporary file during recording.
+* Do not keep all IMU samples only in memory.
+* Pass the IMU temporary-file path into the native IMU module.
+* Persist the source video URI, IMU temporary-file URI, task ID, and recording state before recording begins.
+* On normal completion, mux the IMU data into the final MP4.
+* On app relaunch, resume pending GPMF muxing when both the raw video and IMU temporary file still exist.
+* If either file is missing, corrupt, or invalid, mark the draft as failed-recoverable and require re-recording.
+* Delete raw source video and temporary IMU file only after final MP4 validation succeeds.
+
+Do not mark `imuEmbedded: true` unless the final file was actually validated.
+
+## 2. Improve GPMF compatibility and proof
+
+The final MP4 must contain GoPro-style GPMF telemetry:
+
+* `gpmd` metadata track
+* `ACCL` stream
+* `GYRO` stream
+* sensor sample timestamps aligned to video time
+* GPMF samples spread across the recording duration, not only one untimed sample at timestamp zero
+
+Add validation using:
+
+* MP4 track inspection
+* a real GPMF parser or equivalent compatible parser
+* confirmation that accelerometer and gyroscope samples are readable
+
+After upload completes, verify the uploaded cloud file using a signed read URL or safe backend verification flow.
+
+Confirm:
+
+* uploaded MP4 still contains `gpmd`
+* `ACCL` and `GYRO` remain present
+* the storage provider did not alter/re-encode the file
+
+Do not expose storage credentials, signed URLs, or raw sensor data in logs.
+
+## 3. Durable drafts for every media type
+
+Implement persistent local drafts for:
+
+* Video
+* Audio
+* Image
+
+Immediately save each completed/captured file into app-private persistent storage.
+
+Persist:
+
+* draft ID
+* task ID
+* user ID
+* media type
+* local URI
+* file size
+* MIME type
+* capture timestamp
+* upload status
+* retry count
+* upload session ID
+* completed multipart parts
+* storage profile ID
+* safe error code
+* IMU metadata for videos
+
+Drafts must survive:
+
+* app restart
+* app crash when storage write had completed
+* app swipe-away
+* phone reboot
+* app update
+
+Clearly state that drafts cannot survive:
+
+* app uninstall
+* cleared app storage
+
+## 4. Recording interruption behavior
+
+Apply to video, audio, and image capture.
+
+### Video and audio
+
+When screen locks, app backgrounds, app is minimized, another app opens, a call interrupts, camera/mic becomes unavailable, or the OS interrupts capture:
+
+* stop recording safely
+* finalize the file when possible
+* validate the output
+* save a recoverable draft only if valid
+* show a clear message when the user returns:
+  “Recording was interrupted. Your valid recording was saved as a draft.”
+  or
+  “Recording was interrupted and could not be recovered. Please record again.”
+
+Do not continue recording or IMU collection in the background unless native real-device testing proves it works.
+
+### Images
+
+After every captured image:
+
+* immediately copy/move it to persistent draft storage
+* persist it before allowing additional captures
+* restore captured images after app restart where files remain valid
+
+## 5. Unified upload reliability for video, audio, and image
+
+Use one persistent upload-job model for all three media types.
+
+Requirements:
+
+* Prevent duplicate active uploads using a persistent lock per draft ID.
+* Use idempotency keys for upload completion and SubmissionMedia creation.
+* Video uses resumable multipart upload.
+* Audio and images must also support persistent retry/resume. Use multipart where appropriate; otherwise persist enough state for safe retry without duplicate records.
+* Pin each upload to the storage profile selected when the upload begins.
+* A storage-provider switch must not affect queued or active uploads.
+* Upload directly to storage. Do not send media through NestJS memory.
+* Persist upload progress after every completed part or successful file upload.
+* On app restart, reconcile with backend/storage and resume only missing parts.
+* Never re-upload a confirmed completed part.
+
+Handle:
+
+* no Internet
+* Internet reconnect
+* Wi-Fi/mobile-data changes
+* slow network
+* 408, 429, 5xx
+* expired signed URLs
+* expired login token
+* completion API failure after upload reaches 100%
+* local file missing/corrupt
+* account disabled
+* logout during upload
+* user cancel
+* user delete draft
+
+Use bounded exponential retry with jitter. Show accurate states:
+
+* Preparing upload
+* Uploading
+* Paused — no Internet
+* Paused — app restarted
+* Waiting to retry
+* Needs attention
+* Upload complete
+* Upload failed
+
+## 6. Native background upload support
+
+Implement real native background transfer support.
+
+### Android
+
+* Use WorkManager for queued/resumable uploads.
+* Use a foreground service with a visible notification only for an active large upload that must continue while Tarzi is backgrounded.
+* Restore pending work after normal app restart.
+
+### iOS
+
+* Use native background URLSession upload tasks.
+* Restore completion events when the app relaunches.
+
+Limits that must be stated in-app and in code comments:
+
+* Force-stop may stop background jobs.
+* Uninstall and clear-storage remove local drafts.
+* Do not claim recovery when the operating system prevents it.
+
+Expo Go is not sufficient. This must work in EAS development and production builds.
+
+## 7. Validation and user protection
+
+Before upload:
+
+* confirm file exists
+* confirm file size is greater than zero
+* confirm media is playable/readable
+* confirm expected MIME type
+* validate video duration
+* validate GPMF when IMU is required
+* reject corrupt or incomplete files before upload
+
+Before recording:
+
+* verify required permissions
+* verify required IMU sensors for IMU video tasks
+* verify sufficient free device storage with a safety margin
+
+## 8. Real tests and final report
+
+Run only tests that are actually possible. Do not claim real-device testing unless it happened on a real Android/iPhone.
+
+At the end provide:
+
+1. Every file changed
+2. Native Android files changed
+3. Native iOS files changed
+4. Database/API changes
+5. Exact behavior for screen lock, backgrounding, crash, force-close, reboot, and Internet loss
+6. Real-device tests run and results
+7. Tests still required
+8. Confirmation whether uploaded MP4 files were downloaded and verified to contain GPMF
+9. Confirmation whether audio and image uploads now recover safely after restart
+10. Remaining platform limitations
