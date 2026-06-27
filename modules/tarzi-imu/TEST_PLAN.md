@@ -140,6 +140,132 @@ Look for a stream with `codec_tag_string=gpmd` or `codec_name=bin_data`.
 
 ---
 
+## Mid-Session IMU Embed Timeout
+
+### Background
+
+When `imuStopAndEmbed()` exceeds the configured embed timeout on a **non-final pause**
+(i.e. the user paused but has not yet stopped), `recordSegment()` catches the
+`"IMU_EMBED_TIMEOUT"` error, keeps the raw segment URI in `segmentsRef`, and sets
+`imuWarning` to show a dismissible amber banner:
+
+> *"Motion data timed out for one segment. Recording continues."*
+
+The recording screen must remain fully interactive: the user can dismiss the banner,
+resume recording, add more segments, and eventually stop and submit.  This section
+provides a repeatable way to trigger that path on a real device without needing to
+mock the native module.
+
+---
+
+### 5 — Mid-session IMU embed timeout (paused segment) + successful submission
+
+This test is split into two deterministic phases.  **Phase A** forces a timeout on
+the first pause so the warning banner is reliably observed.  **Phase B** restores
+the timeout before the final stop so the session always proceeds to Review and the
+submission path is always exercised.  This makes every pass criterion unconditional.
+
+#### Pre-conditions
+
+Same as §3, **plus**: you need admin access to adjust the embed timeout via the
+admin dashboard.
+
+---
+
+#### Phase A — Trigger the mid-session timeout
+
+**Setup (once):**
+
+1. Open the admin dashboard → **Settings** → **Capture**.
+2. Set **IMU Embed Timeout** to **1** second (minimum allowed) and save.
+3. Kill and relaunch the mobile app so `useGetAppSettings` fetches the new value.
+   The capture screen reads `appSettings?.capture?.imuEmbedTimeoutMs` on every
+   `recordSegment()` call, so a fresh fetch is sufficient — no rebuild required.
+
+> **Why 1 s works:** `stopAndEmbed()` performs native MP4 muxing.  On a real device
+> this typically takes 1–4 s per segment, so a 1 000 ms cap reliably races past
+> the native call on the first pause.
+
+**Steps:**
+
+1. Install the dev build; log in as a field agent.
+2. Navigate to a task with `recordImu: true`.
+3. Tap the video collection type to open the Video Capture screen.
+4. Confirm the UI shows no blocked/error state and the record button is enabled.
+5. Tap **Record** and let it run for **8–10 s**.
+6. Tap **Pause**.
+   - `imuStopAndEmbed()` runs; the 1 s `Promise.race` rejection fires first.
+
+**Pass criteria after step 6 (all required):**
+
+- The amber warning banner appears at the top of the screen:
+  *"Motion data timed out for one segment. Recording continues."*
+- The **Pause / Resume** and **Stop** buttons are still visible and tappable.
+- The recording timer is frozen at the paused value (correct).
+- No error modal or navigation away from the screen.
+- The app is **not** frozen — tapping the dismiss ✕ on the banner removes it.
+
+7. Tap the **✕** on the banner to dismiss it.  Confirm it disappears.
+8. Confirm all recording controls remain tappable (do **not** stop yet).
+
+---
+
+#### Phase B — Restore timeout, complete recording, and verify submission
+
+**Before stopping,** restore the timeout so the final `imuStopAndEmbed()` has
+enough time to succeed:
+
+9. Switch to the admin dashboard tab (keep the recording app paused on the device).
+10. Set **IMU Embed Timeout** back to **30** seconds and save.
+11. Return to the mobile app.  The timeout will be re-read from `appSettings`
+    on the next `recordSegment()` call — no relaunch needed.
+
+**Continue recording:**
+
+12. Tap **Resume** on the mobile app.  Confirm the timer resumes and the camera
+    resumes — a new segment begins recording.
+13. Record for another **8–10 s** and tap **Stop**.
+    - The final stop now runs with the 30 s timeout, giving the native mux
+      sufficient time to complete.
+    - Expected: the **"Preparing motion data…"** processing overlay appears
+      briefly, then the **Review** screen loads.
+
+**Pass criteria after step 13 (all required):**
+
+- The Review screen loads without error.
+- The video plays back and covers both segments.
+- Proceed through Review and submit the draft.
+- Submission succeeds (HTTP 200); the submission is visible in the admin dashboard.
+
+**Pass criteria on the admin dashboard (all required):**
+
+- The submission record exists and is not stuck.
+- The **first segment** (the one that timed out in Phase A) shows `imuEmbedded: false`
+  and uses the raw segment URI — this confirms the fallback preservation path works.
+- The **second segment** (recorded under the restored 30 s timeout) shows
+  `imuEmbedded: true` with `imuValidationStatus === "ok"`.
+- `imuCaptureSummary.accelerometerSampleCount` and `gyroscopeSampleCount` reflect
+  the second segment only (since the first timed out and has no embedded metadata).
+
+---
+
+### 6 — Verify recording controls remain interactive during and after warning
+
+This micro-check can be performed immediately after step 6 above (banner visible).
+
+| Action | Expected outcome |
+|---|---|
+| Tap **✕** on the warning banner | Banner disappears, no other state change |
+| Tap **Resume** (banner already dismissed) | Timer resumes, camera resumes, no crash |
+| Tap **Pause** again on the second segment | Second segment records, another timeout likely fires a second banner |
+| Tap **Stop** | Final-stop path runs; either error message or Review screen appears |
+| Device rotation during warning | Banner reflows correctly; recording state preserved |
+
+All of the above must complete without the app freezing, crashing, or navigating
+away unexpectedly.
+
+---
+
 ## Regression Checklist (run after any native change)
 
 - [ ] iOS: 10 s single-segment clip → `imuValidationStatus === "ok"`, samples ≥ 50
@@ -150,6 +276,9 @@ Look for a stream with `codec_tag_string=gpmd` or `codec_name=bin_data`.
 - [ ] Task with `imuRequired: true` submits without error
 - [ ] Task with `imuRequired: false` + sensor unavailable → user sees dialog, can continue
 - [ ] App-backgrounded during recording → recording discards cleanly, no crash
+- [ ] Mid-session timeout (§5): warning banner appears on non-final pause, controls stay responsive
+- [ ] Mid-session timeout (§5): session can be continued and stopped after the warning
+- [ ] Mid-session timeout (§5): submission succeeds after restoring timeout — timed-out segment uses raw URI, second segment shows imuEmbedded true
 
 ---
 
