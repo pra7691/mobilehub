@@ -31,10 +31,11 @@ class CreateUploadSessionDto {
   @IsOptional() @IsString() originalFileName?: string;
   @IsOptional() @IsNumber() fileSize?: number;
   @IsOptional() @IsInt() @Min(5 * 1024 * 1024) partSize?: number;
+  @IsOptional() @IsArray() @IsInt({ each: true }) requestedPartNumbers?: number[];
 }
 
-class PartUrlDto {
-  @IsInt() @Min(1) partNumber!: number;
+class RefreshUrlsDto {
+  @IsArray() @IsInt({ each: true }) partNumbers!: number[];
 }
 
 class CompletedPartDto {
@@ -74,15 +75,15 @@ export class UploadSessionController {
     return this.service.findOne(req.user.sub, id);
   }
 
-  // POST /upload-sessions/:id/part-url
-  @Post(':id/part-url')
+  // POST /upload-sessions/:id/refresh-urls
+  @Post(':id/refresh-urls')
   @HttpCode(HttpStatus.OK)
-  getPartUrl(
+  refreshUrls(
     @Req() req: { user: JwtPayload },
     @Param('id') id: string,
-    @Body() body: PartUrlDto,
+    @Body() body: RefreshUrlsDto,
   ) {
-    return this.service.getPartUrl(req.user.sub, id, body);
+    return this.service.refreshUrls(req.user.sub, id, body);
   }
 
   // POST /upload-sessions/:id/complete

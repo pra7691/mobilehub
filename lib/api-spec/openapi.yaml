@@ -877,11 +877,11 @@ paths:
                     type: boolean
                 required: [aborted]
 
-  /upload-sessions/{id}/part-url:
+  /upload-sessions/{id}/refresh-urls:
     post:
-      operationId: getUploadSessionPartUrl
+      operationId: refreshUploadSessionUrls
       tags: [upload-sessions]
-      summary: Get a presigned URL for uploading a specific part
+      summary: Get fresh presigned URLs for one or more parts
       security:
         - BearerAuth: []
       parameters:
@@ -891,14 +891,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PartUrlRequest"
+              $ref: "#/components/schemas/RefreshUrlsRequest"
       responses:
         "200":
-          description: Presigned URL for part upload
+          description: Fresh presigned URLs
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PartUrlResponse"
+                $ref: "#/components/schemas/RefreshUrlsResponse"
 
   /upload-sessions/{id}/complete:
     post:
@@ -5798,7 +5798,21 @@ components:
           type: integer
           description: Desired part size in bytes (min 5 MB). Ignored for virtual sessions.
           minimum: 5242880
+        requestedPartNumbers:
+          type: array
+          items:
+            type: integer
+          description: S3 only — part numbers to pre-sign on creation. Virtual sessions always pre-sign part 1.
       required: [mediaType, mimeType]
+
+    UploadSessionPartUrl:
+      type: object
+      properties:
+        partNumber:
+          type: integer
+        uploadUrl:
+          type: string
+      required: [partNumber, uploadUrl]
 
     UploadSessionResponse:
       type: object
@@ -5850,10 +5864,11 @@ components:
         uploadedParts:
           type: array
           items: {}
-        uploadUrl:
-          type: string
-          nullable: true
-          description: Presigned PUT URL for virtual (Replit) sessions. Null for S3 multipart.
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadSessionPartUrl"
+          description: Pre-signed part URLs returned at creation (virtual=part 1; S3=requested parts)
         expiresAt:
           type: string
           format: date-time
@@ -5882,26 +5897,32 @@ components:
         - mediaType
         - mimeType
         - uploadedParts
+        - parts
         - expiresAt
         - createdAt
         - updatedAt
 
-    PartUrlRequest:
+    RefreshUrlsRequest:
       type: object
       properties:
-        partNumber:
-          type: integer
-          minimum: 1
-      required: [partNumber]
+        partNumbers:
+          type: array
+          items:
+            type: integer
+          description: Part numbers to refresh presigned URLs for. Virtual sessions accept only [1].
+      required: [partNumbers]
 
-    PartUrlResponse:
+    RefreshUrlsResponse:
       type: object
       properties:
-        partNumber:
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadSessionPartUrl"
+        expiresIn:
           type: integer
-        uploadUrl:
-          type: string
-      required: [partNumber, uploadUrl]
+          description: Seconds until the returned URLs expire
+      required: [parts, expiresIn]
 
     CompletedPartInput:
       type: object

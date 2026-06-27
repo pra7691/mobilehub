@@ -109,8 +109,6 @@ import type {
   NotificationListResponse,
   OtpRequestResult,
   OtpSettings,
-  PartUrlRequest,
-  PartUrlResponse,
   PayoutRequestItem,
   PayoutRequestListResponse,
   PayoutSettings,
@@ -123,6 +121,8 @@ import type {
   ReferralSummary,
   ReferralValidationResult,
   RefreshTokenRequest,
+  RefreshUrlsRequest,
+  RefreshUrlsResponse,
   RegisterDeviceRequest,
   ReorderBannersBody,
   ReorderFaqRequest,
@@ -3260,38 +3260,38 @@ export const useAbortUploadSession = <TError = ErrorType<unknown>,
       return useMutation(getAbortUploadSessionMutationOptions(options));
     }
 
-export const getGetUploadSessionPartUrlUrl = (id: string,) => {
+export const getRefreshUploadSessionUrlsUrl = (id: string,) => {
 
 
 
 
-  return `/api/upload-sessions/${id}/part-url`
+  return `/api/upload-sessions/${id}/refresh-urls`
 }
 
 /**
- * @summary Get a presigned URL for uploading a specific part
+ * @summary Get fresh presigned URLs for one or more parts
  */
-export const getUploadSessionPartUrl = async (id: string,
-    partUrlRequest: PartUrlRequest, options?: RequestInit): Promise<PartUrlResponse> => {
+export const refreshUploadSessionUrls = async (id: string,
+    refreshUrlsRequest: RefreshUrlsRequest, options?: RequestInit): Promise<RefreshUrlsResponse> => {
 
-  return customFetch<PartUrlResponse>(getGetUploadSessionPartUrlUrl(id),
+  return customFetch<RefreshUrlsResponse>(getRefreshUploadSessionUrlsUrl(id),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
-      partUrlRequest,)
+      refreshUrlsRequest,)
   }
 );}
 
 
 
 
-export const getGetUploadSessionPartUrlMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, TError,{id: string;data: BodyType<PartUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, TError,{id: string;data: BodyType<PartUrlRequest>}, TContext> => {
+export const getRefreshUploadSessionUrlsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshUploadSessionUrls>>, TError,{id: string;data: BodyType<RefreshUrlsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshUploadSessionUrls>>, TError,{id: string;data: BodyType<RefreshUrlsRequest>}, TContext> => {
 
-const mutationKey = ['getUploadSessionPartUrl'];
+const mutationKey = ['refreshUploadSessionUrls'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -3301,10 +3301,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, {id: string;data: BodyType<PartUrlRequest>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshUploadSessionUrls>>, {id: string;data: BodyType<RefreshUrlsRequest>}> = (props) => {
           const {id,data} = props ?? {};
 
-          return  getUploadSessionPartUrl(id,data,requestOptions)
+          return  refreshUploadSessionUrls(id,data,requestOptions)
         }
 
 
@@ -3314,22 +3314,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type GetUploadSessionPartUrlMutationResult = NonNullable<Awaited<ReturnType<typeof getUploadSessionPartUrl>>>
-    export type GetUploadSessionPartUrlMutationBody = BodyType<PartUrlRequest>
-    export type GetUploadSessionPartUrlMutationError = ErrorType<unknown>
+    export type RefreshUploadSessionUrlsMutationResult = NonNullable<Awaited<ReturnType<typeof refreshUploadSessionUrls>>>
+    export type RefreshUploadSessionUrlsMutationBody = BodyType<RefreshUrlsRequest>
+    export type RefreshUploadSessionUrlsMutationError = ErrorType<unknown>
 
     /**
- * @summary Get a presigned URL for uploading a specific part
+ * @summary Get fresh presigned URLs for one or more parts
  */
-export const useGetUploadSessionPartUrl = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, TError,{id: string;data: BodyType<PartUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useRefreshUploadSessionUrls = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshUploadSessionUrls>>, TError,{id: string;data: BodyType<RefreshUrlsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof getUploadSessionPartUrl>>,
+        Awaited<ReturnType<typeof refreshUploadSessionUrls>>,
         TError,
-        {id: string;data: BodyType<PartUrlRequest>},
+        {id: string;data: BodyType<RefreshUrlsRequest>},
         TContext
       > => {
-      return useMutation(getGetUploadSessionPartUrlMutationOptions(options));
+      return useMutation(getRefreshUploadSessionUrlsMutationOptions(options));
     }
 
 export const getCompleteUploadSessionUrl = (id: string,) => {

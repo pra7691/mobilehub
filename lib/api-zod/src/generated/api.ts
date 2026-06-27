@@ -1325,7 +1325,8 @@ export const CreateUploadSessionBody = zod.object({
   "mimeType": zod.string(),
   "originalFileName": zod.string().optional(),
   "fileSize": zod.number().optional().describe('Total file size in bytes. Used to compute part count.'),
-  "partSize": zod.number().min(createUploadSessionBodyPartSizeMin).optional().describe('Desired part size in bytes (min 5 MB). Ignored for virtual sessions.')
+  "partSize": zod.number().min(createUploadSessionBodyPartSizeMin).optional().describe('Desired part size in bytes (min 5 MB). Ignored for virtual sessions.'),
+  "requestedPartNumbers": zod.array(zod.number()).optional().describe('S3 only — part numbers to pre-sign on creation. Virtual sessions always pre-sign part 1.')
 })
 
 
@@ -1355,7 +1356,10 @@ export const GetUploadSessionResponse = zod.object({
   "partSize": zod.number().nullish(),
   "totalParts": zod.number().nullish(),
   "uploadedParts": zod.array(zod.unknown()),
-  "uploadUrl": zod.string().nullish().describe('Presigned PUT URL for virtual (Replit) sessions. Null for S3 multipart.'),
+  "parts": zod.array(zod.object({
+  "partNumber": zod.number(),
+  "uploadUrl": zod.string()
+})).describe('Pre-signed part URLs returned at creation (virtual=part 1; S3=requested parts)'),
   "expiresAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullish(),
   "abortedAt": zod.coerce.date().nullish(),
@@ -1377,22 +1381,22 @@ export const AbortUploadSessionResponse = zod.object({
 
 
 /**
- * @summary Get a presigned URL for uploading a specific part
+ * @summary Get fresh presigned URLs for one or more parts
  */
-export const GetUploadSessionPartUrlParams = zod.object({
+export const RefreshUploadSessionUrlsParams = zod.object({
   "id": zod.coerce.string()
 })
 
-
-
-
-export const GetUploadSessionPartUrlBody = zod.object({
-  "partNumber": zod.number().min(1)
+export const RefreshUploadSessionUrlsBody = zod.object({
+  "partNumbers": zod.array(zod.number()).describe('Part numbers to refresh presigned URLs for. Virtual sessions accept only [1].')
 })
 
-export const GetUploadSessionPartUrlResponse = zod.object({
+export const RefreshUploadSessionUrlsResponse = zod.object({
+  "parts": zod.array(zod.object({
   "partNumber": zod.number(),
   "uploadUrl": zod.string()
+})),
+  "expiresIn": zod.number().describe('Seconds until the returned URLs expire')
 })
 
 

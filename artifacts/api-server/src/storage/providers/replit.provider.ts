@@ -102,7 +102,19 @@ export class ReplitStorageProvider implements StorageProvider {
 
   async deleteObject(storageKey: string): Promise<void> {
     const { bucketName, objectName } = parsePath(storageKey);
-    await signUrl({ bucketName, objectName, method: 'DELETE', ttlSec: 60 });
+    const deleteUrl = await signUrl({
+      bucketName,
+      objectName,
+      method: 'DELETE',
+      ttlSec: 60,
+    });
+    const res = await fetch(deleteUrl, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`Replit delete failed: ${res.status}`);
+    }
   }
 
   async testConnection(): Promise<void> {
@@ -171,10 +183,15 @@ export class ReplitStorageProvider implements StorageProvider {
     };
   }
 
-  async abortMultipartUpload(_params: {
+  async abortMultipartUpload(params: {
     storageKey: string;
     uploadId: string;
   }): Promise<void> {
-    // Virtual session — nothing to abort on the Replit sidecar
+    // Virtual session — attempt to delete the object if it was already uploaded
+    try {
+      await this.deleteObject(params.storageKey);
+    } catch {
+      // Object may not exist yet — ignore errors silently
+    }
   }
 }

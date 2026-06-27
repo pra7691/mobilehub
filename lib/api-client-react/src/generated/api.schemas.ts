@@ -1703,6 +1703,13 @@ export interface CreateUploadSessionRequest {
      * @minimum 5242880
      */
   partSize?: number;
+  /** S3 only — part numbers to pre-sign on creation. Virtual sessions always pre-sign part 1. */
+  requestedPartNumbers?: number[];
+}
+
+export interface UploadSessionPartUrl {
+  partNumber: number;
+  uploadUrl: string;
 }
 
 export type UploadSessionResponseStatus = typeof UploadSessionResponseStatus[keyof typeof UploadSessionResponseStatus];
@@ -1736,8 +1743,8 @@ export interface UploadSessionResponse {
   partSize?: number | null;
   totalParts?: number | null;
   uploadedParts: unknown[];
-  /** Presigned PUT URL for virtual (Replit) sessions. Null for S3 multipart. */
-  uploadUrl?: string | null;
+  /** Pre-signed part URLs returned at creation (virtual=part 1; S3=requested parts) */
+  parts: UploadSessionPartUrl[];
   expiresAt: string;
   completedAt?: string | null;
   abortedAt?: string | null;
@@ -1745,14 +1752,15 @@ export interface UploadSessionResponse {
   updatedAt: string;
 }
 
-export interface PartUrlRequest {
-  /** @minimum 1 */
-  partNumber: number;
+export interface RefreshUrlsRequest {
+  /** Part numbers to refresh presigned URLs for. Virtual sessions accept only [1]. */
+  partNumbers: number[];
 }
 
-export interface PartUrlResponse {
-  partNumber: number;
-  uploadUrl: string;
+export interface RefreshUrlsResponse {
+  parts: UploadSessionPartUrl[];
+  /** Seconds until the returned URLs expire */
+  expiresIn: number;
 }
 
 export interface CompletedPartInput {
