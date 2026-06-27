@@ -114,10 +114,9 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
 
   extra: {
     eas: {
-      // Development: set EAS_PROJECT_ID_DEV after running `eas init` under verbosetech.
-      // Production:  fixed to the primeaid project; never change this value.
+      // Development: verbosetech project (fbb0c74b). Production: primeaid project (85cd9282). Never swap these.
       projectId: IS_DEV
-        ? (process.env.EAS_PROJECT_ID_DEV ?? "")
+        ? "fbb0c74b-31ec-4c5e-961e-fb0de0cf31e5"
         : "85cd9282-6693-4098-b2f7-ede669317a8d",
     },
   },
