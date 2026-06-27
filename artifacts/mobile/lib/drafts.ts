@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import type { ImuCaptureSummary } from "./captureStore";
+import type { UploadStatus, CompletedPart } from "./uploadStateMachine";
+import { IN_PROGRESS_STATUSES } from "./uploadStateMachine";
 
 export type CollectionType = "VIDEO" | "IMAGE" | "AUDIO";
 
@@ -17,7 +19,42 @@ export interface LocalDraft {
   imuMetadata?: ImuCaptureSummary;
   imuRequired?: boolean;
   createdAt: string;
-  status: "ready_to_upload";
+
+  uploadStatus: UploadStatus;
+
+  submissionId?: string;
+  uploadSessionId?: string;
+  storageProfileId?: string;
+  completedParts?: CompletedPart[];
+  retryCount?: number;
+  lastErrorCode?: string;
+  uploadedAt?: string;
+}
+
+interface LegacyLocalDraft {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  collectionType: CollectionType;
+  paymentAmount: number;
+  currency: string;
+  mediaUris: string[];
+  durationSeconds?: number;
+  imageCount?: number;
+  imuMetadata?: ImuCaptureSummary;
+  imuRequired?: boolean;
+  createdAt: string;
+  status?: "ready_to_upload";
+  uploadStatus?: UploadStatus;
+}
+
+function migrateDraft(raw: LegacyLocalDraft): LocalDraft {
+  if (raw.uploadStatus !== undefined) {
+    return raw as LocalDraft;
+  }
+  const { status: _dropped, ...rest } = raw;
+  void _dropped;
+  return { ...rest, uploadStatus: "LOCAL_READY" };
 }
 
 const STORAGE_KEY = "capto_drafts";
@@ -34,7 +71,8 @@ export async function listDrafts(): Promise<LocalDraft[]> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as LocalDraft[];
+    const parsed = JSON.parse(raw) as LegacyLocalDraft[];
+    return parsed.map(migrateDraft);
   } catch {
     return [];
   }
@@ -73,6 +111,24 @@ export async function deleteDraft(id: string): Promise<void> {
   }
   const updated = drafts.filter((d) => d.id !== id);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+}
+
+/**
+ * On app startup, transition any drafts that were in-progress when the app
+ * was killed to PAUSED_APP_RESTART so the user can resume them explicitly.
+ */
+export async function recoverInterruptedDrafts(): Promise<boolean> {
+  const drafts = await listDrafts();
+  const hasInterrupted = drafts.some((d) => IN_PROGRESS_STATUSES.has(d.uploadStatus));
+  if (!hasInterrupted) return false;
+
+  const updated = drafts.map((d) =>
+    IN_PROGRESS_STATUSES.has(d.uploadStatus)
+      ? { ...d, uploadStatus: "PAUSED_APP_RESTART" as UploadStatus }
+      : d
+  );
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  return true;
 }
 
 export async function copyMediaToDrafts(

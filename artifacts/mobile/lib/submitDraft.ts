@@ -6,6 +6,7 @@ import {
 } from "@workspace/api-client-react";
 import type { LocalDraft } from "./drafts";
 import { reportError } from "./errorReporting";
+import { startVideoUpload, type VideoUploadProgress } from "./uploadClient";
 
 export type SubmitPhase = "preparing" | "uploading" | "submitting";
 
@@ -31,18 +32,71 @@ function getContentType(filename: string): string {
   return map[ext] ?? "application/octet-stream";
 }
 
+/**
+ * Submit a draft for review.
+ *
+ * VIDEO drafts are routed through the multipart upload client with a
+ * durable 15-state state machine. Every transition is written to
+ * AsyncStorage so in-progress uploads can be resumed after a crash or
+ * network drop.
+ *
+ * IMAGE and AUDIO drafts use the existing single-PUT flow unchanged.
+ */
 export async function submitDraft(
   draft: LocalDraft,
   onProgress?: (progress: SubmitProgress) => void,
   signal?: AbortSignal
 ): Promise<{ submissionId: string }> {
-  onProgress?.({
-    phase: "preparing",
-    current: 0,
-    total: draft.mediaUris.length,
-  });
+  if (draft.collectionType === "VIDEO") {
+    return _submitVideoDraft(draft, onProgress, signal);
+  }
+  return _submitMediaDraft(draft, onProgress, signal);
+}
 
-  // Gather file metadata
+function _bridgeProgress(
+  p: VideoUploadProgress,
+  onProgress: ((p: SubmitProgress) => void) | undefined
+): void {
+  if (!onProgress) return;
+  const phase: SubmitPhase =
+    p.phase === "preparing"
+      ? "preparing"
+      : p.phase === "verifying"
+        ? "submitting"
+        : "uploading";
+  onProgress({ phase, current: p.partsComplete, total: Math.max(p.partsTotal, 1) });
+}
+
+async function _submitVideoDraft(
+  draft: LocalDraft,
+  onProgress?: (progress: SubmitProgress) => void,
+  signal?: AbortSignal
+): Promise<{ submissionId: string }> {
+  if (
+    draft.imuRequired &&
+    (!draft.imuMetadata ||
+      !draft.imuMetadata.imuEmbedded ||
+      draft.imuMetadata.imuValidationStatus !== "ok")
+  ) {
+    throw new Error(
+      "This task requires motion sensor data (IMU) to be captured. Please retake the video."
+    );
+  }
+
+  return startVideoUpload(
+    draft,
+    (p) => _bridgeProgress(p, onProgress),
+    signal
+  );
+}
+
+async function _submitMediaDraft(
+  draft: LocalDraft,
+  onProgress?: (progress: SubmitProgress) => void,
+  signal?: AbortSignal
+): Promise<{ submissionId: string }> {
+  onProgress?.({ phase: "preparing", current: 0, total: draft.mediaUris.length });
+
   const mediaFiles: Array<{
     filename: string;
     fileSize?: number;
@@ -63,22 +117,14 @@ export async function submitDraft(
 
   if (signal?.aborted) throw new Error("Upload cancelled");
 
-  // Step 1: Initiate — create submission record + get presigned upload URLs
   let submissionId: string;
-  let uploadTargets: Array<{ mediaId: string; uploadUrl: string; filename: string; storageKey: string; sortOrder: number }>;
-
-  // IMU upload guard — fail closed: block if imuRequired=true unless metadata
-  // is present, imuEmbedded is true, AND imuValidationStatus === "ok".
-  if (
-    draft.imuRequired &&
-    (!draft.imuMetadata ||
-      !draft.imuMetadata.imuEmbedded ||
-      draft.imuMetadata.imuValidationStatus !== "ok")
-  ) {
-    throw new Error(
-      "This task requires motion sensor data (IMU) to be captured. Please retake the video."
-    );
-  }
+  let uploadTargets: Array<{
+    mediaId: string;
+    uploadUrl: string;
+    filename: string;
+    storageKey: string;
+    sortOrder: number;
+  }>;
 
   try {
     const result = await initiateSubmission({
@@ -100,10 +146,7 @@ export async function submitDraft(
       httpMethod: "POST",
       httpStatus: isApiError ? (err as { status: number }).status : undefined,
       collectionType: draft.collectionType,
-      metadata: {
-        taskId: draft.taskId,
-        fileCount: draft.mediaUris.length,
-      },
+      metadata: { taskId: draft.taskId, fileCount: draft.mediaUris.length },
     });
     throw err;
   }
@@ -115,7 +158,6 @@ export async function submitDraft(
     throw new Error("Upload cancelled");
   }
 
-  // Step 2: Upload each file to its presigned URL
   const uploadedMedia: Array<{ mediaId: string; fileSize?: number }> = [];
   const failedMediaIds: string[] = [];
   const failedDetails: Array<{ mediaId: string; error: string }> = [];
@@ -174,7 +216,6 @@ export async function submitDraft(
     }
   }
 
-  // If any files failed, mark the whole submission as failed and report
   if (failedMediaIds.length > 0) {
     await markUploadFailed(submissionId, {
       failureReason: `${failedMediaIds.length} file(s) failed to upload`,
@@ -206,7 +247,6 @@ export async function submitDraft(
     throw new Error("Upload cancelled");
   }
 
-  // Step 3: Mark upload complete → server sets status to UNDER_REVIEW
   onProgress?.({
     phase: "submitting",
     current: uploadTargets.length,

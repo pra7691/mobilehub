@@ -199,7 +199,7 @@ export default function ReviewScreen() {
         imuMetadata: captureData.imuMetadata,
         imuRequired: captureData.imuRequired,
         createdAt: new Date().toISOString(),
-        status: "ready_to_upload",
+        uploadStatus: "LOCAL_READY",
       });
 
       clearPendingCapture();
@@ -252,7 +252,7 @@ export default function ReviewScreen() {
           imuMetadata: captureData.imuMetadata,
           imuRequired: captureData.imuRequired,
           createdAt: new Date().toISOString(),
-          status: "ready_to_upload" as const,
+          uploadStatus: "LOCAL_READY" as const,
         };
         await submitDraft(tempDraft, setSubmitProgress);
         clearPendingCapture();

@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useDrafts } from "@/contexts/DraftContext";
 import type { LocalDraft } from "@/lib/drafts";
 import { submitDraft, type SubmitProgress } from "@/lib/submitDraft";
+import { isInProgress, type UploadStatus } from "@/lib/uploadStateMachine";
 
 type SubmissionStatus =
   | "DRAFT"
@@ -117,7 +118,7 @@ export default function SubmissionsScreen() {
   const submissions: Submission[] =
     (data as { data?: Submission[] } | undefined)?.data ?? [];
 
-  const { drafts, deleteDraft } = useDrafts();
+  const { drafts, deleteDraft, cancelDraftUpload } = useDrafts();
 
   const needsAction = submissions.filter((s) =>
     (["RESUBMISSION_REQUIRED"] as SubmissionStatus[]).includes(s.status)
@@ -143,13 +144,13 @@ export default function SubmissionsScreen() {
   function confirmDeleteDraft(draft: LocalDraft) {
     Alert.alert(
       "Delete Draft?",
-      `This will permanently remove the draft "${draft.taskTitle}" and its local media files.`,
+      `This will permanently remove "${draft.taskTitle}" and its local media files. This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => void deleteDraft(draft.id),
+          onPress: () => void deleteDraft(draft.id, draft),
         },
       ]
     );
@@ -157,16 +158,12 @@ export default function SubmissionsScreen() {
 
   async function handleSubmitDraft(draft: LocalDraft) {
     setSubmittingId(draft.id);
-    setSubmitProgress({
-      phase: "preparing",
-      current: 0,
-      total: draft.mediaUris.length,
-    });
+    setSubmitProgress({ phase: "preparing", current: 0, total: 1 });
     try {
       await submitDraft(draft, (progress) => {
         setSubmitProgress(progress);
       });
-      await deleteDraft(draft.id);
+      await deleteDraft(draft.id, draft);
       await queryClient.invalidateQueries({
         queryKey: getListMySubmissionsQueryKey(),
       });
@@ -178,11 +175,20 @@ export default function SubmissionsScreen() {
       setSubmitProgress(null);
       const message =
         err instanceof Error ? err.message : "Unknown error occurred";
-      Alert.alert("Submission Failed", message, [{ text: "OK" }]);
+      Alert.alert("Upload Paused", message, [{ text: "OK" }]);
     }
   }
 
   function confirmSubmitDraft(draft: LocalDraft) {
+    const isResume =
+      draft.uploadStatus === "PAUSED_APP_RESTART" ||
+      draft.uploadStatus === "FAILED_RECOVERABLE";
+
+    if (isResume) {
+      void handleSubmitDraft(draft);
+      return;
+    }
+
     const mediaCount = draft.mediaUris.length;
     const typeLabel =
       draft.collectionType === "IMAGE"
@@ -196,10 +202,7 @@ export default function SubmissionsScreen() {
       `Upload ${typeLabel} for "${draft.taskTitle}" and send it for admin review. You'll earn ₹${draft.paymentAmount} upon approval.`,
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Submit",
-          onPress: () => void handleSubmitDraft(draft),
-        },
+        { text: "Submit", onPress: () => void handleSubmitDraft(draft) },
       ]
     );
   }
@@ -257,108 +260,34 @@ export default function SubmissionsScreen() {
       {/* Drafts tab */}
       {activeTab === "drafts" && (
         <FlatList
-          data={drafts}
+          data={drafts.filter(
+            (d) => d.uploadStatus !== "COMPLETED" && d.uploadStatus !== "CANCELLED"
+          )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const date = new Date(item.createdAt).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-            });
-            const isSubmitting = submittingId === item.id;
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.75}
-                onPress={() =>
-                  !isSubmitting &&
-                  router.push(
-                    `/capture/review?taskId=${item.taskId}&draftId=${item.id}`
-                  )
-                }
-                onLongPress={() => !isSubmitting && confirmDeleteDraft(item)}
-                disabled={isSubmitting}
-              >
-                <View style={styles.cardTop}>
-                  <Text style={styles.taskTitle} numberOfLines={1}>
-                    {COLLECTION_TYPE_ICON[item.collectionType] ?? "📁"}{" "}
-                    {item.taskTitle}
-                  </Text>
-                  <View style={styles.readyBadge}>
-                    <Text style={styles.readyBadgeText}>Ready to Upload</Text>
-                  </View>
-                </View>
-
-                {/* Upload progress */}
-                {isSubmitting && submitProgress && (
-                  <View style={styles.uploadProgress}>
-                    <ActivityIndicator color="#8b5cf6" size="small" />
-                    <View style={styles.uploadProgressText}>
-                      <Text style={styles.uploadProgressLabel}>
-                        {submitProgress.phase === "preparing"
-                          ? "Preparing…"
-                          : submitProgress.phase === "uploading"
-                            ? `Uploading ${submitProgress.current} of ${submitProgress.total}…`
-                            : "Finalising…"}
-                      </Text>
-                      <View style={styles.progressBar}>
-                        <View
-                          style={[
-                            styles.progressFill,
-                            {
-                              width: `${Math.round(
-                                (submitProgress.current /
-                                  Math.max(submitProgress.total, 1)) *
-                                  100
-                              )}%`,
-                            },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                <View style={styles.cardBottom}>
-                  <View style={styles.dateRow}>
-                    <Feather
-                      name="calendar"
-                      size={12}
-                      color={colors.mutedForeground}
-                    />
-                    <Text style={styles.dateText}>{date}</Text>
-                  </View>
-                  <View style={styles.typeRow}>
-                    <Text style={styles.typeText}>{item.collectionType}</Text>
-                  </View>
-                  <View style={styles.payoutRow}>
-                    <Feather name="trending-up" size={12} color={colors.primary} />
-                    <Text style={styles.payoutText}>₹{item.paymentAmount}</Text>
-                  </View>
-                  {!isSubmitting && (
-                    <View style={styles.cardActions}>
-                      <TouchableOpacity
-                        style={styles.submitCardBtn}
-                        onPress={() => confirmSubmitDraft(item)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Feather name="send" size={14} color="#fff" />
-                        <Text style={styles.submitCardBtnText}>Submit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.deleteBtn}
-                        onPress={() => confirmDeleteDraft(item)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Feather name="trash-2" size={14} color="#6b7280" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={({ item }) => (
+            <DraftCard
+              item={item}
+              isSubmitting={submittingId === item.id}
+              submitProgress={submitProgress}
+              styles={styles}
+              colors={colors}
+              onSubmit={() => confirmSubmitDraft(item)}
+              onDelete={() => confirmDeleteDraft(item)}
+              onCancel={() => void cancelDraftUpload(item.id)}
+              onPress={() =>
+                item.uploadStatus === "LOCAL_READY" &&
+                submittingId !== item.id &&
+                router.push(
+                  `/capture/review?taskId=${item.taskId}&draftId=${item.id}`
+                )
+              }
+              onLongPress={() =>
+                submittingId !== item.id && confirmDeleteDraft(item)
+              }
+            />
+          )}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="inbox" size={40} color={colors.mutedForeground} />
@@ -539,6 +468,252 @@ export default function SubmissionsScreen() {
         />
       )}
     </View>
+  );
+}
+
+function getDraftStatusBadge(status: UploadStatus): {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+} {
+  switch (status) {
+    case "QUEUED":
+    case "UPLOADING":
+    case "COMPLETING":
+    case "VERIFYING":
+      return { label: "Uploading", color: "#a78bfa", bg: "#0e0826", border: "#4c1d95" };
+    case "PAUSED_NO_NETWORK":
+      return { label: "No Network", color: "#f59e0b", bg: "#422006", border: "#78350f" };
+    case "RETRY_WAIT":
+      return { label: "Retrying", color: "#a78bfa", bg: "#0e0826", border: "#4c1d95" };
+    case "PAUSED_APP_RESTART":
+      return { label: "Paused", color: "#f59e0b", bg: "#422006", border: "#78350f" };
+    case "FAILED_RECOVERABLE":
+      return { label: "Needs Attention", color: "#ef4444", bg: "#1c0a0a", border: "#3b0a0a" };
+    case "FAILED_FINAL":
+      return { label: "Upload Failed", color: "#ef4444", bg: "#1c0a0a", border: "#3b0a0a" };
+    default:
+      return { label: "Ready to Upload", color: "#06b6d4", bg: "#0c2033", border: "#164e63" };
+  }
+}
+
+function DraftCard({
+  item,
+  isSubmitting,
+  submitProgress,
+  styles,
+  colors,
+  onSubmit,
+  onDelete,
+  onCancel,
+  onPress,
+  onLongPress,
+}: {
+  item: LocalDraft;
+  isSubmitting: boolean;
+  submitProgress: SubmitProgress | null;
+  styles: ReturnType<typeof makeStyles>;
+  colors: ReturnType<typeof useColors>;
+  onSubmit: () => void;
+  onDelete: () => void;
+  onCancel: () => void;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  const date = new Date(item.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+  });
+  const uploadStatus = item.uploadStatus ?? "LOCAL_READY";
+  const isActive =
+    isSubmitting ||
+    isInProgress(uploadStatus) ||
+    uploadStatus === "COMPLETING" ||
+    uploadStatus === "VERIFYING";
+  const badge = getDraftStatusBadge(uploadStatus);
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.card,
+        (uploadStatus === "FAILED_RECOVERABLE" || uploadStatus === "FAILED_FINAL") &&
+          styles.cardError,
+      ]}
+      activeOpacity={0.75}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      disabled={isActive && uploadStatus !== "PAUSED_APP_RESTART"}
+    >
+      <View style={styles.cardTop}>
+        <Text style={styles.taskTitle} numberOfLines={1}>
+          {COLLECTION_TYPE_ICON[item.collectionType] ?? "📁"} {item.taskTitle}
+        </Text>
+        <View
+          style={[
+            styles.readyBadge,
+            { backgroundColor: badge.bg, borderColor: badge.border },
+          ]}
+        >
+          <Text style={[styles.readyBadgeText, { color: badge.color }]}>
+            {badge.label}
+          </Text>
+        </View>
+      </View>
+
+      {/* Active upload progress (current session) */}
+      {isSubmitting && submitProgress && (
+        <View style={styles.uploadProgress}>
+          <ActivityIndicator color="#8b5cf6" size="small" />
+          <View style={styles.uploadProgressText}>
+            <Text style={styles.uploadProgressLabel}>
+              {submitProgress.phase === "preparing"
+                ? "Preparing…"
+                : submitProgress.phase === "uploading"
+                  ? `Uploading part ${submitProgress.current} of ${submitProgress.total}…`
+                  : "Finalising…"}
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.round(
+                      (submitProgress.current /
+                        Math.max(submitProgress.total, 1)) *
+                        100
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Background active state (another session uploading) */}
+      {!isSubmitting && isActive && (
+        <View style={styles.uploadProgress}>
+          <ActivityIndicator color="#8b5cf6" size="small" />
+          <Text style={styles.uploadProgressLabel}>Upload in progress…</Text>
+        </View>
+      )}
+
+      {/* Error info */}
+      {(uploadStatus === "FAILED_RECOVERABLE" ||
+        uploadStatus === "FAILED_FINAL") && (
+        <View style={styles.errorRow}>
+          <Feather name="alert-circle" size={12} color="#ef4444" />
+          <Text style={styles.errorText}>
+            {uploadStatus === "FAILED_FINAL"
+              ? "Upload permanently failed. Please re-record."
+              : "Upload interrupted — tap Retry to resume where it left off."}
+          </Text>
+        </View>
+      )}
+
+      <View style={[styles.cardBottom, { flexWrap: "wrap" }]}>
+        <View style={styles.dateRow}>
+          <Feather name="calendar" size={12} color={colors.mutedForeground} />
+          <Text style={styles.dateText}>{date}</Text>
+        </View>
+        <View style={styles.typeRow}>
+          <Text style={styles.typeText}>{item.collectionType}</Text>
+        </View>
+        <View style={styles.payoutRow}>
+          <Feather name="trending-up" size={12} color={colors.primary} />
+          <Text style={styles.payoutText}>₹{item.paymentAmount}</Text>
+        </View>
+
+        <View style={styles.cardActions}>
+          {/* LOCAL_READY: Submit + Delete */}
+          {uploadStatus === "LOCAL_READY" && !isSubmitting && (
+            <>
+              <TouchableOpacity
+                style={styles.submitCardBtn}
+                onPress={onSubmit}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="send" size={14} color="#fff" />
+                <Text style={styles.submitCardBtnText}>Submit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={onDelete}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="trash-2" size={14} color="#6b7280" />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Active in this session: Cancel */}
+          {isSubmitting && (
+            <TouchableOpacity
+              style={styles.cancelUploadBtn}
+              onPress={onCancel}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="x" size={14} color="#a78bfa" />
+              <Text style={styles.cancelUploadBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Paused from app restart: Resume + Delete */}
+          {uploadStatus === "PAUSED_APP_RESTART" && !isSubmitting && (
+            <>
+              <TouchableOpacity
+                style={styles.resumeBtn}
+                onPress={onSubmit}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="refresh-cw" size={14} color="#f59e0b" />
+                <Text style={styles.resumeBtnText}>Resume</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={onDelete}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="trash-2" size={14} color="#6b7280" />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Failed recoverable: Retry + Delete */}
+          {uploadStatus === "FAILED_RECOVERABLE" && !isSubmitting && (
+            <>
+              <TouchableOpacity
+                style={styles.submitCardBtn}
+                onPress={onSubmit}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="refresh-cw" size={14} color="#fff" />
+                <Text style={styles.submitCardBtnText}>Retry</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={onDelete}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="trash-2" size={14} color="#6b7280" />
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Failed final: Delete only */}
+          {uploadStatus === "FAILED_FINAL" && !isSubmitting && (
+            <TouchableOpacity
+              style={[styles.deleteBtn, { marginLeft: "auto" as const }]}
+              onPress={onDelete}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="trash-2" size={16} color="#ef4444" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -760,17 +935,14 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     },
 
     readyBadge: {
-      backgroundColor: "#0c2033",
       borderRadius: 6,
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderWidth: 1,
-      borderColor: "#164e63",
     },
     readyBadgeText: {
       fontSize: 10,
       fontFamily: "Inter_600SemiBold",
-      color: "#06b6d4",
     },
 
     uploadProgress: {
@@ -839,10 +1011,56 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
       color: "#f87171",
       fontFamily: "Inter_500Medium",
     },
+    cardError: {
+      borderColor: "#3b0a0a",
+    },
+    errorRow: {
+      flexDirection: "row" as const,
+      alignItems: "flex-start" as const,
+      gap: 6,
+    },
+    errorText: {
+      flex: 1,
+      fontSize: 12,
+      color: "#f87171",
+      fontFamily: "Inter_400Regular",
+      lineHeight: 17,
+    },
+    cancelUploadBtn: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 4,
+      backgroundColor: "#1e1b4b",
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    cancelUploadBtnText: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: "#a78bfa",
+    },
+    resumeBtn: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 4,
+      backgroundColor: "#422006",
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: "#78350f",
+    },
+    resumeBtnText: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: "#f59e0b",
+    },
     cardActions: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: 8,
+      marginLeft: "auto" as const,
     },
     submitCardBtn: {
       flexDirection: "row",

@@ -7,16 +7,18 @@ import React, {
 } from "react";
 
 import {
-  deleteDraft as deleteDraftStorage,
   listDrafts,
   saveDraft as saveDraftStorage,
+  recoverInterruptedDrafts,
   type LocalDraft,
 } from "@/lib/drafts";
+import { cancelUpload, abortAndDeleteDraft } from "@/lib/uploadClient";
 
 interface DraftContextValue {
   drafts: LocalDraft[];
   saveDraft: (draft: LocalDraft) => Promise<void>;
-  deleteDraft: (id: string) => Promise<void>;
+  deleteDraft: (id: string, draft?: LocalDraft) => Promise<void>;
+  cancelDraftUpload: (draftId: string) => Promise<void>;
   refreshDrafts: () => Promise<void>;
 }
 
@@ -31,7 +33,9 @@ export function DraftProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshDrafts();
+    recoverInterruptedDrafts()
+      .then(() => refreshDrafts())
+      .catch(() => refreshDrafts());
   }, [refreshDrafts]);
 
   const saveDraft = useCallback(
@@ -43,15 +47,32 @@ export function DraftProvider({ children }: { children: React.ReactNode }) {
   );
 
   const deleteDraft = useCallback(
-    async (id: string) => {
-      await deleteDraftStorage(id);
+    async (id: string, draft?: LocalDraft) => {
+      if (draft) {
+        await abortAndDeleteDraft(draft);
+      } else {
+        const found = drafts.find((d) => d.id === id);
+        if (found) {
+          await abortAndDeleteDraft(found);
+        }
+      }
+      await refreshDrafts();
+    },
+    [drafts, refreshDrafts]
+  );
+
+  const cancelDraftUpload = useCallback(
+    async (draftId: string) => {
+      await cancelUpload(draftId);
       await refreshDrafts();
     },
     [refreshDrafts]
   );
 
   return (
-    <DraftContext.Provider value={{ drafts, saveDraft, deleteDraft, refreshDrafts }}>
+    <DraftContext.Provider
+      value={{ drafts, saveDraft, deleteDraft, cancelDraftUpload, refreshDrafts }}
+    >
       {children}
     </DraftContext.Provider>
   );
