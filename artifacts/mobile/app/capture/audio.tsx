@@ -208,10 +208,25 @@ export default function AudioCaptureScreen() {
   // so the recording survives a process kill.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
+      // The RN change-event type excludes "active" in some versions; cast to
+      // string so the comparison doesn't trigger TS2367 while still detecting
+      // foreground-return transitions at runtime.
+      const state = nextState as string;
+
+      // When returning to foreground, clear any stale error message so the UI
+      // is clean regardless of what state the recording was in before background.
+      if (state === "active") {
+        const st = recordingStateRef.current;
+        if (st === "idle" || st === "error") {
+          setError(null);
+        }
+        return;
+      }
+
+      // state is non-active (background / inactive) from here on
       if (
-        nextState !== "active" &&
-        (recordingStateRef.current === "recording" ||
-          recordingStateRef.current === "paused")
+        recordingStateRef.current === "recording" ||
+        recordingStateRef.current === "paused"
       ) {
         // Short-circuit if another stop is already in flight
         if (busyRef.current) return;

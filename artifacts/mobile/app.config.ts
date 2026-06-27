@@ -63,6 +63,9 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
   plugins: [
     "./plugins/withGradleNetworkTimeout",
     "./plugins/withTarziImu",
+    // Dev builds only: patch expo-splash-screen's super.onCreate(null) call so
+    // expo-dev-client's DevLauncherController can intercept onCreate correctly.
+    ...(IS_DEV ? ["./plugins/withDevClientMainActivity"] : []),
     [
       "expo-splash-screen",
       {

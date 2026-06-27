@@ -24,6 +24,7 @@ import {
   saveDraft,
   copyMediaToDrafts,
   generateDraftId,
+  DRAFTS_DIR,
   type LocalDraft,
 } from "@/lib/drafts";
 
@@ -80,8 +81,11 @@ export default function ImageCaptureScreen() {
 
         void (async () => {
           try {
+            // URIs persisted immediately after capture are already in DRAFTS_DIR;
+            // only copy temp URIs (copy failure fallback from handleCapture).
             const persistedUris = await Promise.all(
               current.map(async (uri, i) => {
+                if (uri.startsWith(DRAFTS_DIR)) return uri;
                 const ext = uri.split(".").pop() ?? "jpg";
                 return copyMediaToDrafts(uri, `img_${Date.now()}_${i}.${ext}`);
               })
@@ -119,7 +123,19 @@ export default function ImageCaptureScreen() {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
       if (photo?.uri) {
-        setPhotos((prev) => [...prev, photo.uri]);
+        // Immediately persist each photo to the drafts directory so it survives
+        // a process kill before the session is completed. The original temp file
+        // is removed after a successful copy to avoid double disk usage.
+        let uri = photo.uri;
+        try {
+          const ext = photo.uri.split(".").pop() ?? "jpg";
+          const filename = `img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+          uri = await copyMediaToDrafts(photo.uri, filename);
+          void FileSystem.deleteAsync(photo.uri, { idempotent: true }).catch(() => {});
+        } catch {
+          // Copy failed — keep temp URI; AppState handler will copy on background
+        }
+        setPhotos((prev) => [...prev, uri]);
       }
     } catch {
       Alert.alert("Capture failed", "Please try again.");
