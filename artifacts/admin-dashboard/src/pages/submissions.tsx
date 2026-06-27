@@ -41,6 +41,7 @@ import {
   Info, CheckCircle, XCircle, RefreshCw, Loader2,
 } from "lucide-react";
 import { ImuQualityBadge } from "@/components/imu-quality-badge";
+import { getImuBadgeConfig } from "@/lib/imu-quality-badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -423,6 +424,24 @@ export default function Submissions() {
                       {COLLECTION_ICON[sub.collectionType as CollectionTypeValue]}
                       <span className="text-xs">{sub.collectionType}</span>
                     </div>
+                    {sub.collectionType === "VIDEO" && (() => {
+                      const imuStatus = (sub.captureMetadata as Record<string, string> | undefined)?.imuValidationStatus;
+                      const cfg = getImuBadgeConfig(imuStatus);
+                      if (!cfg) return null;
+                      const dotClass: Record<string, string> = {
+                        valid:   "bg-emerald-500",
+                        legacy:  "bg-emerald-400",
+                        warning: "bg-amber-400",
+                        error:   "bg-red-500",
+                        neutral: "bg-slate-400",
+                      };
+                      return (
+                        <div className="flex items-center gap-1 mt-0.5" title={cfg.title}>
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${dotClass[cfg.tier]}`} />
+                          <span className="text-xs text-muted-foreground truncate">IMU: {cfg.label}</span>
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="text-sm" title={new Date(sub.submittedAt ?? sub.createdAt).toLocaleString()}>
