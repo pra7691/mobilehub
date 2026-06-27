@@ -12,6 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
+    "@aws-sdk/s3-request-presigner": "^3.1075.0",
     "@google-cloud/storage": "^7.21.0",
     "@nestjs/common": "^11.1.1",
     "@nestjs/core": "^11.1.1",

@@ -23,9 +23,10 @@ import {
   useAdminGetCaptureSettings,
   useAdminUpdateCaptureSettings,
 } from "@workspace/api-client-react";
-import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch, Image as ImageIcon, Video } from "lucide-react";
+import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch, Image as ImageIcon, Video, HardDrive } from "lucide-react";
 import { ReferralSettingsTab } from "./referral-settings";
 import { BannerSettingsTab } from "./banner-settings";
+import { StorageSettingsTab } from "./storage-settings";
 
 // ─── General Tab ─────────────────────────────────────────────────────────────
 
@@ -638,6 +639,10 @@ export default function SettingsPage() {
             <Video className="h-3.5 w-3.5" />
             Capture
           </TabsTrigger>
+          <TabsTrigger value="storage" className="gap-2">
+            <HardDrive className="h-3.5 w-3.5" />
+            Storage
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -659,6 +664,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="capture">
           <CaptureSettingsTab />
+        </TabsContent>
+        <TabsContent value="storage">
+          <StorageSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

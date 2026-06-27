@@ -134,6 +134,10 @@ function formatSubmission(s: {
     mediaType: MediaType;
     storageKey: string;
     mediaUrl: string;
+    storageProfileId: string | null;
+    storageProvider: string | null;
+    bucket: string | null;
+    originalFileName: string | null;
     thumbnailUrl: string | null;
     fileSize: bigint | null;
     durationSeconds: number | null;
@@ -174,6 +178,10 @@ const SUBMISSION_INCLUDE = {
       mediaType: true,
       storageKey: true,
       mediaUrl: true,
+      storageProfileId: true,
+      storageProvider: true,
+      bucket: true,
+      originalFileName: true,
       thumbnailUrl: true,
       fileSize: true,
       durationSeconds: true,
@@ -400,7 +408,14 @@ export class SubmissionsService {
       const mimeType = file.contentType ?? getMimeType(file.filename);
       const ext = file.filename.split('.').pop() ?? 'bin';
 
-      const { uploadURL, objectPath, objectKey } = await this.storage.getUploadUrl({
+      const {
+        uploadUrl: uploadURL,
+        mediaUrl: objectPath,
+        storageKey: objectKey,
+        storageProfileId,
+        storageProvider,
+        bucket,
+      } = await this.storage.getUploadUrl({
         submissionId: submission.id,
         index: i,
         ext,
@@ -413,6 +428,10 @@ export class SubmissionsService {
           mediaType: expectedMediaType,
           storageKey: objectKey,
           mediaUrl: objectPath,
+          storageProfileId: storageProfileId ?? null,
+          storageProvider: storageProvider ?? null,
+          bucket: bucket ?? null,
+          originalFileName: file.filename,
           mimeType,
           sortOrder: i,
           fileSize: file.fileSize ? BigInt(file.fileSize) : null,
@@ -684,7 +703,7 @@ export class SubmissionsService {
       formatted.media.map(async (m) => {
         if (m.uploadStatus !== 'UPLOADED') return m;
         try {
-          const readUrl = await this.storage.getReadUrl(m.storageKey);
+          const readUrl = await this.storage.getReadUrl(m.storageKey, m.storageProfileId);
           return { ...m, readUrl };
         } catch {
           return m;

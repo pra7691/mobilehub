@@ -60,6 +60,7 @@ import type {
   CreateNoticeRequest,
   CreatePayoutRequestBody,
   CreateStaticPageRequest,
+  CreateStorageProfileBody,
   CreateSubcategoryRequest,
   CreateTaskRequest,
   DashboardStats,
@@ -122,6 +123,8 @@ import type {
   RequestOtpRequest,
   StaticPage,
   StaticPageListResponse,
+  StorageProfile,
+  StorageProfileTestResult,
   Subcategory,
   SubcategoryListResponse,
   Submission,
@@ -148,6 +151,7 @@ import type {
   UpdateReferralSettingsBody,
   UpdateSettingsSupportRequest,
   UpdateStaticPageRequest,
+  UpdateStorageProfileBody,
   UpdateSubcategoryRequest,
   UpdateSupportSettingsRequest,
   UpdateTaskRequest,
@@ -9752,4 +9756,581 @@ export function useGetAppSettingsBanner<TData = Awaited<ReturnType<typeof getApp
 
 
 
+
+export const getListStorageProfilesUrl = () => {
+
+
+
+
+  return `/api/admin/storage-profiles`
+}
+
+/**
+ * @summary List all storage profiles
+ */
+export const listStorageProfiles = async ( options?: RequestInit): Promise<StorageProfile[]> => {
+
+  return customFetch<StorageProfile[]>(getListStorageProfilesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStorageProfilesQueryKey = () => {
+    return [
+    `/api/admin/storage-profiles`
+    ] as const;
+    }
+
+
+export const getListStorageProfilesQueryOptions = <TData = Awaited<ReturnType<typeof listStorageProfiles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStorageProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStorageProfilesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStorageProfiles>>> = ({ signal }) => listStorageProfiles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStorageProfiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStorageProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof listStorageProfiles>>>
+export type ListStorageProfilesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all storage profiles
+ */
+
+export function useListStorageProfiles<TData = Awaited<ReturnType<typeof listStorageProfiles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStorageProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStorageProfilesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateStorageProfileUrl = () => {
+
+
+
+
+  return `/api/admin/storage-profiles`
+}
+
+/**
+ * @summary Create a storage profile
+ */
+export const createStorageProfile = async (createStorageProfileBody: CreateStorageProfileBody, options?: RequestInit): Promise<StorageProfile> => {
+
+  return customFetch<StorageProfile>(getCreateStorageProfileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createStorageProfileBody,)
+  }
+);}
+
+
+
+
+export const getCreateStorageProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStorageProfile>>, TError,{data: BodyType<CreateStorageProfileBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStorageProfile>>, TError,{data: BodyType<CreateStorageProfileBody>}, TContext> => {
+
+const mutationKey = ['createStorageProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStorageProfile>>, {data: BodyType<CreateStorageProfileBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStorageProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStorageProfileMutationResult = NonNullable<Awaited<ReturnType<typeof createStorageProfile>>>
+    export type CreateStorageProfileMutationBody = BodyType<CreateStorageProfileBody>
+    export type CreateStorageProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a storage profile
+ */
+export const useCreateStorageProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStorageProfile>>, TError,{data: BodyType<CreateStorageProfileBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStorageProfile>>,
+        TError,
+        {data: BodyType<CreateStorageProfileBody>},
+        TContext
+      > => {
+      return useMutation(getCreateStorageProfileMutationOptions(options));
+    }
+
+export const getGetStorageProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/storage-profiles/${id}`
+}
+
+/**
+ * @summary Get a storage profile by id
+ */
+export const getStorageProfile = async (id: string, options?: RequestInit): Promise<StorageProfile> => {
+
+  return customFetch<StorageProfile>(getGetStorageProfileUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStorageProfileQueryKey = (id: string,) => {
+    return [
+    `/api/admin/storage-profiles/${id}`
+    ] as const;
+    }
+
+
+export const getGetStorageProfileQueryOptions = <TData = Awaited<ReturnType<typeof getStorageProfile>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStorageProfileQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStorageProfile>>> = ({ signal }) => getStorageProfile(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStorageProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStorageProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getStorageProfile>>>
+export type GetStorageProfileQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a storage profile by id
+ */
+
+export function useGetStorageProfile<TData = Awaited<ReturnType<typeof getStorageProfile>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStorageProfileQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateStorageProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/storage-profiles/${id}`
+}
+
+/**
+ * @summary Update a storage profile
+ */
+export const updateStorageProfile = async (id: string,
+    updateStorageProfileBody: UpdateStorageProfileBody, options?: RequestInit): Promise<StorageProfile> => {
+
+  return customFetch<StorageProfile>(getUpdateStorageProfileUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateStorageProfileBody,)
+  }
+);}
+
+
+
+
+export const getUpdateStorageProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStorageProfile>>, TError,{id: string;data: BodyType<UpdateStorageProfileBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStorageProfile>>, TError,{id: string;data: BodyType<UpdateStorageProfileBody>}, TContext> => {
+
+const mutationKey = ['updateStorageProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStorageProfile>>, {id: string;data: BodyType<UpdateStorageProfileBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateStorageProfile(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStorageProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateStorageProfile>>>
+    export type UpdateStorageProfileMutationBody = BodyType<UpdateStorageProfileBody>
+    export type UpdateStorageProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a storage profile
+ */
+export const useUpdateStorageProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStorageProfile>>, TError,{id: string;data: BodyType<UpdateStorageProfileBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStorageProfile>>,
+        TError,
+        {id: string;data: BodyType<UpdateStorageProfileBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateStorageProfileMutationOptions(options));
+    }
+
+export const getDeleteStorageProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/storage-profiles/${id}`
+}
+
+/**
+ * @summary Delete a storage profile
+ */
+export const deleteStorageProfile = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteStorageProfileUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteStorageProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStorageProfile>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteStorageProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStorageProfile>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteStorageProfile(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStorageProfileMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStorageProfile>>>
+
+    export type DeleteStorageProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a storage profile
+ */
+export const useDeleteStorageProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStorageProfile>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteStorageProfileMutationOptions(options));
+    }
+
+export const getTestStorageProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/storage-profiles/${id}/test`
+}
+
+/**
+ * @summary Test connectivity for a storage profile
+ */
+export const testStorageProfile = async (id: string, options?: RequestInit): Promise<StorageProfileTestResult> => {
+
+  return customFetch<StorageProfileTestResult>(getTestStorageProfileUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getTestStorageProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testStorageProfile>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['testStorageProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testStorageProfile>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  testStorageProfile(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestStorageProfileMutationResult = NonNullable<Awaited<ReturnType<typeof testStorageProfile>>>
+
+    export type TestStorageProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Test connectivity for a storage profile
+ */
+export const useTestStorageProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testStorageProfile>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getTestStorageProfileMutationOptions(options));
+    }
+
+export const getActivateStorageProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/storage-profiles/${id}/activate`
+}
+
+/**
+ * @summary Activate a storage profile (deactivates current)
+ */
+export const activateStorageProfile = async (id: string, options?: RequestInit): Promise<StorageProfile> => {
+
+  return customFetch<StorageProfile>(getActivateStorageProfileUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getActivateStorageProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof activateStorageProfile>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['activateStorageProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof activateStorageProfile>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  activateStorageProfile(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ActivateStorageProfileMutationResult = NonNullable<Awaited<ReturnType<typeof activateStorageProfile>>>
+
+    export type ActivateStorageProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Activate a storage profile (deactivates current)
+ */
+export const useActivateStorageProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof activateStorageProfile>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getActivateStorageProfileMutationOptions(options));
+    }
+
+export const getDeactivateStorageProfileUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/storage-profiles/${id}/deactivate`
+}
+
+/**
+ * @summary Deactivate a storage profile
+ */
+export const deactivateStorageProfile = async (id: string, options?: RequestInit): Promise<StorageProfile> => {
+
+  return customFetch<StorageProfile>(getDeactivateStorageProfileUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getDeactivateStorageProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deactivateStorageProfile>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deactivateStorageProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deactivateStorageProfile>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deactivateStorageProfile(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeactivateStorageProfileMutationResult = NonNullable<Awaited<ReturnType<typeof deactivateStorageProfile>>>
+
+    export type DeactivateStorageProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Deactivate a storage profile
+ */
+export const useDeactivateStorageProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deactivateStorageProfile>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deactivateStorageProfile>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeactivateStorageProfileMutationOptions(options));
+    }
 

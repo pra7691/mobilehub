@@ -1620,6 +1620,68 @@ export interface UpdateBannerSettingsBody {
   autoSlideSeconds?: UpdateBannerSettingsBodyAutoSlideSeconds;
 }
 
+export type StorageProfileProviderType = typeof StorageProfileProviderType[keyof typeof StorageProfileProviderType];
+
+
+export const StorageProfileProviderType = {
+  REPLIT: 'REPLIT',
+  AWS_S3: 'AWS_S3',
+  CLOUDFLARE_R2: 'CLOUDFLARE_R2',
+  DO_SPACES: 'DO_SPACES',
+} as const;
+
+export interface StorageProfile {
+  id: string;
+  name: string;
+  providerType: StorageProfileProviderType;
+  keyPrefix?: string | null;
+  isActive: boolean;
+  lastTestResult?: string | null;
+  lastTestedAt?: string | null;
+  mediaCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateStorageProfileBodyProviderType = typeof CreateStorageProfileBodyProviderType[keyof typeof CreateStorageProfileBodyProviderType];
+
+
+export const CreateStorageProfileBodyProviderType = {
+  REPLIT: 'REPLIT',
+  AWS_S3: 'AWS_S3',
+  CLOUDFLARE_R2: 'CLOUDFLARE_R2',
+  DO_SPACES: 'DO_SPACES',
+} as const;
+
+export interface CreateStorageProfileBody {
+  name: string;
+  providerType: CreateStorageProfileBodyProviderType;
+  keyPrefix?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region?: string;
+  bucket?: string;
+  endpoint?: string;
+  accountId?: string;
+}
+
+export interface UpdateStorageProfileBody {
+  name?: string;
+  keyPrefix?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  region?: string;
+  bucket?: string;
+  endpoint?: string;
+  accountId?: string;
+}
+
+export interface StorageProfileTestResult {
+  ok: boolean;
+  message: string;
+  durationMs: number;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;

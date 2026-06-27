@@ -35,6 +35,7 @@ tags:
   - name: referrals
   - name: admin-referrals
   - name: referral-settings
+  - name: admin-storage-profiles
 
 paths:
   /healthz:
@@ -2816,6 +2817,166 @@ paths:
                 $ref: "#/components/schemas/BannerSettings"
 
 
+  /admin/storage-profiles:
+    get:
+      operationId: listStorageProfiles
+      summary: List all storage profiles
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of storage profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StorageProfile"
+    post:
+      operationId: createStorageProfile
+      summary: Create a storage profile
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStorageProfileBody"
+      responses:
+        "201":
+          description: Created profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageProfile"
+
+  /admin/storage-profiles/{id}:
+    get:
+      operationId: getStorageProfile
+      summary: Get a storage profile by id
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Storage profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageProfile"
+    patch:
+      operationId: updateStorageProfile
+      summary: Update a storage profile
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStorageProfileBody"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageProfile"
+    delete:
+      operationId: deleteStorageProfile
+      summary: Delete a storage profile
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /admin/storage-profiles/{id}/test:
+    post:
+      operationId: testStorageProfile
+      summary: Test connectivity for a storage profile
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageProfileTestResult"
+
+  /admin/storage-profiles/{id}/activate:
+    post:
+      operationId: activateStorageProfile
+      summary: Activate a storage profile (deactivates current)
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Activated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageProfile"
+
+  /admin/storage-profiles/{id}/deactivate:
+    post:
+      operationId: deactivateStorageProfile
+      summary: Deactivate a storage profile
+      tags: [admin-storage-profiles]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deactivated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageProfile"
+
 components:
   securitySchemes:
     BearerAuth:
@@ -5430,3 +5591,86 @@ components:
         autoSlideSeconds:
           type: integer
           enum: [5, 7]
+    StorageProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        providerType:
+          type: string
+          enum: [REPLIT, AWS_S3, CLOUDFLARE_R2, DO_SPACES]
+        keyPrefix:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        lastTestResult:
+          type: string
+          nullable: true
+        lastTestedAt:
+          type: string
+          format: date-time
+          nullable: true
+        mediaCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, providerType, isActive, mediaCount, createdAt, updatedAt]
+    CreateStorageProfileBody:
+      type: object
+      properties:
+        name:
+          type: string
+        providerType:
+          type: string
+          enum: [REPLIT, AWS_S3, CLOUDFLARE_R2, DO_SPACES]
+        keyPrefix:
+          type: string
+        accessKeyId:
+          type: string
+        secretAccessKey:
+          type: string
+        region:
+          type: string
+        bucket:
+          type: string
+        endpoint:
+          type: string
+        accountId:
+          type: string
+      required: [name, providerType]
+    UpdateStorageProfileBody:
+      type: object
+      properties:
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        accessKeyId:
+          type: string
+        secretAccessKey:
+          type: string
+        region:
+          type: string
+        bucket:
+          type: string
+        endpoint:
+          type: string
+        accountId:
+          type: string
+    StorageProfileTestResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        message:
+          type: string
+        durationMs:
+          type: integer
+      required: [ok, message, durationMs]

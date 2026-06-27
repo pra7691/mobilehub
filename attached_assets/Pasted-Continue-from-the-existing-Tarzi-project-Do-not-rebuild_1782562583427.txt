@@ -1,0 +1,238 @@
+Continue from the existing Tarzi project. Do not rebuild capture, submissions, uploads, admin review, or mobile screens.
+
+Refactor the media upload/storage system into a separate configurable Storage Module.
+
+Goal:
+
+* Today storage may be on Replit/current setup.
+* Later I should be able to switch to Cloudflare R2, AWS S3, or DigitalOcean Spaces without changing mobile upload logic.
+* Existing uploaded files must continue working after provider changes.
+* Do not automatically move old files when provider changes.
+
+1. Storage abstraction
+
+Create a backend storage interface/service such as:
+
+* StorageProvider
+* StorageService
+* StorageProfileService
+
+Required provider operations:
+
+* createUploadUrl
+* createMultipartUpload if needed for large videos
+* completeUpload
+* getDownloadUrl
+* deleteObject
+* testConnection
+
+Supported providers:
+
+* Current/local/Replit-compatible storage
+* AWS S3
+* Cloudflare R2
+* DigitalOcean Spaces
+
+All mobile upload logic must continue using the same backend APIs. Mobile app must not know which storage provider is active.
+
+2. Storage profiles
+
+Create storage profiles in Admin Settings → Storage.
+
+Each profile should contain:
+
+* Profile name
+* Provider type:
+
+  * LOCAL_OR_CURRENT
+  * AWS_S3
+  * CLOUDFLARE_R2
+  * DIGITALOCEAN_SPACES
+* Bucket name
+* Region, where required
+* Endpoint URL, where required
+* Public/CDN base URL optional
+* Key prefix, default: `tarzi`
+* Active/inactive status
+* Is default active provider
+* Created date
+* Last connection-test date
+* Last connection-test result
+
+Provider-specific examples:
+
+AWS S3:
+
+* Region
+* Bucket
+* Access key ID
+* Secret access key
+
+Cloudflare R2:
+
+* Account endpoint
+* Bucket
+* Access key ID
+* Secret access key
+* Optional public/custom domain
+
+DigitalOcean Spaces:
+
+* Region
+* Endpoint
+* Bucket
+* Access key ID
+* Secret access key
+* Optional CDN URL
+
+3. Secret security
+
+Do not expose storage credentials in mobile app, frontend source code, API responses, logs, error logs, or audit logs.
+
+For credentials:
+
+* Encrypt secrets at rest before storing in database.
+* Encryption key must come from backend environment variable only.
+* Admin can enter/update secret fields.
+* After saving, show only masked values.
+* Never return full access key or secret key after save.
+* Only super-admin/admin users may manage storage profiles.
+* Require confirmation before changing active provider.
+
+4. Active-provider behavior
+
+Only one storage profile can be active for new uploads.
+
+When active provider changes:
+
+* New uploads use the newly selected provider.
+* Existing files remain linked to their original provider.
+* Existing submissions must still open/download correctly.
+* Do not delete, rewrite, or migrate existing files automatically.
+* Do not break current submission media URLs.
+
+5. Media metadata
+
+Update SubmissionMedia or equivalent storage model to permanently store:
+
+* storageProfileId
+* storageProvider
+* bucket
+* storageKey
+* objectPath
+* originalFileName
+* mimeType
+* fileSize
+* mediaUrl if applicable
+* createdAt
+
+Never rely only on one global storage URL for all historical files.
+
+6. Upload flow
+
+Keep the existing direct-upload flow.
+
+Required flow:
+
+1. Mobile asks backend to initiate upload.
+2. Backend uses currently active storage profile.
+3. Backend returns signed upload URL or provider-compatible upload instructions.
+4. Mobile uploads directly to selected storage.
+5. Mobile confirms completion to backend.
+6. Backend stores storage profile/provider/key with media record.
+
+For large video files:
+
+* Keep or add multipart upload support where provider supports it.
+* Do not route full media files through NestJS server memory.
+
+7. Admin Settings UI
+
+Add a Storage section in Admin Settings.
+
+Admin should be able to:
+
+* View profiles
+* Create profile
+* Edit profile
+* Test connection
+* Activate profile
+* Deactivate profile
+* View masked credentials only
+* View which profile is currently active
+* View provider, bucket, endpoint, and key prefix
+
+Buttons:
+
+* Save Profile
+* Test Connection
+* Set as Active Storage
+* Disable Profile
+
+Rules:
+
+* Cannot activate profile unless connection test succeeds.
+* Cannot delete a storage profile used by existing media.
+* Can deactivate an old profile.
+* Show warning before provider switch:
+  “New uploads will use this storage profile. Existing files will remain in their current storage location.”
+
+8. Current storage migration
+
+First inspect how storage currently works.
+
+Then:
+
+* Create a storage profile representing the current Replit/current provider.
+* Mark it as active initially.
+* Preserve all current uploads and existing media records.
+* Do not move data yet.
+
+Add a future-ready admin action called:
+
+* “Migration tools coming soon”
+
+Do not implement bulk copy/migration in this task.
+
+9. API changes
+
+Add admin APIs:
+
+* GET /admin/storage-profiles
+* GET /admin/storage-profiles/:id
+* POST /admin/storage-profiles
+* PATCH /admin/storage-profiles/:id
+* POST /admin/storage-profiles/:id/test
+* POST /admin/storage-profiles/:id/activate
+* POST /admin/storage-profiles/:id/deactivate
+
+Do not expose secret fields in GET responses.
+
+Update existing upload APIs internally to use StorageService.
+
+10. Testing
+
+Test:
+
+1. Existing submission media still opens using current storage profile.
+2. Create a Cloudflare R2 profile with test credentials.
+3. Test connection successfully.
+4. Activate R2 profile.
+5. Upload a new image/video.
+6. Confirm new media is stored in R2.
+7. Confirm old media still opens from original storage.
+8. Switch back to previous profile.
+9. Confirm new uploads use previous storage again.
+10. Confirm mobile app code did not need changes for provider switch.
+11. Confirm credentials are masked and never returned through APIs.
+
+At the end provide:
+
+* Current storage implementation found
+* Files changed
+* Storage providers supported
+* Database migration summary
+* Admin setup flow for Cloudflare R2
+* Admin setup flow for AWS S3
+* Admin setup flow for DigitalOcean Spaces
+* Confirmation that existing files remain linked to their original storage provider

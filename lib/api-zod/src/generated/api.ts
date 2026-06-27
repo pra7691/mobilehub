@@ -3907,3 +3907,154 @@ export const GetAppSettingsBannerResponse = zod.object({
 })
 
 
+/**
+ * @summary List all storage profiles
+ */
+export const ListStorageProfilesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "keyPrefix": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastTestResult": zod.string().nullish(),
+  "lastTestedAt": zod.coerce.date().nullish(),
+  "mediaCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListStorageProfilesResponse = zod.array(ListStorageProfilesResponseItem)
+
+
+/**
+ * @summary Create a storage profile
+ */
+export const CreateStorageProfileBody = zod.object({
+  "name": zod.string(),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "keyPrefix": zod.string().optional(),
+  "accessKeyId": zod.string().optional(),
+  "secretAccessKey": zod.string().optional(),
+  "region": zod.string().optional(),
+  "bucket": zod.string().optional(),
+  "endpoint": zod.string().optional(),
+  "accountId": zod.string().optional()
+})
+
+
+/**
+ * @summary Get a storage profile by id
+ */
+export const GetStorageProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetStorageProfileResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "keyPrefix": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastTestResult": zod.string().nullish(),
+  "lastTestedAt": zod.coerce.date().nullish(),
+  "mediaCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a storage profile
+ */
+export const UpdateStorageProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateStorageProfileBody = zod.object({
+  "name": zod.string().optional(),
+  "keyPrefix": zod.string().optional(),
+  "accessKeyId": zod.string().optional(),
+  "secretAccessKey": zod.string().optional(),
+  "region": zod.string().optional(),
+  "bucket": zod.string().optional(),
+  "endpoint": zod.string().optional(),
+  "accountId": zod.string().optional()
+})
+
+export const UpdateStorageProfileResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "keyPrefix": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastTestResult": zod.string().nullish(),
+  "lastTestedAt": zod.coerce.date().nullish(),
+  "mediaCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a storage profile
+ */
+export const DeleteStorageProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+/**
+ * @summary Test connectivity for a storage profile
+ */
+export const TestStorageProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const TestStorageProfileResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string(),
+  "durationMs": zod.number()
+})
+
+
+/**
+ * @summary Activate a storage profile (deactivates current)
+ */
+export const ActivateStorageProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ActivateStorageProfileResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "keyPrefix": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastTestResult": zod.string().nullish(),
+  "lastTestedAt": zod.coerce.date().nullish(),
+  "mediaCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Deactivate a storage profile
+ */
+export const DeactivateStorageProfileParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeactivateStorageProfileResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "keyPrefix": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "lastTestResult": zod.string().nullish(),
+  "lastTestedAt": zod.coerce.date().nullish(),
+  "mediaCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+

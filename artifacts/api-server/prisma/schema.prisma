@@ -111,6 +111,13 @@ enum PayoutStatus {
   CANCELLED
 }
 
+enum StorageProviderType {
+  REPLIT
+  AWS_S3
+  CLOUDFLARE_R2
+  DIGITALOCEAN_SPACES
+}
+
 model AdminUser {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -374,9 +381,13 @@ model SubmissionMedia {
   id              String            @id @default(cuid())
   submissionId    String
   mediaType       MediaType
-  storageKey      String
-  mediaUrl        String
-  thumbnailUrl    String?
+  storageKey       String
+  mediaUrl         String
+  storageProfileId String?
+  storageProvider  String?
+  bucket           String?
+  originalFileName String?
+  thumbnailUrl     String?
   fileSize        BigInt?
   durationSeconds Int?
   width           Int?
@@ -387,7 +398,8 @@ model SubmissionMedia {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submission     Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  storageProfile StorageProfile? @relation(fields: [storageProfileId], references: [id])
 
   @@map("submission_media")
 }
@@ -713,4 +725,25 @@ model AccountDeletionRequest {
 
   @@index([status, createdAt])
   @@map("account_deletion_requests")
+}
+
+model StorageProfile {
+  id                   String              @id @default(cuid())
+  name                 String
+  providerType         StorageProviderType
+  bucket               String?
+  region               String?
+  endpoint             String?
+  publicBaseUrl        String?
+  keyPrefix            String              @default("tarzi")
+  isActive             Boolean             @default(false)
+  encryptedCredentials String?
+  lastTestedAt         DateTime?
+  lastTestResult       String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  media SubmissionMedia[]
+
+  @@map("storage_profiles")
 }

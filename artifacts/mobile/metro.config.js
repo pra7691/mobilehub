@@ -30,6 +30,13 @@ const config = getDefaultConfig(projectRoot);
 
 config.watchFolders = [workspaceRoot];
 
+// Exclude ephemeral temp build directories created by @smithy/* packages
+// (e.g. @smithy/core_tmp_NNNNN/dist-cjs) that get created and deleted
+// during build, causing Metro's FallbackWatcher to throw ENOENT.
+config.resolver.blockList = [
+  /node_modules\/\.pnpm\/.*_tmp_[0-9]+\/.*/,
+];
+
 // nodeModulesPaths ensures @workspace/* packages and workspace root deps
 // are found. We do NOT set disableHierarchicalLookup so that packages
 // inside pnpm's virtual store (.pnpm/) can resolve their own transitive
