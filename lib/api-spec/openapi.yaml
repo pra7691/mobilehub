@@ -2344,6 +2344,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/PayoutSettings"
 
+  /admin/settings/capture:
+    get:
+      operationId: adminGetCaptureSettings
+      summary: Admin get capture settings
+      tags: [admin-settings]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureSettings"
+    patch:
+      operationId: adminUpdateCaptureSettings
+      summary: Admin update capture settings
+      tags: [admin-settings]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCaptureSettingsBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureSettings"
+
 
   # ─── Referrals (mobile) ───────────────────────────────────────────────────
 
@@ -4358,6 +4392,13 @@ components:
               type: string
               nullable: true
           required: [payoutsEnabled, minWithdrawalAmount, maxWithdrawalAmount, payoutMessage]
+        capture:
+          type: object
+          properties:
+            imuEmbedTimeoutMs:
+              type: integer
+              description: Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent.
+          required: [imuEmbedTimeoutMs]
       required: [appName, legal, payout]
 
     AdminLegalSection:
@@ -5010,6 +5051,22 @@ components:
         maxPendingPayoutsPerUser:
           type: integer
           nullable: true
+
+    CaptureSettings:
+      type: object
+      properties:
+        imuEmbedTimeoutMs:
+          type: integer
+          description: Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent.
+      required: [imuEmbedTimeoutMs]
+
+    UpdateCaptureSettingsBody:
+      type: object
+      properties:
+        imuEmbedTimeoutMs:
+          type: integer
+          minimum: 1000
+
     ReferralSummary:
       type: object
       properties:

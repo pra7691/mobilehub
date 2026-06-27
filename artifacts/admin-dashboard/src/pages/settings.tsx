@@ -20,8 +20,10 @@ import {
   useAdminUpdateSettingsSupport,
   useAdminUpdateLegalContent,
   usePatchAdminSettingsPayout,
+  useAdminGetCaptureSettings,
+  useAdminUpdateCaptureSettings,
 } from "@workspace/api-client-react";
-import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch, Image as ImageIcon } from "lucide-react";
+import { Loader2, Eye, Save, Globe, Headphones, FileText, Banknote, GitBranch, Image as ImageIcon, Video } from "lucide-react";
 import { ReferralSettingsTab } from "./referral-settings";
 import { BannerSettingsTab } from "./banner-settings";
 
@@ -530,6 +532,71 @@ function PayoutSettingsTab() {
   );
 }
 
+// ─── Capture Settings Tab ─────────────────────────────────────────────────────
+
+function CaptureSettingsTab() {
+  const { data, isLoading } = useAdminGetCaptureSettings();
+  const updateMutation = useAdminUpdateCaptureSettings();
+  const { toast } = useToast();
+  const [timeoutSeconds, setTimeoutSeconds] = React.useState("30");
+
+  React.useEffect(() => {
+    if (data?.imuEmbedTimeoutMs !== undefined) {
+      setTimeoutSeconds(String(Math.round(data.imuEmbedTimeoutMs / 1000)));
+    }
+  }, [data?.imuEmbedTimeoutMs]);
+
+  function handleSave() {
+    const seconds = parseInt(timeoutSeconds, 10);
+    if (isNaN(seconds) || seconds < 1) {
+      toast({ title: "Timeout must be at least 1 second", variant: "destructive" });
+      return;
+    }
+    updateMutation.mutate(
+      { data: { imuEmbedTimeoutMs: seconds * 1000 } },
+      {
+        onSuccess: () => toast({ title: "Capture settings saved" }),
+        onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+      }
+    );
+  }
+
+  if (isLoading) return <LoadingSpinner />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Capture Settings</CardTitle>
+        <CardDescription>
+          Configure motion-data capture behaviour for field agents
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 max-w-md">
+        <div className="space-y-1.5">
+          <Label htmlFor="imuTimeout">IMU embed timeout (seconds)</Label>
+          <p className="text-xs text-muted-foreground">
+            How long to wait for motion data to be embedded into a video segment before
+            treating it as a timeout. Default is 30 s. Increase on low-end Android devices
+            if agents see frequent timeout errors.
+          </p>
+          <Input
+            id="imuTimeout"
+            type="number"
+            min={1}
+            value={timeoutSeconds}
+            onChange={(e) => setTimeoutSeconds(e.target.value)}
+            className="bg-background"
+          />
+        </div>
+        <Button onClick={handleSave} disabled={updateMutation.isPending} className="gap-2">
+          {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Save changes
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -542,7 +609,7 @@ export default function SettingsPage() {
         </p>
       </div>
       <Tabs defaultValue="general">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap">
           <TabsTrigger value="general" className="gap-2">
             <Globe className="h-3.5 w-3.5" />
             General
@@ -567,6 +634,10 @@ export default function SettingsPage() {
             <ImageIcon className="h-3.5 w-3.5" />
             Banners
           </TabsTrigger>
+          <TabsTrigger value="capture" className="gap-2">
+            <Video className="h-3.5 w-3.5" />
+            Capture
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="general">
           <GeneralTab />
@@ -585,6 +656,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="banner">
           <BannerSettingsTab />
+        </TabsContent>
+        <TabsContent value="capture">
+          <CaptureSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

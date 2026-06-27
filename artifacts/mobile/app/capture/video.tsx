@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useGetTask } from "@workspace/api-client-react";
+import { useGetTask, useGetAppSettings } from "@workspace/api-client-react";
 import {
   isAvailable as imuIsAvailable,
   checkSensorAvailability,
@@ -116,6 +116,7 @@ export default function VideoCaptureScreen() {
   const insets = useSafeAreaInsets();
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const { data: task } = useGetTask(taskId ?? "");
+  const { data: appSettings } = useGetAppSettings();
   const { granted, request } = useTaskPermissions("VIDEO");
 
   const cameraRef = useRef<CameraView>(null);
@@ -337,7 +338,7 @@ export default function VideoCaptureScreen() {
 
     // Embed IMU data into the segment
     if (rawUri && imuActive) {
-      const IMU_EMBED_TIMEOUT_MS = 30_000;
+      const IMU_EMBED_TIMEOUT_MS = appSettings?.capture?.imuEmbedTimeoutMs ?? 30_000;
       const isFinalStop = actionRef.current === "stop";
       if (isFinalStop) setImuProcessing(true);
       try {
@@ -482,6 +483,7 @@ export default function VideoCaptureScreen() {
     imuSkipped,
     router,
     resetRecordingState,
+    appSettings,
   ]);
 
   const startRecording = useCallback(async () => {

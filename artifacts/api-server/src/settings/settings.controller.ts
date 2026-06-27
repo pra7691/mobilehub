@@ -49,6 +49,10 @@ class UpdateBannerSettingsDto {
   @IsOptional() @IsIn([5, 7]) @Type(() => Number) autoSlideSeconds?: 5 | 7;
 }
 
+class UpdateCaptureSettingsDto {
+  @IsOptional() @IsInt() @Min(1000) @Type(() => Number) imuEmbedTimeoutMs?: number;
+}
+
 class UpdatePayoutSettingsDto {
   @IsOptional() @IsBoolean() payoutsEnabled?: boolean;
   @IsOptional() @IsNumber() @IsPositive() @Type(() => Number) minWithdrawalAmount?: number;
@@ -103,6 +107,19 @@ export class AdminSettingsController {
     @Request() req: { user: { email?: string; sub: string } },
   ) {
     return this.service.updateBannerSettings(body, req.user.email ?? req.user.sub);
+  }
+
+  @Get('capture')
+  getCaptureSettings() {
+    return this.service.getCaptureSettings();
+  }
+
+  @Patch('capture')
+  updateCaptureSettings(
+    @Body() body: UpdateCaptureSettingsDto,
+    @Request() req: { user: { email?: string; sub: string } },
+  ) {
+    return this.service.updateCaptureSettings(body, req.user.email ?? req.user.sub);
   }
 
   @Patch('legal/:slug')

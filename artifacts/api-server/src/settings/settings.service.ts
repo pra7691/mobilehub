@@ -282,9 +282,31 @@ export class SettingsService {
     return this.getBannerSettings();
   }
 
+  // ─── Capture settings ─────────────────────────────────────────────────────
+  private readonly IMU_EMBED_TIMEOUT_DEFAULT_MS = 30_000;
+
+  async getCaptureSettings() {
+    const row = await this.prisma.appSetting.findUnique({ where: { key: 'IMU_EMBED_TIMEOUT_MS' } });
+    const parsed = row?.value ? parseInt(row.value, 10) : NaN;
+    return {
+      imuEmbedTimeoutMs: isNaN(parsed) || parsed < 1000 ? this.IMU_EMBED_TIMEOUT_DEFAULT_MS : parsed,
+    };
+  }
+
+  async updateCaptureSettings(dto: { imuEmbedTimeoutMs?: number }, adminEmail?: string) {
+    if (dto.imuEmbedTimeoutMs !== undefined) {
+      await this.prisma.appSetting.upsert({
+        where: { key: 'IMU_EMBED_TIMEOUT_MS' },
+        update: { value: String(dto.imuEmbedTimeoutMs), updatedBy: adminEmail },
+        create: { key: 'IMU_EMBED_TIMEOUT_MS', value: String(dto.imuEmbedTimeoutMs), updatedBy: adminEmail },
+      });
+    }
+    return this.getCaptureSettings();
+  }
+
   // ─── App (public-auth): GET /app/settings ─────────────────────────────────
   async getAppSettings() {
-    const [support, appName, privacyPolicy, termsAndConditions, payoutEnabled, payoutMin, payoutMax, payoutMessage] = await Promise.all([
+    const [support, appName, privacyPolicy, termsAndConditions, payoutEnabled, payoutMin, payoutMax, payoutMessage, captureSettings] = await Promise.all([
       this.prisma.supportSettings.findFirst(),
       this.prisma.appSetting.findUnique({ where: { key: 'APP_NAME' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'PRIVACY_POLICY' } }),
@@ -293,6 +315,7 @@ export class SettingsService {
       this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_MIN_AMOUNT' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_MAX_AMOUNT' } }),
       this.prisma.appSetting.findUnique({ where: { key: 'PAYOUT_MESSAGE' } }),
+      this.getCaptureSettings(),
     ]);
 
     return {
@@ -320,6 +343,7 @@ export class SettingsService {
         maxWithdrawalAmount: payoutMax?.value ? parseFloat(payoutMax.value) : null,
         payoutMessage: payoutMessage?.value ?? null,
       },
+      capture: captureSettings,
     };
   }
 

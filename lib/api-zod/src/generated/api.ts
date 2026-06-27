@@ -2547,7 +2547,10 @@ export const GetAppSettingsResponse = zod.object({
   "minWithdrawalAmount": zod.number(),
   "maxWithdrawalAmount": zod.number().nullable(),
   "payoutMessage": zod.string().nullable()
-})
+}),
+  "capture": zod.object({
+  "imuEmbedTimeoutMs": zod.number().describe('Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent.')
+}).optional()
 })
 
 
@@ -3426,6 +3429,30 @@ export const PatchAdminSettingsPayoutResponse = zod.object({
   "payoutMessage": zod.string().nullish(),
   "maxDailyPayoutsPerUser": zod.number().nullish(),
   "maxPendingPayoutsPerUser": zod.number().nullish()
+})
+
+
+/**
+ * @summary Admin get capture settings
+ */
+export const AdminGetCaptureSettingsResponse = zod.object({
+  "imuEmbedTimeoutMs": zod.number().describe('Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent.')
+})
+
+
+/**
+ * @summary Admin update capture settings
+ */
+export const adminUpdateCaptureSettingsBodyImuEmbedTimeoutMsMin = 1000;
+
+
+
+export const AdminUpdateCaptureSettingsBody = zod.object({
+  "imuEmbedTimeoutMs": zod.number().min(adminUpdateCaptureSettingsBodyImuEmbedTimeoutMsMin).optional()
+})
+
+export const AdminUpdateCaptureSettingsResponse = zod.object({
+  "imuEmbedTimeoutMs": zod.number().describe('Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent.')
 })
 
 

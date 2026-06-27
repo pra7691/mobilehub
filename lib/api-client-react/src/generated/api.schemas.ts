@@ -1052,11 +1052,17 @@ export type AppSettingsPayout = {
   payoutMessage: string | null;
 };
 
+export type AppSettingsCapture = {
+  /** Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent. */
+  imuEmbedTimeoutMs: number;
+};
+
 export interface AppSettings {
   appName: string;
   support?: AppSettingsSupport;
   legal: AppSettingsLegal;
   payout: AppSettingsPayout;
+  capture?: AppSettingsCapture;
 }
 
 export interface AdminLegalSection {
@@ -1393,6 +1399,16 @@ export interface UpdatePayoutSettingsBody {
   payoutMessage?: string | null;
   maxDailyPayoutsPerUser?: number | null;
   maxPendingPayoutsPerUser?: number | null;
+}
+
+export interface CaptureSettings {
+  /** Timeout in milliseconds for the IMU embed step. Defaults to 30000 when absent. */
+  imuEmbedTimeoutMs: number;
+}
+
+export interface UpdateCaptureSettingsBody {
+  /** @minimum 1000 */
+  imuEmbedTimeoutMs?: number;
 }
 
 export interface ReferralSummary {

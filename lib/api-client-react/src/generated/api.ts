@@ -48,6 +48,7 @@ import type {
   AppSettings,
   AuthTokens,
   BannerSettings,
+  CaptureSettings,
   Category,
   CategoryListResponse,
   CreateAdminUserRequest,
@@ -134,6 +135,7 @@ import type {
   UpdateBannerBody,
   UpdateBannerSettingsBody,
   UpdateBannerStatusBody,
+  UpdateCaptureSettingsBody,
   UpdateCategoryRequest,
   UpdateFaqRequest,
   UpdateGeneralSettingsRequest,
@@ -8016,6 +8018,154 @@ export const usePatchAdminSettingsPayout = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getPatchAdminSettingsPayoutMutationOptions(options));
+    }
+
+export const getAdminGetCaptureSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/capture`
+}
+
+/**
+ * @summary Admin get capture settings
+ */
+export const adminGetCaptureSettings = async ( options?: RequestInit): Promise<CaptureSettings> => {
+
+  return customFetch<CaptureSettings>(getAdminGetCaptureSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetCaptureSettingsQueryKey = () => {
+    return [
+    `/api/admin/settings/capture`
+    ] as const;
+    }
+
+
+export const getAdminGetCaptureSettingsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetCaptureSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetCaptureSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetCaptureSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetCaptureSettings>>> = ({ signal }) => adminGetCaptureSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetCaptureSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetCaptureSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetCaptureSettings>>>
+export type AdminGetCaptureSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Admin get capture settings
+ */
+
+export function useAdminGetCaptureSettings<TData = Awaited<ReturnType<typeof adminGetCaptureSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetCaptureSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetCaptureSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminUpdateCaptureSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings/capture`
+}
+
+/**
+ * @summary Admin update capture settings
+ */
+export const adminUpdateCaptureSettings = async (updateCaptureSettingsBody: UpdateCaptureSettingsBody, options?: RequestInit): Promise<CaptureSettings> => {
+
+  return customFetch<CaptureSettings>(getAdminUpdateCaptureSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateCaptureSettingsBody,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateCaptureSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateCaptureSettings>>, TError,{data: BodyType<UpdateCaptureSettingsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateCaptureSettings>>, TError,{data: BodyType<UpdateCaptureSettingsBody>}, TContext> => {
+
+const mutationKey = ['adminUpdateCaptureSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateCaptureSettings>>, {data: BodyType<UpdateCaptureSettingsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminUpdateCaptureSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateCaptureSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateCaptureSettings>>>
+    export type AdminUpdateCaptureSettingsMutationBody = BodyType<UpdateCaptureSettingsBody>
+    export type AdminUpdateCaptureSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin update capture settings
+ */
+export const useAdminUpdateCaptureSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateCaptureSettings>>, TError,{data: BodyType<UpdateCaptureSettingsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateCaptureSettings>>,
+        TError,
+        {data: BodyType<UpdateCaptureSettingsBody>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateCaptureSettingsMutationOptions(options));
     }
 
 export const getGetMyReferralSummaryUrl = () => {
