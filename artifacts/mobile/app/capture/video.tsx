@@ -34,6 +34,7 @@ import {
   saveDraft as saveDraftStorage,
   generateDraftId,
   moveMediaToDrafts,
+  ensureImuDir,
   type LocalDraft,
 } from "@/lib/drafts";
 
@@ -132,6 +133,14 @@ export default function VideoCaptureScreen() {
   // Set when the user explicitly discards an active recording so recordSegment
   // skips draft persistence on async completion (distinct from OS backgrounding).
   const wasDiscardedRef = useRef(false);
+  // Pre-GPMF segment URIs — never replaced after push, so recovery always has
+  // the original recording path even after segmentsRef entries are updated with
+  // embedded URIs.
+  const rawSegmentsRef = useRef<string[]>([]);
+  // Path where tarzi-imu will stream IMU samples when disk mode is available
+  // (EAS native build only). Set before imuStartCapture() so an interrupted
+  // draft can reference it for relaunch GPMF re-muxing via recoverAllRecordingDrafts.
+  const currentImuTempPathRef = useRef<string | undefined>(undefined);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -314,6 +323,15 @@ export default function VideoCaptureScreen() {
         paymentAmount: t.paymentAmount ?? 0,
         currency: t.currency ?? "INR",
         mediaUris: movedUris,
+        // rawVideoUri: original recording path before GPMF embedding.
+        // recoverAllRecordingDrafts reads this when scheduling a GPMF re-mux
+        // via the tarzi-imu EAS native module on next launch.
+        rawVideoUri: rawSegmentsRef.current[0],
+        // imuTempFilePath: disk-streamed IMU sample file path set before
+        // imuStartCapture(). The EAS native module will write to this path
+        // once disk-streaming support is enabled; until then the file may not
+        // exist, and recoverAllRecordingDrafts will fall back to FAILED_RECOVERABLE.
+        imuTempFilePath: currentImuTempPathRef.current,
         durationSeconds: elapsed,
         imuMetadata: imuSummary,
         imuRequired,
@@ -343,6 +361,8 @@ export default function VideoCaptureScreen() {
     setElapsed(0);
     elapsedRef.current = 0;
     segmentsRef.current = [];
+    rawSegmentsRef.current = [];
+    currentImuTempPathRef.current = undefined;
     segmentDurationsRef.current = [];
     imuSegmentMetaRef.current = [];
   }, []);
@@ -405,9 +425,17 @@ export default function VideoCaptureScreen() {
 
     if (imuActive) {
       try {
+        // Generate the disk-streaming temp path before capture starts.
+        // When the tarzi-imu EAS native module supports disk streaming, pass
+        // this path to imuStartCapture(path) so samples flush to disk rather
+        // than staying in memory — enabling GPMF re-mux after app restart.
+        // TODO (EAS): update imuStartCapture signature to accept filePath.
+        const imuDir = await ensureImuDir();
+        currentImuTempPathRef.current = `${imuDir}imu_${Date.now()}.bin`;
         await imuStartCapture();
       } catch {
         // Non-fatal start failure — IMU will be missing for this segment
+        currentImuTempPathRef.current = undefined;
       }
     }
 
@@ -429,8 +457,11 @@ export default function VideoCaptureScreen() {
 
     // Always push rawUri first to preserve the original segment URI.
     // On embed success the last entry is replaced with the embedded URI.
+    // rawSegmentsRef tracks the original (pre-GPMF) URI and is never replaced,
+    // so interrupted-draft recovery always has the raw file path.
     if (rawUri) {
       segmentsRef.current.push(rawUri);
+      rawSegmentsRef.current.push(rawUri);
     }
 
     // Embed IMU data into the segment
