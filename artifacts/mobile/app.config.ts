@@ -63,9 +63,6 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
   plugins: [
     "./plugins/withGradleNetworkTimeout",
     "./plugins/withTarziImu",
-    // Dev builds only: patch expo-splash-screen's super.onCreate(null) call so
-    // expo-dev-client's DevLauncherController can intercept onCreate correctly.
-    ...(IS_DEV ? ["./plugins/withDevClientMainActivity"] : []),
     [
       "expo-splash-screen",
       {
@@ -76,6 +73,12 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
         dark: { backgroundColor: "#0a0a0a" },
       },
     ],
+    // Dev builds only: patch expo-splash-screen's super.onCreate(null) call so
+    // expo-dev-client's DevLauncherController can intercept onCreate correctly.
+    // Must be declared AFTER expo-splash-screen so this withMainActivity callback
+    // runs after expo-splash-screen has already injected SplashScreenManager and
+    // written super.onCreate(null).
+    ...(IS_DEV ? ["./plugins/withDevClientMainActivity"] : []),
     [
       "expo-router",
       { origin: "https://mobile-data-hub.replit.app" },

@@ -7,7 +7,8 @@
  * MainActivity.kt so that Android doesn't restore stale UI state on launch:
  *
  *   override fun onCreate(savedInstanceState: Bundle?) {
- *       super.onCreate(null)           ← line 23 of generated file
+ *       SplashScreenManager.registerOnActivity(this)
+ *       super.onCreate(null)           ← expo-splash-screen writes null here
  *   }
  *
  * When expo-dev-client is present, DevLauncherController must intercept the activity
@@ -24,27 +25,33 @@
  * Replace super.onCreate(null) with super.onCreate(savedInstanceState).
  * ReactActivityDelegateWrapper then properly defers to DevLauncherController,
  * which can intercept the launch and show the dev-launcher menu before React
- * context is created.
+ * context is created. SplashScreenManager.registerOnActivity(this) is unaffected
+ * because it is called before super.onCreate() and does not depend on the argument.
  *
- * This dangerous mod fires LAST in the prebuild pipeline (after expo-splash-screen),
- * so it always patches the final generated MainActivity.kt.
+ * PLUGIN PHASE
+ * ------------
+ * This plugin uses withFinalizedMod (finalized phase) which runs AFTER all other
+ * mod phases including mainActivity. This guarantees that expo-splash-screen's
+ * withAndroidSplashMainActivity has already:
+ *   1. Injected SplashScreenManager.registerOnActivity(this) before super.onCreate(null)
+ *   2. Written the complete MainActivity.kt to disk
+ * Only then do we read the file and patch null → savedInstanceState.
  *
  * Only applied in development builds (APP_VARIANT=development). Production builds
  * never include this plugin and retain the original super.onCreate(null) behaviour.
  */
 
-const { withDangerousMod } = require('expo/config-plugins');
+const { withFinalizedMod } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
 const withDevClientMainActivity = (config) => {
-  return withDangerousMod(config, [
+  return withFinalizedMod(config, [
     'android',
     (config) => {
       const pkg = (config.android && config.android.package) || '';
       if (!pkg) {
-        console.warn('[withDevClientMainActivity] android.package not found in config; skipping patch.');
-        return config;
+        throw new Error('[withDevClientMainActivity] android.package not found in config.');
       }
 
       const pkgPath = pkg.replace(/\./g, '/');
@@ -59,28 +66,27 @@ const withDevClientMainActivity = (config) => {
       );
 
       if (!fs.existsSync(mainActivityPath)) {
-        console.warn('[withDevClientMainActivity] MainActivity.kt not found at:', mainActivityPath, '— skipping patch.');
-        return config;
+        throw new Error(
+          '[withDevClientMainActivity] MainActivity.kt not found at: ' + mainActivityPath
+        );
       }
 
       const original = fs.readFileSync(mainActivityPath, 'utf8');
-
-      // Replace every super.onCreate(null) call with super.onCreate(savedInstanceState).
-      // This is safe because:
-      //  - The dev-launcher does not need savedInstanceState to be discarded.
-      //  - ReactActivityDelegateWrapper routes the call through DevLauncherController.
-      //  - DevLauncherController can then manage the launch before React context starts.
       const patched = original.replace(/\bsuper\.onCreate\(null\)/g, 'super.onCreate(savedInstanceState)');
 
-      if (patched !== original) {
-        fs.writeFileSync(mainActivityPath, patched);
-        console.log(
-          '[withDevClientMainActivity] Patched MainActivity.kt:',
-          'super.onCreate(null) → super.onCreate(savedInstanceState)'
+      if (patched === original) {
+        throw new Error(
+          '[withDevClientMainActivity] super.onCreate(null) not found in MainActivity.kt. ' +
+          'expo-splash-screen may have changed its output format. ' +
+          'Inspect the generated MainActivity.kt and update this plugin accordingly.'
         );
-      } else {
-        console.log('[withDevClientMainActivity] super.onCreate(null) not present; no patch needed.');
       }
+
+      fs.writeFileSync(mainActivityPath, patched);
+      console.log(
+        '[withDevClientMainActivity] Patched MainActivity.kt:',
+        'super.onCreate(null) → super.onCreate(savedInstanceState)'
+      );
 
       return config;
     },
