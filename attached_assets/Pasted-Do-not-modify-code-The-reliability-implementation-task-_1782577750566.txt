@@ -1,0 +1,107 @@
+Do not modify code.
+
+The reliability implementation task has been marked done, but no completion report was provided.
+
+Inspect the current codebase, latest git commits/diffs, build logs, and all files changed in the latest task. Give a factual implementation report only. Do not claim any feature is complete unless it exists in code and was tested.
+
+We were implementing reliable recording, IMU/GPMF embedding, persistent drafts, and resumable uploads for VIDEO, AUDIO, and IMAGE tasks.
+
+Report these sections:
+
+1. **All work completed**
+
+   * Every file created/changed
+   * Every small fix and edge-case fix completed
+   * Status for each: Complete / Partial / Not started
+   * Exact code evidence and test evidence
+
+2. **IMU and GPMF**
+
+   * Is accelerometer captured?
+   * Is gyroscope captured?
+   * Are samples written to disk during recording or only held in memory?
+   * Is IMU embedded inside the final MP4?
+   * Does final MP4 contain `gpmd`, `ACCL`, and `GYRO`?
+   * Are samples time-aligned across the video duration?
+   * Is GPMF validated before upload?
+   * Was an uploaded cloud MP4 downloaded and verified with a parser?
+   * Clear final answer: Is IMU truly embedded in uploaded MP4 files today?
+
+3. **Recording interruption coverage**
+   Report separately for Video, Audio, and Image:
+
+   * screen lock
+   * app minimized/backgrounded
+   * app switch
+   * incoming call/camera interruption
+   * crash
+   * OS kill
+   * swipe-away/force-close
+   * reboot
+   * permission loss
+   * low storage
+   * corrupt/zero-byte media
+   * recording stopped unexpectedly
+   * app closes before GPMF embedding completes
+
+   For each: current behavior, draft saved or lost, user message, validation, and real-device test status.
+
+4. **Upload interruption coverage**
+   Report separately for Video, Audio, and Image:
+
+   * app minimized
+   * screen lock
+   * crash/OS kill/force-close
+   * reboot
+   * Internet loss/reconnect
+   * Wi-Fi/mobile-data switch
+   * slow network
+   * expired signed URL
+   * expired token
+   * 408, 429, 5xx
+   * multiple Upload/Retry taps
+   * restart before completion
+   * local file missing/corrupt
+   * storage-provider switch mid-upload
+   * logout/account disabled
+   * upload reaches 100% but completion fails
+   * cancellation/deletion
+
+   For each: Covered / Partial / Not covered, recovery behavior, duplicate protection, and testing status.
+
+5. **Background support**
+   Report Android and iOS separately:
+
+   * WorkManager implemented or not
+   * Android foreground service implemented or not
+   * iOS background URLSession implemented or not
+   * whether uploads continue in background
+   * force-stop limitations
+   * what resumes only after app reopen
+
+6. **Final status table**
+   Include:
+
+   * Video recovery
+   * Audio recovery
+   * Image recovery
+   * Video resumable upload
+   * Audio resumable upload
+   * Image resumable upload
+   * IMU persistence
+   * GPMF embedding
+   * Cloud-file GPMF verification
+   * Duplicate prevention
+   * Offline handling
+   * Restart recovery
+   * Android background uploads
+   * iOS background uploads
+   * Real-device testing
+
+Use only: Complete / Partial / Not started / Not verified.
+
+End with:
+
+* What is safe for production today
+* What remains unsafe or unverified
+* Exact priority next steps
