@@ -179,13 +179,23 @@ export default function AudioCaptureScreen() {
     const t = taskRef.current;
     if (!t || !taskId || elapsedSec <= 0) return;
     const minDur = t.minimumDurationSeconds ?? 0;
-    if (minDur > 0 && elapsedSec < minDur) return; // too short to be useful
+    if (minDur > 0 && elapsedSec < minDur) return; // too short — nothing actionable to save
+    const draftId = generateDraftId();
+    let persistedUri = uri;
+    let uploadStatus: "LOCAL_READY" | "FAILED_RECOVERABLE" = "LOCAL_READY";
     try {
       const ext = uri.split(".").pop() ?? "m4a";
-      const filename = `audio_${Date.now()}.${ext}`;
-      const persistedUri = await moveMediaToDrafts(uri, filename);
+      const filename = `audio_${draftId}.${ext}`;
+      persistedUri = await moveMediaToDrafts(uri, filename);
+    } catch {
+      // Move failed — keep the original temp URI and mark as FAILED_RECOVERABLE
+      // so the draft appears in the user's list and can be retried from the
+      // drafts screen (the temp file may or may not still be present).
+      uploadStatus = "FAILED_RECOVERABLE";
+    }
+    try {
       const draft: LocalDraft = {
-        id: generateDraftId(),
+        id: draftId,
         taskId,
         taskTitle: t.title,
         collectionType: "AUDIO",
@@ -194,13 +204,13 @@ export default function AudioCaptureScreen() {
         mediaUris: [persistedUri],
         durationSeconds: elapsedSec,
         createdAt: new Date().toISOString(),
-        uploadStatus: "LOCAL_READY",
+        uploadStatus,
         completedParts: [],
         retryCount: 0,
       };
       await saveDraft(draft);
     } catch {
-      // Non-fatal — app is going to background regardless
+      // saveDraft failure is non-fatal — app is going to background regardless
     }
   };
 
