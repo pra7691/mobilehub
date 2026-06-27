@@ -1,0 +1,290 @@
+Implement a robust video recording and upload recovery system for Tarzi. Do not change existing task, submission, admin review, or storage-provider behavior except where needed for reliability.
+
+Scope includes video capture, IMU processing, local drafts, direct storage upload, app backgrounding, crashes, and network interruption.
+
+1. Required upload state machine
+
+Create persistent local upload states:
+
+* RECORDING
+* RECORDING_INTERRUPTED
+* PROCESSING_IMU
+* LOCAL_READY
+* QUEUED
+* UPLOADING
+* PAUSED_NO_NETWORK
+* PAUSED_APP_RESTART
+* RETRY_WAIT
+* COMPLETING
+* VERIFYING
+* COMPLETED
+* FAILED_RECOVERABLE
+* FAILED_FINAL
+* CANCELLED
+
+Persist every state change immediately in durable local storage. Do not keep upload progress only in React state or memory.
+
+2. Persistent local video drafts
+
+For every recorded video:
+
+* Save temporary and completed video files in app-private persistent storage, not cache storage.
+* Do not load full video files into memory.
+* Store a local draft record before upload begins.
+* Use atomic file move/rename after recording completes.
+* Store:
+
+  * draft ID
+  * task ID
+  * local file URI
+  * original filename
+  * MIME type
+  * file size
+  * duration
+  * recording start/end timestamps
+  * upload state
+  * upload session ID
+  * storage profile ID
+  * completed multipart parts and ETags
+  * retry count
+  * last error code
+  * IMU processing status
+  * IMU validation status
+
+On app launch, scan and restore unfinished drafts automatically.
+
+3. App minimized or backgrounded during recording
+
+Do not claim that recording continues safely in the background.
+
+When the app goes to background during video recording:
+
+* Mark recording as interrupted.
+* Stop IMU capture immediately.
+* Attempt to safely finalize the current video file.
+* Validate whether the temporary video is playable.
+* If IMU is required, attempt GPMF embedding only when both valid video and IMU data are available.
+* Save a recovered local draft only when validation succeeds.
+* Otherwise mark it as invalid and show:
+  “Recording was interrupted. Please record this video again.”
+
+Never upload a partial, corrupt, or IMU-missing video when IMU is required.
+
+4. App crash, OS kill, restart, or phone reboot
+
+Handle these separately:
+
+* Crash or OS process kill:
+
+  * Restore unfinished local drafts on next app launch.
+  * Resume uploads only after checking file existence and server upload session status.
+
+* User force-stop, phone reboot, or app swipe-away:
+
+  * Do not claim background upload will continue.
+  * Resume safely when the user opens Tarzi again.
+
+* App uninstall or cleared app storage:
+
+  * Local drafts cannot be recovered.
+  * Do not claim recovery is possible.
+
+Create clear user messages for each recoverable case.
+
+5. IMU recording resilience
+
+For IMU-enabled video tasks:
+
+* Do not keep all sensor data only in memory.
+* Write timestamped IMU samples to an app-private temporary file while recording.
+* After normal recording ends, embed the data into the final MP4 as GPMF.
+* Keep source video and temporary IMU file until GPMF validation succeeds.
+* Delete temporary IMU data only after final embedded MP4 is validated.
+* If app closes after video recording but before GPMF muxing:
+
+  * On next app launch, detect the pending processing draft.
+  * Resume GPMF muxing if source video and IMU temporary file are both valid.
+* If either file is missing/corrupt and IMU is required:
+
+  * Mark the draft invalid.
+  * Require re-recording.
+
+6. Resumable video upload
+
+Use resumable multipart upload for videos.
+
+Rules:
+
+* Upload video directly from device to the active storage provider.
+* Do not route video through NestJS server memory.
+* Pin each upload session to the storageProfileId active at upload initiation.
+* A provider switch must not affect an in-progress upload.
+* Persist multipart progress after every successfully uploaded part.
+* Store part number, ETag, bytes uploaded, and upload session ID.
+* On resume, ask backend for upload-session status and upload only missing parts.
+* Never upload the same completed part twice unless backend confirms it is missing.
+* Final completion API must be idempotent.
+* Creating SubmissionMedia must also be idempotent, so repeated completion requests do not create duplicate media rows.
+
+7. Network failures and retries
+
+Handle:
+
+* no Internet
+* Wi-Fi to mobile-data switch
+* mobile-data to Wi-Fi switch
+* captive portal
+* DNS failure
+* request timeout
+* 408 response
+* 429 response
+* 5xx storage/server response
+* expired signed URL
+* expired authentication token
+
+Rules:
+
+* Pause when offline.
+* Resume automatically only when the app is active and network is available.
+* Retry recoverable failures using exponential backoff with jitter.
+* Limit automatic retries to 5 per part.
+* Do not retry most 4xx errors except 408 and 429.
+* Refresh signed URLs only for incomplete parts.
+* Refresh auth/session safely without losing completed-part progress.
+* Show progress and clear status:
+
+  * Uploading
+  * Paused — no Internet
+  * Waiting to retry
+  * Upload needs attention
+  * Upload complete
+
+8. Prevent duplicate uploads
+
+* One active upload per video draft.
+* Prevent multiple upload actions from running for the same draft.
+* Use a deterministic idempotency key based on draft ID.
+* Disable duplicate Retry/Upload taps while a transfer is active.
+* On relaunch, reconcile local state with backend before resuming.
+* Never create duplicate submissions or duplicate media records.
+
+9. File validation and storage checks
+
+Before recording:
+
+* Check camera, microphone, and required IMU sensors.
+* Check free device storage using estimated video size plus a safety margin.
+* Block recording when storage is insufficient.
+
+Before upload:
+
+* Confirm local file exists.
+* Confirm file size is greater than zero.
+* Confirm video is playable and has valid duration.
+* Confirm expected MIME type.
+* Confirm GPMF telemetry exists when IMU is required.
+* Confirm final MP4 is not the temporary raw recording file.
+
+During upload:
+
+* Stream parts from disk.
+* Do not read full video into RAM.
+* Validate returned ETags/checksums where provider supports them.
+
+10. User cancellation
+
+Separate these actions:
+
+* Cancel upload:
+
+  * Stop current transfer.
+  * Preserve local draft for later retry.
+  * Abort remote multipart upload only after user confirmation.
+
+* Delete draft:
+
+  * Delete local video, temporary IMU data, local queue record, and remote incomplete multipart upload.
+  * Require confirmation.
+
+11. Account and storage-profile changes
+
+* If user logs out, pause unfinished uploads and preserve drafts locally.
+* After login, allow resume only for the same user account.
+* If account is disabled, do not upload; show disabled-account message.
+* If the storage provider changes while a video is queued, retain the original pinned storageProfileId for that upload.
+* Existing uploads must finish against the original provider.
+
+12. Native background upload support
+
+Implement native background transfer support.
+
+iOS:
+
+* Use a native background URLSession upload mechanism.
+* Restore pending transfer events when the app relaunches.
+
+Android:
+
+* Use WorkManager for resumable queued uploads.
+* Use a foreground service with a visible notification only while a large active upload needs to continue in background.
+
+Important limitations:
+
+* Do not claim upload continues after user force-stop.
+* Do not claim upload continues after uninstall or cleared app data.
+* Restore and resume when the user opens the app again.
+
+Expo Go is not sufficient. This must work in EAS development, preview, and production builds.
+
+13. Error logging
+
+Send safe diagnostic logs to Mobile Error Logs with:
+
+* draft ID
+* task ID
+* platform
+* app version
+* upload state
+* storage provider type
+* HTTP status when available
+* retry count
+* safe error code/message
+
+Never log:
+
+* signed URLs
+* access keys
+* secret keys
+* authentication tokens
+* full local file paths
+* raw IMU data
+
+14. Required testing
+
+Test on real Android and iPhone devices:
+
+1. Start recording, minimize app, return to app.
+2. Start recording, receive interruption/camera loss.
+3. Stop recording normally, kill app before IMU muxing, reopen app.
+4. Start upload, disable Internet, re-enable Internet.
+5. Start upload, switch Wi-Fi to mobile data.
+6. Start upload, force-close app, reopen and resume.
+7. Reboot phone during queued upload, reopen and resume.
+8. Simulate expired signed URL mid-upload.
+9. Simulate backend 500 and storage 5xx responses.
+10. Tap upload/retry repeatedly and confirm no duplicates.
+11. Change active storage provider mid-upload and confirm old upload still completes on original provider.
+12. Test low-storage device behavior.
+13. Confirm completed uploaded MP4 still contains valid GPMF IMU data.
+14. Confirm old drafts and submissions remain accessible.
+
+At the end provide:
+
+* Files changed
+* Native modules added
+* Local upload state schema
+* Upload session API changes
+* Background behavior on Android and iOS
+* Recovery limitations that cannot be guaranteed
+* Test results for each required scenario
+* Confirmation that no duplicate submission/media records can be created by retries
