@@ -198,7 +198,7 @@ public class TarziImuModule: Module {
                 try validateGpmfOutput(output,
                                        accelCount: accelList.count,
                                        gyroCount:  gyroList.count)
-                validationStatus = "valid"
+                validationStatus = "ok"
             } catch let err as NSError {
                 // Validation failed — still write the file but mark it
                 validationStatus = "error_\(err.code)"

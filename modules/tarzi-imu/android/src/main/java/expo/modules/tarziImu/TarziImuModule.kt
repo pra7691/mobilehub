@@ -245,7 +245,7 @@ class TarziImuModule : Module() {
             if (sz <= 0) return "error_empty_gpmd_sample"
 
             if (accelCount == 0 || gyroCount == 0) "warning_partial_sensor_data"
-            else "valid"
+            else "ok"
         } finally {
             v.release()
         }
