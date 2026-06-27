@@ -114,9 +114,9 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
 
   extra: {
     eas: {
-      // Development: verbosetech project (fbb0c74b). Production: primeaid project (85cd9282). Never swap these.
+      // Development: verbosetech project (7de0a784). Production: primeaid project (85cd9282). Never swap these.
       projectId: IS_DEV
-        ? ""
+        ? "7de0a784-0329-44f7-9569-34ffb768733b"
         : "85cd9282-6693-4098-b2f7-ede669317a8d",
     },
   },
