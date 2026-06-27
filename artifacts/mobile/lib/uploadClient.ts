@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system/legacy";
 import NetInfo from "@react-native-community/netinfo";
 import {
@@ -9,11 +11,13 @@ import {
   markUploadComplete,
   markUploadFailed,
   abortUploadSession,
+  refreshTokens,
+  setAuthTokenGetter,
 } from "@workspace/api-client-react";
 import type { LocalDraft } from "./drafts";
 import { saveDraft, getDraft, deleteDraft } from "./drafts";
 import {
-  reduceUpload,
+  applyTransition,
   type UploadEvent,
   type CompletedPart,
 } from "./uploadStateMachine";
@@ -26,9 +30,66 @@ const MAX_DELAY_MS = 30_000;
 
 const VALID_VIDEO_EXTS = new Set(["mp4", "mov", "m4v"]);
 
+// ─── JWT pre-refresh ──────────────────────────────────────────────────────────
+
+const TOKEN_KEY = "capto_access_token";
+const REFRESH_KEY = "capto_refresh_token";
+/** Refresh the access token if it expires within this window before uploading */
+const PRE_UPLOAD_REFRESH_WINDOW_SEC = 300; // 5 minutes
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+async function secureRead(key: string): Promise<string | null> {
+  if (Platform.OS === "web") return localStorage.getItem(key);
+  return SecureStore.getItemAsync(key);
+}
+
+async function secureWrite(key: string, value: string): Promise<void> {
+  if (Platform.OS === "web") { localStorage.setItem(key, value); return; }
+  return SecureStore.setItemAsync(key, value);
+}
+
+/**
+ * Proactively refresh the JWT access token if it will expire within
+ * PRE_UPLOAD_REFRESH_WINDOW_SEC. Called before starting or resuming any upload
+ * to avoid mid-upload 401s on long recordings.
+ *
+ * Errors are swallowed — the upload attempt proceeds normally, and a 401
+ * mid-upload is handled via the standard retry path.
+ */
+async function refreshTokenBeforeUpload(): Promise<void> {
+  try {
+    const accessToken = await secureRead(TOKEN_KEY);
+    if (!accessToken) return;
+    const exp = decodeJwtExp(accessToken);
+    if (!exp) return;
+    const secondsUntilExpiry = exp - Date.now() / 1000;
+    if (secondsUntilExpiry > PRE_UPLOAD_REFRESH_WINDOW_SEC) return;
+
+    const refreshToken = await secureRead(REFRESH_KEY);
+    if (!refreshToken) return;
+
+    const result = await refreshTokens({ refreshToken });
+    await Promise.all([
+      secureWrite(TOKEN_KEY, result.accessToken),
+      secureWrite(REFRESH_KEY, result.refreshToken),
+    ]);
+    setAuthTokenGetter(() => result.accessToken);
+  } catch {
+    // Best effort — upload proceeds; 401 mid-upload is handled by retry path
+  }
+}
+
 // ─── Upload lock map ─────────────────────────────────────────────────────────
 // Stores the AbortController + in-flight promise so repeated taps return
-// the same promise (silent no-op) instead of throwing.
+// the same promise (silent no-op) instead of throwing or double-uploading.
 
 type UploadLock = {
   ctrl: AbortController;
@@ -46,6 +107,8 @@ export function cancelUploadById(draftId: string): void {
   uploadLocks.delete(draftId);
 }
 
+// ─── Progress type ────────────────────────────────────────────────────────────
+
 export interface VideoUploadProgress {
   phase: "preparing" | "uploading" | "completing" | "verifying";
   partsComplete: number;
@@ -53,7 +116,7 @@ export interface VideoUploadProgress {
   bytesUploaded: number;
 }
 
-// ─── Utilities ───────────────────────────────────────────────────────────────
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
@@ -117,11 +180,11 @@ function extractHttpStatus(err: unknown): number | undefined {
   return undefined;
 }
 
-// ─── State persistence ───────────────────────────────────────────────────────
+// ─── State persistence ────────────────────────────────────────────────────────
 
 /**
  * Non-status field update (session IDs, submissionId, etc.).
- * For status transitions, use applyTransition instead.
+ * For status transitions, use applyTransition from uploadStateMachine.
  */
 async function persistUpdate(
   draft: LocalDraft,
@@ -132,17 +195,34 @@ async function persistUpdate(
   return next;
 }
 
+// ─── Error reporting ──────────────────────────────────────────────────────────
+
 /**
- * Apply a validated state-machine event and immediately persist.
- * Every status transition goes through here — no ad-hoc status writes.
+ * Log an upload error with safe diagnostics: includes storageProfileId,
+ * stage, retryCount. Excludes non-stable internal IDs (uploadSessionId).
+ * Platform and appVersion are added automatically by the error reporter.
  */
-async function applyTransition(
+async function logUploadError(
   draft: LocalDraft,
-  event: UploadEvent
-): Promise<LocalDraft> {
-  const next = reduceUpload(draft, event) as LocalDraft;
-  await saveDraft(next);
-  return next;
+  err: unknown,
+  httpStatus: number | undefined,
+  stage: string
+): Promise<void> {
+  void reportError({
+    errorType: "SUBMISSION_UPLOAD_FAILED",
+    errorCode: draft.lastErrorCode,
+    message: err instanceof Error ? err.message.slice(0, 300) : String(err),
+    httpStatus,
+    collectionType: draft.collectionType,
+    metadata: {
+      draftId: draft.id,
+      taskId: draft.taskId,
+      uploadStatus: draft.uploadStatus,
+      storageProfileId: draft.storageProfileId,
+      stage,
+      retryCount: draft.retryCount ?? 0,
+    },
+  });
 }
 
 // ─── Part uploaders ───────────────────────────────────────────────────────────
@@ -215,38 +295,16 @@ async function uploadPartChunked(
   return { etag, bytes: chunk.byteLength };
 }
 
-// ─── Error reporting ──────────────────────────────────────────────────────────
-
-async function logUploadError(
-  draft: LocalDraft,
-  err: unknown,
-  httpStatus: number | undefined,
-  stage: string
-): Promise<void> {
-  void reportError({
-    errorType: "SUBMISSION_UPLOAD_FAILED",
-    message: err instanceof Error ? err.message.slice(0, 300) : String(err),
-    httpStatus,
-    collectionType: draft.collectionType,
-    metadata: {
-      draftId: draft.id,
-      taskId: draft.taskId,
-      uploadStatus: draft.uploadStatus,
-      uploadSessionId: draft.uploadSessionId,
-      stage,
-      retryCount: draft.retryCount ?? 0,
-      lastErrorCode: draft.lastErrorCode,
-    },
-  });
-}
-
 // ─── Public: start/cancel ─────────────────────────────────────────────────────
 
 /**
  * Start (or resume) a multipart video upload.
  *
  * If an upload is already in progress for this draft, returns the existing
- * promise silently (no-op — repeated taps are safe).
+ * promise silently — repeated taps are safe and do not double-start.
+ *
+ * Proactively refreshes the JWT access token if it is within 5 minutes of
+ * expiry before beginning any network I/O.
  */
 export async function startVideoUpload(
   initialDraft: LocalDraft,
@@ -259,6 +317,9 @@ export async function startVideoUpload(
   if (existing) {
     return existing.promise;
   }
+
+  // Proactive JWT refresh before starting any network I/O
+  await refreshTokenBeforeUpload();
 
   const ctrl = new AbortController();
   externalSignal?.addEventListener("abort", () => ctrl.abort(), { once: true });
@@ -278,9 +339,10 @@ async function _runUpload(
   onProgress: ((p: VideoUploadProgress) => void) | undefined,
   signal: AbortSignal
 ): Promise<{ submissionId: string }> {
-  // Always enter through QUEUE — validates the entry-point transition and
-  // marks the draft as queued before any network I/O begins.
-  let draft = await applyTransition(initial, { type: "QUEUE" });
+  // Always enter through QUEUE — validates the entry-point transition
+  // (LOCAL_READY / PAUSED_APP_RESTART / FAILED_RECOVERABLE) and marks
+  // the draft as queued before any network I/O begins.
+  let draft = await applyTransition(initial, { type: "QUEUE" }, saveDraft);
 
   onProgress?.({ phase: "preparing", partsComplete: 0, partsTotal: 1, bytesUploaded: 0 });
 
@@ -310,7 +372,7 @@ async function _runUpload(
   }
   const mimeType = ext === "mov" ? "video/quicktime" : "video/mp4";
 
-  // IMU / GPMF validation (check both draft-level status and metadata)
+  // IMU / GPMF validation — check draft-level status first, fall back to metadata
   if (draft.imuRequired) {
     const validationStatus = draft.imuValidationStatus ?? draft.imuMetadata?.imuValidationStatus;
     if (!draft.imuMetadata?.imuEmbedded || validationStatus !== "ok") {
@@ -342,9 +404,12 @@ async function _runUpload(
       const status = extractHttpStatus(err);
       const isFinal =
         status !== undefined && status >= 400 && status < 500 && !isRetryableStatus(status);
-      draft = await applyTransition(draft, isFinal
-        ? { type: "FAIL_FINAL", lastErrorCode: status ? String(status) : "INITIATE_FAILED" }
-        : { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "INITIATE_FAILED" }
+      draft = await applyTransition(
+        draft,
+        isFinal
+          ? { type: "FAIL_FINAL", lastErrorCode: status ? String(status) : "INITIATE_FAILED" }
+          : { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "INITIATE_FAILED" },
+        saveDraft
       );
       void logUploadError(draft, err, status, "initiate_submission");
       throw err;
@@ -400,12 +465,16 @@ async function _runUpload(
       }
       const reconciledParts = Array.from(reconciledMap.values());
 
-      draft = await applyTransition(draft, {
-        type: "START_UPLOADING",
-        sessionId: session.id,
-        storageProfileId: (session.storageProfileId ?? draft.storageProfileId) ?? undefined,
-        reconciledParts,
-      });
+      draft = await applyTransition(
+        draft,
+        {
+          type: "START_UPLOADING",
+          sessionId: session.id,
+          storageProfileId: (session.storageProfileId ?? draft.storageProfileId) ?? undefined,
+          reconciledParts,
+        },
+        saveDraft
+      );
 
       const doneSet = new Set(reconciledParts.map((p) => p.partNumber));
       const remaining = Array.from({ length: totalParts }, (_, i) => i + 1).filter(
@@ -420,7 +489,12 @@ async function _runUpload(
       } else {
         partUrls = [];
       }
-    } catch {
+    } catch (err) {
+      // If it's an AbortError, propagate immediately
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      // If applyTransition threw (invalid transition), propagate
+      if (err instanceof Error && err.message.startsWith("[UploadSM]")) throw err;
+      // Otherwise — can't talk to session — start fresh
       draft = await persistUpdate(draft, {
         uploadSessionId: undefined,
         completedParts: [],
@@ -450,18 +524,25 @@ async function _runUpload(
       });
       partUrls = parts;
 
-      draft = await applyTransition(draft, {
-        type: "START_UPLOADING",
-        sessionId: session.id,
-        storageProfileId: session.storageProfileId ?? undefined,
-        reconciledParts: [],
-      });
+      draft = await applyTransition(
+        draft,
+        {
+          type: "START_UPLOADING",
+          sessionId: session.id,
+          storageProfileId: session.storageProfileId ?? undefined,
+          reconciledParts: [],
+        },
+        saveDraft
+      );
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      if (err instanceof Error && err.message.startsWith("[UploadSM]")) throw err;
       const status = extractHttpStatus(err);
-      draft = await applyTransition(draft, {
-        type: "FAIL_RECOVERABLE",
-        lastErrorCode: status ? String(status) : "SESSION_CREATE_FAILED",
-      });
+      draft = await applyTransition(
+        draft,
+        { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "SESSION_CREATE_FAILED" },
+        saveDraft
+      );
       void logUploadError(draft, err, status, "create_upload_session");
       throw new Error(
         "Could not start upload. Your draft was saved — please try again."
@@ -488,9 +569,9 @@ async function _runUpload(
 
     const netState = await NetInfo.fetch();
     if (netState.isConnected === false) {
-      draft = await applyTransition(draft, { type: "PAUSE_NETWORK" });
+      draft = await applyTransition(draft, { type: "PAUSE_NETWORK" }, saveDraft);
       await waitForOnline(signal);
-      draft = await applyTransition(draft, { type: "RESUME_FROM_NETWORK" });
+      draft = await applyTransition(draft, { type: "RESUME_FROM_NETWORK" }, saveDraft);
     }
 
     let attempt = 0;
@@ -507,10 +588,11 @@ async function _runUpload(
             ? await uploadPartVirtual(currentUrl, videoUri, mimeType, signal)
             : await uploadPartChunked(currentUrl, videoUri, partNumber, offset, chunkSize, mimeType, signal);
 
-        draft = await applyTransition(draft, {
-          type: "PART_COMPLETE",
-          part: { partNumber, etag, bytes: partBytes },
-        });
+        draft = await applyTransition(
+          draft,
+          { type: "PART_COMPLETE", part: { partNumber, etag, bytes: partBytes } },
+          saveDraft
+        );
         done.add(partNumber);
         bytesUploaded += partBytes;
         break;
@@ -521,9 +603,9 @@ async function _runUpload(
 
         // Network loss — wait for connectivity then retry
         if (!httpStatus) {
-          draft = await applyTransition(draft, { type: "PAUSE_NETWORK" });
+          draft = await applyTransition(draft, { type: "PAUSE_NETWORK" }, saveDraft);
           await waitForOnline(signal);
-          draft = await applyTransition(draft, { type: "RESUME_FROM_NETWORK" });
+          draft = await applyTransition(draft, { type: "RESUME_FROM_NETWORK" }, saveDraft);
           attempt++;
           continue;
         }
@@ -542,32 +624,33 @@ async function _runUpload(
 
         if (isRetryableStatus(httpStatus)) {
           if (attempt >= MAX_RETRIES) {
-            draft = await applyTransition(draft, {
-              type: "FAIL_FINAL",
-              lastErrorCode: String(httpStatus),
-              retryCount: attempt,
-            });
+            draft = await applyTransition(
+              draft,
+              { type: "FAIL_FINAL", lastErrorCode: String(httpStatus), retryCount: attempt },
+              saveDraft
+            );
             void logUploadError(draft, err, httpStatus, "max_retries_exceeded");
             throw new Error(
               `Upload failed after ${MAX_RETRIES} retries (HTTP ${httpStatus}). Please check your connection and try again.`
             );
           }
-          draft = await applyTransition(draft, {
-            type: "START_RETRY",
-            retryCount: attempt + 1,
-            lastErrorCode: String(httpStatus),
-          });
+          draft = await applyTransition(
+            draft,
+            { type: "START_RETRY", retryCount: attempt + 1, lastErrorCode: String(httpStatus) },
+            saveDraft
+          );
           await sleep(backoffMs(attempt), signal);
-          draft = await applyTransition(draft, { type: "BACK_TO_UPLOADING" });
+          draft = await applyTransition(draft, { type: "BACK_TO_UPLOADING" }, saveDraft);
           attempt++;
           continue;
         }
 
         // Non-retryable 4xx
-        draft = await applyTransition(draft, {
-          type: "FAIL_RECOVERABLE",
-          lastErrorCode: String(httpStatus),
-        });
+        draft = await applyTransition(
+          draft,
+          { type: "FAIL_RECOVERABLE", lastErrorCode: String(httpStatus) },
+          saveDraft
+        );
         void logUploadError(draft, err, httpStatus, "upload_part_non_retryable");
         throw new Error(
           `Upload failed (HTTP ${httpStatus}). Your draft was saved — please try again.`
@@ -597,7 +680,7 @@ async function _markComplete(
 
   // ── Step 4: Complete upload session ───────────────────────────────────────
 
-  draft = await applyTransition(draft, { type: "COMPLETING" });
+  draft = await applyTransition(draft, { type: "COMPLETING" }, saveDraft);
   onProgress?.({ phase: "completing", partsComplete: totalParts, partsTotal: totalParts, bytesUploaded });
 
   let completedMediaId: string | null | undefined;
@@ -617,10 +700,11 @@ async function _markComplete(
       completedMediaId = result.mediaId;
     } catch (err) {
       const status = extractHttpStatus(err);
-      draft = await applyTransition(draft, {
-        type: "FAIL_RECOVERABLE",
-        lastErrorCode: status ? String(status) : "COMPLETE_SESSION_FAILED",
-      });
+      draft = await applyTransition(
+        draft,
+        { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "COMPLETE_SESSION_FAILED" },
+        saveDraft
+      );
       void logUploadError(draft, err, status, "complete_upload_session");
       throw new Error(
         "Upload session completion failed. Your draft was saved — please try again."
@@ -630,7 +714,7 @@ async function _markComplete(
 
   // ── Step 5: Mark submission upload-complete ────────────────────────────────
 
-  draft = await applyTransition(draft, { type: "VERIFYING" });
+  draft = await applyTransition(draft, { type: "VERIFYING" }, saveDraft);
   onProgress?.({ phase: "verifying", partsComplete: totalParts, partsTotal: totalParts, bytesUploaded });
 
   try {
@@ -638,20 +722,18 @@ async function _markComplete(
     await markUploadComplete(submissionId, { uploadedMedia });
   } catch (err) {
     const status = extractHttpStatus(err);
-    draft = await applyTransition(draft, {
-      type: "FAIL_RECOVERABLE",
-      lastErrorCode: status ? String(status) : "VERIFY_FAILED",
-    });
+    draft = await applyTransition(
+      draft,
+      { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "VERIFY_FAILED" },
+      saveDraft
+    );
     void logUploadError(draft, err, status, "mark_upload_complete");
     throw new Error(
       "Failed to confirm submission with the server. Your draft was saved — please try again."
     );
   }
 
-  await applyTransition(draft, {
-    type: "COMPLETE",
-    uploadedAt: new Date().toISOString(),
-  });
+  await applyTransition(draft, { type: "COMPLETE", uploadedAt: new Date().toISOString() }, saveDraft);
 
   return { submissionId };
 }
@@ -659,39 +741,47 @@ async function _markComplete(
 // ─── Cancel / abort ───────────────────────────────────────────────────────────
 
 /**
- * Cancel the active upload and reset the draft to LOCAL_READY so the user
- * can retry manually. Keeps local draft and media files.
+ * Soft-cancel: abort the active upload and reset the draft to LOCAL_READY
+ * so the user can retry without re-recording.
+ * Uses the RESET transition so the state machine records the state change.
  */
 export async function cancelUpload(draftId: string): Promise<void> {
   cancelUploadById(draftId);
   const draft = await getDraft(draftId);
   if (!draft) return;
-  // Soft cancel: reset to LOCAL_READY rather than CANCELLED so the user
-  // can re-submit without re-recording.
-  await persistUpdate(draft, { uploadStatus: "LOCAL_READY" });
+  await applyTransition(draft, { type: "RESET" }, saveDraft);
 }
 
 /**
- * Abort the in-progress upload, abort the remote session if not yet completed,
- * and delete the local draft + media files.
+ * Hard-cancel: abort the active upload, mark the remote session/submission
+ * as failed, and permanently delete the local draft + media files.
  *
- * Re-reads the latest draft state from AsyncStorage before deciding whether to
- * abort the remote session, so it is safe to call even after a successful
+ * Re-reads the latest draft state from AsyncStorage before deciding whether
+ * to abort the remote session, so it is safe to call even after a successful
  * upload (where the draft is COMPLETED and the session must not be aborted).
  */
 export async function abortAndDeleteDraft(draft: LocalDraft): Promise<void> {
   cancelUploadById(draft.id);
 
   const latest = await getDraft(draft.id);
-  const actualStatus = latest?.uploadStatus ?? draft.uploadStatus;
+  const current = latest ?? draft;
+  const actualStatus = current.uploadStatus;
 
   if (actualStatus !== "COMPLETED") {
-    const sessionId = latest?.uploadSessionId ?? draft.uploadSessionId;
+    // Transition to CANCELLED (state machine records the hard-cancel)
+    try {
+      await applyTransition(current, { type: "CANCEL" }, saveDraft);
+    } catch {
+      // If the transition isn't valid from this state (e.g., already FAILED_FINAL),
+      // the draft will be deleted anyway — ignore the state-machine error.
+    }
+
+    const sessionId = current.uploadSessionId;
     if (sessionId) {
       abortUploadSession(sessionId).catch(() => {});
     }
 
-    const submissionId = latest?.submissionId ?? draft.submissionId;
+    const submissionId = current.submissionId;
     if (submissionId) {
       markUploadFailed(submissionId, {
         failureReason: "User deleted draft",
@@ -705,8 +795,8 @@ export async function abortAndDeleteDraft(draft: LocalDraft): Promise<void> {
 // ─── Pre-recording storage check ─────────────────────────────────────────────
 
 /**
- * Returns true if the device has enough free disk space for a recording
- * of `maxDurationSeconds` at `bitrateMbps` Mbps, with 1.2× safety margin.
+ * Returns true if the device has enough free disk space to record
+ * `maxDurationSeconds` at `bitrateMbps` Mbps, with a 1.2× safety margin.
  *
  * @param maxDurationSeconds  Task's maximum recording duration in seconds.
  * @param bitrateMbps         Expected bitrate in Megabits-per-second.

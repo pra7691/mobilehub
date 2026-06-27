@@ -22,8 +22,8 @@ export interface CompletedPart {
 }
 
 /**
- * Minimal upload-state slice that the reducer operates on.
- * `LocalDraft` satisfies this interface — no circular dependency needed.
+ * Minimal upload-state slice the reducer operates on.
+ * `LocalDraft` satisfies this interface; kept here to avoid circular deps.
  */
 export interface DraftUploadState {
   uploadStatus: UploadStatus;
@@ -50,20 +50,21 @@ export type UploadEvent =
   | { type: "COMPLETE"; uploadedAt: string }
   | { type: "FAIL_RECOVERABLE"; lastErrorCode: string }
   | { type: "FAIL_FINAL"; lastErrorCode: string; retryCount?: number }
-  | { type: "CANCEL" };
+  | { type: "RESET" }   // soft-cancel: stop active upload, keep draft for retry
+  | { type: "CANCEL" }; // hard-cancel: transition to CANCELLED before deletion
 
 // ─── Transition graph ─────────────────────────────────────────────────────────
 
 const ALLOWED: Readonly<Partial<Record<UploadStatus, ReadonlySet<UploadEvent["type"]>>>> = {
-  LOCAL_READY:          new Set(["QUEUE"]),
-  PAUSED_APP_RESTART:   new Set(["QUEUE", "CANCEL"]),
-  FAILED_RECOVERABLE:   new Set(["QUEUE", "CANCEL"]),
-  QUEUED:               new Set(["START_UPLOADING", "FAIL_RECOVERABLE", "FAIL_FINAL", "CANCEL"]),
-  UPLOADING:            new Set(["PART_COMPLETE", "PAUSE_NETWORK", "START_RETRY", "COMPLETING", "FAIL_RECOVERABLE", "FAIL_FINAL", "CANCEL"]),
-  PAUSED_NO_NETWORK:    new Set(["RESUME_FROM_NETWORK", "CANCEL"]),
-  RETRY_WAIT:           new Set(["BACK_TO_UPLOADING", "FAIL_FINAL", "CANCEL"]),
-  COMPLETING:           new Set(["VERIFYING", "FAIL_RECOVERABLE"]),
-  VERIFYING:            new Set(["COMPLETE", "FAIL_RECOVERABLE"]),
+  LOCAL_READY:          new Set(["QUEUE", "CANCEL"]),
+  PAUSED_APP_RESTART:   new Set(["QUEUE", "RESET", "CANCEL"]),
+  FAILED_RECOVERABLE:   new Set(["QUEUE", "RESET", "CANCEL"]),
+  QUEUED:               new Set(["START_UPLOADING", "FAIL_RECOVERABLE", "FAIL_FINAL", "RESET", "CANCEL"]),
+  UPLOADING:            new Set(["PART_COMPLETE", "PAUSE_NETWORK", "START_RETRY", "COMPLETING", "FAIL_RECOVERABLE", "FAIL_FINAL", "RESET", "CANCEL"]),
+  PAUSED_NO_NETWORK:    new Set(["RESUME_FROM_NETWORK", "RESET", "CANCEL"]),
+  RETRY_WAIT:           new Set(["BACK_TO_UPLOADING", "FAIL_FINAL", "RESET", "CANCEL"]),
+  COMPLETING:           new Set(["VERIFYING", "FAIL_RECOVERABLE", "RESET", "CANCEL"]),
+  VERIFYING:            new Set(["COMPLETE", "FAIL_RECOVERABLE", "RESET", "CANCEL"]),
   // Terminal states: no outgoing transitions
   COMPLETED:            new Set([]),
   FAILED_FINAL:         new Set([]),
@@ -83,16 +84,15 @@ export function isTransitionAllowed(
 // ─── Pure reducer ─────────────────────────────────────────────────────────────
 
 /**
- * Pure reducer. Given the current state and an event, returns the next state.
- * If the transition is not in the allowed graph, logs a warning and returns
- * the state unchanged (lenient in production to avoid bricking in-flight uploads).
+ * Pure reducer. Applies the event to the current state and returns the next
+ * state. **Throws** if the transition is not permitted by the transition graph.
+ * Use `applyTransition` for the persisting variant.
  */
 export function reduceUpload<T extends DraftUploadState>(state: T, event: UploadEvent): T {
   if (!isTransitionAllowed(state.uploadStatus, event.type)) {
-    console.warn(
-      `[UploadSM] Ignoring invalid transition: ${state.uploadStatus} → ${event.type}`
+    throw new Error(
+      `[UploadSM] Invalid transition: ${state.uploadStatus} → ${event.type}`
     );
-    return state;
   }
 
   switch (event.type) {
@@ -155,12 +155,38 @@ export function reduceUpload<T extends DraftUploadState>(state: T, event: Upload
         ...(event.retryCount !== undefined && { retryCount: event.retryCount }),
       };
 
+    case "RESET":
+      return { ...state, uploadStatus: "LOCAL_READY" };
+
     case "CANCEL":
       return { ...state, uploadStatus: "CANCELLED" };
 
     default:
       return state;
   }
+}
+
+// ─── Persisting transition ────────────────────────────────────────────────────
+
+/**
+ * Apply a validated state-machine event, persist immediately via `saveFn`,
+ * and return the next state. Throws if the transition is not allowed.
+ *
+ * This is the canonical API for all status changes — callers supply the
+ * persistence implementation to keep this module free of I/O dependencies.
+ *
+ * @example
+ *   import { saveDraft } from "./drafts";
+ *   draft = await applyTransition(draft, { type: "QUEUE" }, saveDraft);
+ */
+export async function applyTransition<T extends DraftUploadState>(
+  draft: T,
+  event: UploadEvent,
+  saveFn: (next: T) => Promise<void>
+): Promise<T> {
+  const next = reduceUpload(draft, event);
+  await saveFn(next);
+  return next;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -195,20 +221,20 @@ export function isRecoverable(status: UploadStatus): boolean {
 
 export function uploadStatusLabel(status: UploadStatus): string {
   switch (status) {
-    case "RECORDING":            return "Recording";
+    case "RECORDING":             return "Recording";
     case "RECORDING_INTERRUPTED": return "Interrupted";
-    case "PROCESSING_IMU":       return "Processing IMU";
-    case "LOCAL_READY":          return "Ready to Upload";
-    case "QUEUED":               return "Queued";
-    case "UPLOADING":            return "Uploading";
-    case "PAUSED_NO_NETWORK":    return "No Network";
-    case "PAUSED_APP_RESTART":   return "Paused";
-    case "RETRY_WAIT":           return "Retrying";
-    case "COMPLETING":           return "Finishing";
-    case "VERIFYING":            return "Verifying";
-    case "COMPLETED":            return "Submitted";
-    case "FAILED_RECOVERABLE":   return "Upload Needs Attention";
-    case "FAILED_FINAL":         return "Upload Failed";
-    case "CANCELLED":            return "Cancelled";
+    case "PROCESSING_IMU":        return "Processing IMU";
+    case "LOCAL_READY":           return "Ready to Upload";
+    case "QUEUED":                return "Queued";
+    case "UPLOADING":             return "Uploading";
+    case "PAUSED_NO_NETWORK":     return "No Network";
+    case "PAUSED_APP_RESTART":    return "Paused";
+    case "RETRY_WAIT":            return "Retrying";
+    case "COMPLETING":            return "Finishing";
+    case "VERIFYING":             return "Verifying";
+    case "COMPLETED":             return "Submitted";
+    case "FAILED_RECOVERABLE":    return "Upload Needs Attention";
+    case "FAILED_FINAL":          return "Upload Failed";
+    case "CANCELLED":             return "Cancelled";
   }
 }
