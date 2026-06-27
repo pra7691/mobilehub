@@ -266,6 +266,139 @@ away unexpectedly.
 
 ---
 
+## Final-Stop IMU Timeout and Clean Re-Record
+
+### Background
+
+When `imuStopAndEmbed()` exceeds the configured embed timeout on the **final stop**
+(i.e. the user tapped Stop, not Pause), `recordSegment()` catches the
+`"IMU_EMBED_TIMEOUT"` error and takes the `isFinalStop` branch:
+
+1. The **"Preparing motion data…"** overlay (`imuProcessing`) is cleared.
+2. `setError("Motion data processing timed out. Please try again.")` is set.
+3. `setIsRecording(false)` and `setIsPaused(false)` are called.
+4. The function returns early — **no navigation to Review**.
+
+At this point `segmentsRef`, `segmentDurationsRef`, and `imuSegmentMetaRef` still
+hold the data from the just-completed recording.  The user must tap **Retake** in
+the error banner to clear those refs; only then is the state fully reset.  If the
+error state were not cleared on Retake, a subsequent recording would silently
+accumulate the stale segment URI and produce a corrupt submission.
+
+This section provides a repeatable procedure to confirm the error clears correctly
+and a fresh recording starts without any stale refs.
+
+---
+
+### 7 — Final-stop timeout: error clears cleanly, re-record succeeds
+
+#### Pre-conditions
+
+Same as §3.  You also need admin access to adjust the embed timeout.
+
+---
+
+#### Phase A — Trigger the final-stop timeout
+
+**Setup (once):**
+
+1. Open the admin dashboard → **Settings** → **Capture**.
+2. Set **IMU Embed Timeout** to **1** second and save.
+3. Kill and relaunch the mobile app so `useGetAppSettings` fetches the new value.
+
+**Steps:**
+
+1. Install the dev build; log in as a field agent.
+2. Navigate to a task with `recordImu: true`.
+3. Tap the video collection type to open the Video Capture screen.
+4. Confirm the UI shows no blocked/error state and the record button is enabled.
+5. Tap **Record** and let it run for **8–10 s**.
+6. Tap **Stop** (not Pause).
+   - The **"Preparing motion data…"** overlay must appear immediately after tapping
+     Stop (confirming `isFinalStop === true` triggered the overlay).
+   - With a 1 s timeout, `imuStopAndEmbed()` races past the native mux call.
+
+**Pass criteria after step 6 (all required):**
+
+- The **"Preparing motion data…"** overlay appears after Stop is tapped.
+- The overlay disappears once the timeout fires (within ~2 s of tapping Stop).
+- The error banner appears with the **exact text**:
+  *"Motion data processing timed out. Please try again."*
+  (Not "Motion data could not be added to this video. Please record again.")
+- A **Retake** link is visible inside the error banner.
+- The recording timer is **not running** — `isRecording` is false.
+- The **Record** button is visible and not disabled (not greyed out).
+- The app is not frozen and the screen has not navigated away.
+- No crash or unhandled exception.
+
+---
+
+#### Phase B — Verify Retake clears all state
+
+7. Tap the **Retake** link in the error banner.
+
+**Pass criteria after step 7 (all required):**
+
+- The error banner disappears completely.
+- The recording timer resets to **00:00**.
+- The PAUSED label is not shown.
+- The Record button is enabled and ready.
+- No amber warning banner is visible.
+
+8. Inspect state via the following actions (do **not** start a recording yet):
+   - Tap Record immediately, then Stop after ~2 s.
+   - Confirm the **"Preparing motion data…"** overlay appears and the embed runs
+     with only **one segment** (not two) — this proves `segmentsRef` was cleared.
+
+---
+
+#### Phase C — Restore timeout and complete a successful re-record
+
+9. Switch to the admin dashboard tab.
+10. Set **IMU Embed Timeout** back to **30** seconds and save.
+11. Return to the mobile app.  Kill and relaunch it so `useGetAppSettings` picks up
+    the new value.
+
+12. Tap **Record** and record for **8–10 s**, then tap **Stop**.
+    - Expected: the **"Preparing motion data…"** overlay appears, then the **Review**
+      screen loads.
+
+**Pass criteria after step 12 (all required):**
+
+- The Review screen loads without any error banner.
+- The video plays back a single clean clip with no duplicate segments.
+- Proceed through Review and submit the draft.
+- Submission succeeds (HTTP 200).
+
+**Pass criteria on the admin dashboard (all required):**
+
+- The submission record exists and is not stuck.
+- `imuEmbedded` is `true`.
+- `imuValidationStatus` is `"ok"`.
+- `accelerometerSampleCount` and `gyroscopeSampleCount` reflect one segment only
+  (no leftover counts from the timed-out attempt).
+
+---
+
+### 8 — Final-stop timeout state reset — quick interaction checklist
+
+Run this immediately after §7 Phase B (error banner visible, before tapping Retake).
+
+| Action | Expected outcome |
+|---|---|
+| Read the error text | Exactly *"Motion data processing timed out. Please try again."* — no other variant |
+| Confirm overlay is gone | **"Preparing motion data…"** spinner is not visible |
+| Confirm timer is stopped | Timer shows the duration of the just-aborted clip, not counting up |
+| Tap **Retake** | Error banner disappears; timer resets to 00:00; Record button enabled |
+| Tap **Record** immediately after Retake | New recording starts cleanly; timer counts from 0 |
+| Tap **Stop** on the fresh recording (with 30 s timeout restored) | Review screen loads with a single new segment — no stale URI |
+| Device rotation while error banner is visible | Banner reflows; tapping Retake still works |
+
+All of the above must complete without the app freezing, crashing, or navigating
+away unexpectedly.
+
+---
+
 ## Regression Checklist (run after any native change)
 
 - [ ] iOS: 10 s single-segment clip → `imuValidationStatus === "ok"`, samples ≥ 50
@@ -279,6 +412,9 @@ away unexpectedly.
 - [ ] Mid-session timeout (§5): warning banner appears on non-final pause, controls stay responsive
 - [ ] Mid-session timeout (§5): session can be continued and stopped after the warning
 - [ ] Mid-session timeout (§5): submission succeeds after restoring timeout — timed-out segment uses raw URI, second segment shows imuEmbedded true
+- [ ] Final-stop timeout (§7): overlay appears on Stop, then clears; error banner shows *"Motion data processing timed out. Please try again."* (not the non-timeout variant)
+- [ ] Final-stop timeout (§7): tapping Retake resets timer, clears segments refs, and re-enables Record — no stale URI survives into the next session
+- [ ] Final-stop timeout (§7): fresh recording after Retake submits cleanly with one segment and `imuEmbedded: true`
 
 ---
 
