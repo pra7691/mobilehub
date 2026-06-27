@@ -32,6 +32,9 @@ export interface LocalDraft {
 
   imuProcessingStatus?: "pending" | "processing" | "done" | "failed";
   imuValidationStatus?: "ok" | "no_gpmf" | "insufficient" | "error";
+
+  imuTempFilePath?: string;   // path to disk-streamed IMU sample file (tarzi-imu disk mode)
+  rawVideoUri?: string;        // pre-GPMF segment URI; cleared after successful GPMF embed
 }
 
 interface LegacyLocalDraft {
@@ -52,12 +55,21 @@ interface LegacyLocalDraft {
 }
 
 function migrateDraft(raw: LegacyLocalDraft): LocalDraft {
-  if (raw.uploadStatus !== undefined) {
-    return raw as LocalDraft;
-  }
-  const { status: _dropped, ...rest } = raw;
-  void _dropped;
-  return { ...rest, uploadStatus: "LOCAL_READY" };
+  const base: LocalDraft = (() => {
+    if (raw.uploadStatus !== undefined) {
+      return raw as LocalDraft;
+    }
+    const { status: _dropped, ...rest } = raw;
+    void _dropped;
+    return { ...rest, uploadStatus: "LOCAL_READY" };
+  })();
+  // Ensure all fields introduced after initial schema have explicit defaults
+  // so callers never receive undefined where an empty array or zero is expected.
+  return {
+    ...base,
+    completedParts: base.completedParts ?? [],
+    retryCount: base.retryCount ?? 0,
+  };
 }
 
 const STORAGE_KEY = "capto_drafts";
@@ -142,6 +154,35 @@ export async function copyMediaToDrafts(
   const dest = `${DRAFTS_DIR}${filename}`;
   await FileSystem.copyAsync({ from: sourceUri, to: dest });
   return dest;
+}
+
+/**
+ * Atomically move a media file into the persistent drafts directory.
+ * Prefer this over copyMediaToDrafts for large video files to avoid
+ * double-writing. The source file is removed after a successful move.
+ */
+export async function moveMediaToDrafts(
+  sourceUri: string,
+  filename: string
+): Promise<string> {
+  await ensureDraftsDir();
+  const dest = `${DRAFTS_DIR}${filename}`;
+  await FileSystem.moveAsync({ from: sourceUri, to: dest });
+  return dest;
+}
+
+export const IMU_DIR = `${FileSystem.cacheDirectory}capto_imu/`;
+
+/**
+ * Ensure the IMU temp directory exists and return its path.
+ * Used by the tarzi-imu disk-streaming integration.
+ */
+export async function ensureImuDir(): Promise<string> {
+  const info = await FileSystem.getInfoAsync(IMU_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(IMU_DIR, { intermediates: true });
+  }
+  return IMU_DIR;
 }
 
 export function generateDraftId(): string {

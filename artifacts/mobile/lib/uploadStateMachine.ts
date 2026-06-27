@@ -51,7 +51,13 @@ export type UploadEvent =
   | { type: "FAIL_RECOVERABLE"; lastErrorCode: string }
   | { type: "FAIL_FINAL"; lastErrorCode: string; retryCount?: number }
   | { type: "RESET" }   // soft-cancel: stop active upload, keep draft for retry
-  | { type: "CANCEL" }; // hard-cancel: transition to CANCELLED before deletion
+  | { type: "CANCEL" }  // hard-cancel: transition to CANCELLED before deletion
+  // ── Recording recovery events ───────────────────────────────────────────────
+  | { type: "INTERRUPT_RECORDING" }                             // RECORDING → RECORDING_INTERRUPTED
+  | { type: "BEGIN_IMU_PROCESSING" }                           // RECORDING_INTERRUPTED → PROCESSING_IMU
+  | { type: "FINALIZE_RECORDING" }                             // RECORDING_INTERRUPTED → LOCAL_READY (no IMU needed)
+  | { type: "IMU_PROCESSING_DONE" }                            // PROCESSING_IMU → LOCAL_READY
+  | { type: "IMU_PROCESSING_FAILED"; lastErrorCode: string };  // PROCESSING_IMU → FAILED_RECOVERABLE
 
 // ─── Transition graph ─────────────────────────────────────────────────────────
 
@@ -69,9 +75,10 @@ const ALLOWED: Readonly<Partial<Record<UploadStatus, ReadonlySet<UploadEvent["ty
   COMPLETED:            new Set([]),
   FAILED_FINAL:         new Set([]),
   CANCELLED:            new Set([]),
-  RECORDING:            new Set([]),
-  RECORDING_INTERRUPTED: new Set([]),
-  PROCESSING_IMU:       new Set([]),
+  // Recording lifecycle states — open for recovery events
+  RECORDING:            new Set(["INTERRUPT_RECORDING"]),
+  RECORDING_INTERRUPTED: new Set(["BEGIN_IMU_PROCESSING", "FINALIZE_RECORDING", "CANCEL"]),
+  PROCESSING_IMU:       new Set(["IMU_PROCESSING_DONE", "IMU_PROCESSING_FAILED", "CANCEL"]),
 };
 
 export function isTransitionAllowed(
@@ -160,6 +167,21 @@ export function reduceUpload<T extends DraftUploadState>(state: T, event: Upload
 
     case "CANCEL":
       return { ...state, uploadStatus: "CANCELLED" };
+
+    case "INTERRUPT_RECORDING":
+      return { ...state, uploadStatus: "RECORDING_INTERRUPTED" };
+
+    case "BEGIN_IMU_PROCESSING":
+      return { ...state, uploadStatus: "PROCESSING_IMU" };
+
+    case "FINALIZE_RECORDING":
+      return { ...state, uploadStatus: "LOCAL_READY" };
+
+    case "IMU_PROCESSING_DONE":
+      return { ...state, uploadStatus: "LOCAL_READY" };
+
+    case "IMU_PROCESSING_FAILED":
+      return { ...state, uploadStatus: "FAILED_RECOVERABLE", lastErrorCode: event.lastErrorCode };
 
     default:
       return state;

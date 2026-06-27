@@ -19,6 +19,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StartupScreen } from "@/components/StartupScreen";
 import { NetworkProvider } from "@/contexts/NetworkContext";
 import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
+import { recoverAllRecordingDrafts } from "@/lib/imuRecovery";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
 import { AuthProvider, useAuth, _notifyDisabled, isDisabledError, AuthState } from "@/contexts/AuthContext";
@@ -114,6 +115,7 @@ function RootLayoutNav({ onReady }: { onReady: () => void }) {
       readyFired.current = true;
       onReady();
       drainErrorQueue().catch(() => {});
+      recoverAllRecordingDrafts().catch(() => {});
     }
   }, [isLoading, isLanguageLoading, onReady]);
 

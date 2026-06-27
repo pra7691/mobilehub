@@ -20,7 +20,7 @@ import { useGetTask, getListMySubmissionsQueryKey } from "@workspace/api-client-
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useDrafts } from "@/contexts/DraftContext";
-import { copyMediaToDrafts, generateDraftId, getDraft } from "@/lib/drafts";
+import { moveMediaToDrafts, generateDraftId, getDraft } from "@/lib/drafts";
 import { submitDraft, type SubmitProgress } from "@/lib/submitDraft";
 import {
   clearPendingCapture,
@@ -179,7 +179,7 @@ export default function ReviewScreen() {
       const savedUris: string[] = [];
       for (let i = 0; i < captureData.mediaUris.length; i++) {
         const filename = `${newDraftId}_${i}.${ext}`;
-        const destUri = await copyMediaToDrafts(captureData.mediaUris[i]!, filename);
+        const destUri = await moveMediaToDrafts(captureData.mediaUris[i]!, filename);
         savedUris.push(destUri);
       }
 

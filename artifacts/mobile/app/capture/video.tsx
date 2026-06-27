@@ -30,6 +30,12 @@ import { setPendingCapture } from "@/lib/captureStore";
 import type { ImuCaptureSummary } from "@/lib/captureStore";
 import { reportError } from "@/lib/errorReporting";
 import { hasEnoughStorage } from "@/lib/uploadClient";
+import {
+  saveDraft as saveDraftStorage,
+  generateDraftId,
+  moveMediaToDrafts,
+  type LocalDraft,
+} from "@/lib/drafts";
 
 const IMU_TARGET_HZ = 100;
 
@@ -161,6 +167,14 @@ export default function VideoCaptureScreen() {
     elapsedRef.current = elapsed;
   }, [elapsed]);
 
+  // Stable refs capturing task data for async interrupt handlers.
+  // AppState/backgrounding callbacks run after React state may be stale, so
+  // we always read from refs rather than closed-over state values.
+  const taskRef = useRef(task);
+  const taskImuRequiredRef = useRef(taskImuRequired);
+  useEffect(() => { taskRef.current = task; }, [task]);
+  useEffect(() => { taskImuRequiredRef.current = taskImuRequired; }, [taskImuRequired]);
+
   useEffect(() => {
     if (!task) return;
     if (task.preferredCamera === "FRONT") setFacing("front");
@@ -227,30 +241,6 @@ export default function VideoCaptureScreen() {
       });
   }, [task, taskRecordImu, taskImuRequired, sensorGateDone, router]);
 
-  // Stop recording gracefully when app goes to background
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState !== "active" && isRecording) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (!isPaused) {
-          backgroundedRef.current = true;
-          actionRef.current = "stop";
-          cameraRef.current?.stopRecording();
-        } else {
-          setIsRecording(false);
-          setIsPaused(false);
-          setElapsed(0);
-          elapsedRef.current = 0;
-          segmentsRef.current = [];
-          segmentDurationsRef.current = [];
-          imuSegmentMetaRef.current = [];
-          backgroundedRef.current = false;
-        }
-      }
-    });
-    return () => sub.remove();
-  }, [isRecording, isPaused]);
-
   useEffect(() => {
     if (isRecording && !isPaused) {
       timerRef.current = setInterval(() => {
@@ -272,6 +262,81 @@ export default function VideoCaptureScreen() {
     };
   }, [isRecording, isPaused, maxDuration]);
 
+  /**
+   * Persist accumulated footage as a LOCAL_READY (or FAILED_RECOVERABLE) draft
+   * when recording is interrupted by backgrounding. Uses refs only so it is
+   * safe to call from async event handlers with potentially stale closures.
+   *
+   * Each segment is atomically moved to the persistent drafts directory to
+   * avoid double-writing large video files.
+   *
+   * Declared before the AppState useEffect that calls it to avoid TDZ errors.
+   */
+  const _saveInterruptedDraft = useCallback(
+    async (
+      uris: string[],
+      imuMetas: ImuMetadata[],
+      elapsed: number,
+      captureStartMs: number
+    ): Promise<void> => {
+      const t = taskRef.current;
+      if (!t || uris.length === 0) return;
+
+      const draftId = generateDraftId();
+      const movedUris: string[] = [];
+      for (let i = 0; i < uris.length; i++) {
+        try {
+          const filename = `${draftId}_seg${i}.mp4`;
+          movedUris.push(await moveMediaToDrafts(uris[i]!, filename));
+        } catch {
+          movedUris.push(uris[i]!); // keep original URI on move failure
+        }
+      }
+
+      const captureEndedAtMs = Date.now() - captureStartMs;
+      const imuSummary =
+        imuMetas.length > 0 ? buildImuSummary(imuMetas, captureEndedAtMs) : undefined;
+      const imuRequired = taskImuRequiredRef.current;
+      const imuOk =
+        !imuRequired ||
+        (imuSummary?.imuEmbedded === true && imuSummary.imuValidationStatus === "ok");
+
+      const draft: LocalDraft = {
+        id: draftId,
+        taskId: taskId ?? "",
+        taskTitle: t.title ?? "",
+        collectionType: "VIDEO",
+        paymentAmount: t.paymentAmount ?? 0,
+        currency: t.currency ?? "INR",
+        mediaUris: movedUris,
+        durationSeconds: elapsed,
+        imuMetadata: imuSummary,
+        imuRequired,
+        createdAt: new Date().toISOString(),
+        uploadStatus: imuOk ? "LOCAL_READY" : "FAILED_RECOVERABLE",
+        lastErrorCode: imuOk ? undefined : "RECORDING_INTERRUPTED_IMU_MISSING",
+        completedParts: [],
+        retryCount: 0,
+        imuProcessingStatus: imuSummary
+          ? imuOk
+            ? "done"
+            : "failed"
+          : "pending",
+      };
+
+      try {
+        await saveDraftStorage(draft);
+      } catch (err) {
+        void reportError({
+          errorType: "UNKNOWN",
+          message: "Failed to save interrupted recording draft",
+          metadata: { taskId: taskId, error: String(err) },
+        });
+      }
+    },
+    [taskId] // taskRef and taskImuRequiredRef are refs — always current, no dep needed
+  );
+
   const resetRecordingState = useCallback(() => {
     setIsRecording(false);
     setIsPaused(false);
@@ -281,6 +346,47 @@ export default function VideoCaptureScreen() {
     segmentDurationsRef.current = [];
     imuSegmentMetaRef.current = [];
   }, []);
+
+  // Stop recording gracefully when app goes to background
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active" && isRecording) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (!isPaused) {
+          // Active recording segment — stop it; recordSegment handles the draft save
+          backgroundedRef.current = true;
+          actionRef.current = "stop";
+          cameraRef.current?.stopRecording();
+        } else {
+          // Paused — no active recordAsync in flight, so we must save footage here.
+          // Capture all refs synchronously before resetting state.
+          const capturedUris = [...segmentsRef.current];
+          const capturedImuMetas = [...imuSegmentMetaRef.current];
+          const capturedElapsed = elapsedRef.current;
+          const capturedStartMs = captureSessionStartMsRef.current;
+
+          if (capturedUris.length > 0) {
+            void _saveInterruptedDraft(
+              capturedUris,
+              capturedImuMetas,
+              capturedElapsed,
+              capturedStartMs
+            ).catch(() => {});
+          }
+
+          setIsRecording(false);
+          setIsPaused(false);
+          setElapsed(0);
+          elapsedRef.current = 0;
+          segmentsRef.current = [];
+          segmentDurationsRef.current = [];
+          imuSegmentMetaRef.current = [];
+          backgroundedRef.current = false;
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [isRecording, isPaused, _saveInterruptedDraft]);
 
   /**
    * Record a single segment. Resolves when stopRecording() is called.
@@ -399,6 +505,20 @@ export default function VideoCaptureScreen() {
 
     if (backgroundedRef.current) {
       backgroundedRef.current = false;
+      // The app was backgrounded during an active segment — save whatever footage
+      // was captured before resetting. Fire-and-forget; reset is unconditional.
+      const capturedUris = [...segmentsRef.current];
+      const capturedImuMetas = [...imuSegmentMetaRef.current];
+      const capturedElapsed = elapsedRef.current;
+      const capturedStartMs = captureSessionStartMsRef.current;
+      if (capturedUris.length > 0) {
+        void _saveInterruptedDraft(
+          capturedUris,
+          capturedImuMetas,
+          capturedElapsed,
+          capturedStartMs
+        ).catch(() => {});
+      }
       resetRecordingState();
       return;
     }
