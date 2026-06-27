@@ -25,6 +25,7 @@ import { Type } from 'class-transformer';
 import type { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 class CreateUploadSessionDto {
+  @IsOptional() @IsString() idempotencyKey?: string;
   @IsOptional() @IsString() submissionId?: string;
   @IsString() mediaType!: string;
   @IsString() mimeType!: string;

@@ -285,61 +285,85 @@ export class UploadSessionService {
       };
     }
 
-    if (session.status === 'COMPLETING') {
-      throw new ConflictException('Upload session completion is already in progress');
-    }
     if (session.status === 'ABORTED') {
       throw new ConflictException('Upload session has been aborted');
     }
 
-    // Mark COMPLETING to prevent concurrent duplicate completions
-    await this.prisma.uploadSession.update({
-      where: { id },
+    // Atomically transition CREATED|ACTIVE → COMPLETING (prevents concurrent duplicates)
+    const transitioned = await this.prisma.uploadSession.updateMany({
+      where: { id, status: { in: ['CREATED', 'ACTIVE'] } },
       data: { status: 'COMPLETING' },
     });
 
+    if (transitioned.count === 0) {
+      // Either already COMPLETING (concurrent caller) or some other terminal state
+      const fresh = await this.prisma.uploadSession.findUnique({ where: { id } });
+      if (fresh?.status === 'COMPLETED') {
+        const mediaUrl = fresh.mediaId
+          ? (await this.prisma.submissionMedia.findUnique({
+              where: { id: fresh.mediaId },
+              select: { mediaUrl: true },
+            }))?.mediaUrl ?? fresh.storageKey
+          : fresh.storageKey;
+        return { mediaId: fresh.mediaId, storageKey: fresh.storageKey, mediaUrl };
+      }
+      throw new ConflictException(
+        `Upload session cannot be completed in its current state (${fresh?.status ?? 'unknown'})`,
+      );
+    }
+
     const provider = await this.storage.getProviderForProfileId(session.storageProfileId);
-
     const incomingParts = body.parts ?? [];
-    const { mediaUrl } = await provider.completeMultipartUpload({
-      storageKey: session.storageKey,
-      uploadId: session.remoteSessionId ?? '',
-      parts: incomingParts,
-    });
-
     const submissionId = body.submissionId ?? session.submissionId;
 
-    // Upsert SubmissionMedia idempotently via (submissionId, sortOrder)
     let mediaId: string | null = null;
-    if (submissionId) {
-      const submission = await this.prisma.submission.findUnique({
-        where: { id: submissionId },
-        select: { userId: true },
-      });
-      if (!submission) throw new NotFoundException('Submission not found');
-      if (submission.userId !== userId) throw new ForbiddenException('Access denied');
+    let mediaUrl: string;
 
-      const sortOrder = body.sortOrder ?? 0;
-      const mediaData = {
-        mediaType: session.mediaType as MediaType,
+    try {
+      ({ mediaUrl } = await provider.completeMultipartUpload({
         storageKey: session.storageKey,
-        mediaUrl,
-        storageProfileId: session.storageProfileId,
-        storageProvider: session.storageProvider,
-        bucket: session.bucket,
-        originalFileName: session.originalFileName,
-        mimeType: session.mimeType,
-        fileSize: session.fileSize,
-        uploadStatus: 'UPLOADED' as MediaUploadStatus,
-      };
+        uploadId: session.remoteSessionId ?? '',
+        parts: incomingParts,
+      }));
 
-      const media = await this.prisma.submissionMedia.upsert({
-        where: { submissionId_sortOrder: { submissionId, sortOrder } },
-        create: { submissionId, sortOrder, ...mediaData },
-        update: mediaData,
-        select: { id: true },
-      });
-      mediaId = media.id;
+      // Upsert SubmissionMedia idempotently via (submissionId, sortOrder)
+      if (submissionId) {
+        const submission = await this.prisma.submission.findUnique({
+          where: { id: submissionId },
+          select: { userId: true },
+        });
+        if (!submission) throw new NotFoundException('Submission not found');
+        if (submission.userId !== userId) throw new ForbiddenException('Access denied');
+
+        const sortOrder = body.sortOrder ?? 0;
+        const mediaData = {
+          mediaType: session.mediaType as MediaType,
+          storageKey: session.storageKey,
+          mediaUrl,
+          storageProfileId: session.storageProfileId,
+          storageProvider: session.storageProvider,
+          bucket: session.bucket,
+          originalFileName: session.originalFileName,
+          mimeType: session.mimeType,
+          fileSize: session.fileSize,
+          uploadStatus: 'UPLOADED' as MediaUploadStatus,
+        };
+
+        const media = await this.prisma.submissionMedia.upsert({
+          where: { submissionId_sortOrder: { submissionId, sortOrder } },
+          create: { submissionId, sortOrder, ...mediaData },
+          update: mediaData,
+          select: { id: true },
+        });
+        mediaId = media.id;
+      }
+    } catch (err) {
+      // On any failure, mark FAILED so the session is not permanently stuck in COMPLETING
+      await this.prisma.uploadSession.update({
+        where: { id },
+        data: { status: 'FAILED' },
+      }).catch(() => { /* best-effort */ });
+      throw err;
     }
 
     // Persist completedParts + mark COMPLETED atomically
