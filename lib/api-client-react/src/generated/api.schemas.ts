@@ -1682,6 +1682,100 @@ export interface StorageProfileTestResult {
   durationMs: number;
 }
 
+export type CreateUploadSessionRequestMediaType = typeof CreateUploadSessionRequestMediaType[keyof typeof CreateUploadSessionRequestMediaType];
+
+
+export const CreateUploadSessionRequestMediaType = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  AUDIO: 'AUDIO',
+} as const;
+
+export interface CreateUploadSessionRequest {
+  submissionId?: string;
+  mediaType: CreateUploadSessionRequestMediaType;
+  mimeType: string;
+  originalFileName?: string;
+  /** Total file size in bytes. Used to compute part count. */
+  fileSize?: number;
+  /**
+     * Desired part size in bytes (min 5 MB). Ignored for virtual sessions.
+     * @minimum 5242880
+     */
+  partSize?: number;
+}
+
+export type UploadSessionResponseStatus = typeof UploadSessionResponseStatus[keyof typeof UploadSessionResponseStatus];
+
+
+export const UploadSessionResponseStatus = {
+  PENDING: 'PENDING',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  ABORTED: 'ABORTED',
+  FAILED: 'FAILED',
+} as const;
+
+export interface UploadSessionResponse {
+  id: string;
+  userId: string;
+  submissionId?: string | null;
+  mediaId?: string | null;
+  storageProfileId?: string | null;
+  storageProvider: string;
+  bucket: string;
+  storageKey: string;
+  uploadId?: string | null;
+  /** True for Replit/single-PUT sessions; false for S3 multipart */
+  isVirtual: boolean;
+  status: UploadSessionResponseStatus;
+  mediaType: string;
+  mimeType: string;
+  originalFileName?: string | null;
+  fileSize?: number | null;
+  partSize?: number | null;
+  totalParts?: number | null;
+  uploadedParts: unknown[];
+  /** Presigned PUT URL for virtual (Replit) sessions. Null for S3 multipart. */
+  uploadUrl?: string | null;
+  expiresAt: string;
+  completedAt?: string | null;
+  abortedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PartUrlRequest {
+  /** @minimum 1 */
+  partNumber: number;
+}
+
+export interface PartUrlResponse {
+  partNumber: number;
+  uploadUrl: string;
+}
+
+export interface CompletedPartInput {
+  /** @minimum 1 */
+  partNumber: number;
+  etag: string;
+}
+
+export interface CompleteUploadSessionRequest {
+  /** Required for real S3 multipart. Omit or pass [] for virtual sessions. */
+  parts?: CompletedPartInput[];
+  /** Link to a Submission and create SubmissionMedia (idempotent) */
+  submissionId?: string;
+  /** Sort order of the SubmissionMedia record */
+  sortOrder?: number;
+}
+
+export interface CompleteUploadSessionResponse {
+  mediaId?: string | null;
+  storageKey: string;
+  mediaUrl: string;
+}
+
 export type PageParamParameter = number;
 
 export type LimitParamParameter = number;
@@ -1880,6 +1974,10 @@ export const ListMySubmissionsStatus = {
 
 export type DeleteMySubmission200 = {
   deleted: boolean;
+};
+
+export type AbortUploadSession200 = {
+  aborted: boolean;
 };
 
 export type AdminListSubmissionsParams = {

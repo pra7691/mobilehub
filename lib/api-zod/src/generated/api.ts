@@ -1312,6 +1312,116 @@ export const DeleteMySubmissionResponse = zod.object({
 })
 
 
+/**
+ * @summary Initiate a durable upload session for a single media file
+ */
+export const createUploadSessionBodyPartSizeMin = 5242880;
+
+
+
+export const CreateUploadSessionBody = zod.object({
+  "submissionId": zod.string().optional(),
+  "mediaType": zod.enum(['VIDEO', 'IMAGE', 'AUDIO']),
+  "mimeType": zod.string(),
+  "originalFileName": zod.string().optional(),
+  "fileSize": zod.number().optional().describe('Total file size in bytes. Used to compute part count.'),
+  "partSize": zod.number().min(createUploadSessionBodyPartSizeMin).optional().describe('Desired part size in bytes (min 5 MB). Ignored for virtual sessions.')
+})
+
+
+/**
+ * @summary Get upload session status
+ */
+export const GetUploadSessionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetUploadSessionResponse = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "submissionId": zod.string().nullish(),
+  "mediaId": zod.string().nullish(),
+  "storageProfileId": zod.string().nullish(),
+  "storageProvider": zod.string(),
+  "bucket": zod.string(),
+  "storageKey": zod.string(),
+  "uploadId": zod.string().nullish(),
+  "isVirtual": zod.boolean().describe('True for Replit\/single-PUT sessions; false for S3 multipart'),
+  "status": zod.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'ABORTED', 'FAILED']),
+  "mediaType": zod.string(),
+  "mimeType": zod.string(),
+  "originalFileName": zod.string().nullish(),
+  "fileSize": zod.number().nullish(),
+  "partSize": zod.number().nullish(),
+  "totalParts": zod.number().nullish(),
+  "uploadedParts": zod.array(zod.unknown()),
+  "uploadUrl": zod.string().nullish().describe('Presigned PUT URL for virtual (Replit) sessions. Null for S3 multipart.'),
+  "expiresAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "abortedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Abort an upload session and cancel the multipart upload
+ */
+export const AbortUploadSessionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AbortUploadSessionResponse = zod.object({
+  "aborted": zod.boolean()
+})
+
+
+/**
+ * @summary Get a presigned URL for uploading a specific part
+ */
+export const GetUploadSessionPartUrlParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const GetUploadSessionPartUrlBody = zod.object({
+  "partNumber": zod.number().min(1)
+})
+
+export const GetUploadSessionPartUrlResponse = zod.object({
+  "partNumber": zod.number(),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Complete the multipart upload and optionally create SubmissionMedia
+ */
+export const CompleteUploadSessionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const CompleteUploadSessionBody = zod.object({
+  "parts": zod.array(zod.object({
+  "partNumber": zod.number().min(1),
+  "etag": zod.string()
+})).optional().describe('Required for real S3 multipart. Omit or pass [] for virtual sessions.'),
+  "submissionId": zod.string().optional().describe('Link to a Submission and create SubmissionMedia (idempotent)'),
+  "sortOrder": zod.number().optional().describe('Sort order of the SubmissionMedia record')
+})
+
+export const CompleteUploadSessionResponse = zod.object({
+  "mediaId": zod.string().nullish(),
+  "storageKey": zod.string(),
+  "mediaUrl": zod.string()
+})
+
+
 export const adminListSubmissionsQueryPageDefault = 1;
 
 export const adminListSubmissionsQueryLimitDefault = 20;

@@ -3,6 +3,14 @@ import { StorageProfileService } from './storage-profile.service';
 import { ReplitStorageProvider } from './providers/replit.provider';
 import type { StorageProvider, ProviderUploadResult } from './providers/storage-provider.interface';
 
+export interface ActiveProviderResult {
+  provider: StorageProvider;
+  profileId: string | null;
+  providerType: string;
+  bucket: string;
+  keyPrefix: string;
+}
+
 export interface UploadUrlResult extends ProviderUploadResult {
   storageProfileId: string | null;
   storageProvider: string;
@@ -87,6 +95,47 @@ export class StorageService implements OnModuleInit {
 
     const provider = this.profiles.buildProvider(profile);
     return provider.generateReadUrl(storageKey);
+  }
+
+  /**
+   * Returns the currently active provider (or Replit fallback) with full metadata.
+   * Used by UploadSessionService to initiate multipart uploads.
+   */
+  async getActiveProvider(): Promise<ActiveProviderResult> {
+    const active = await this.profiles.getActiveProfile();
+    if (!active) {
+      return {
+        provider: this.fallbackProvider,
+        profileId: null,
+        providerType: 'REPLIT',
+        bucket: this.fallbackProvider.bucket,
+        keyPrefix: 'tarzi',
+      };
+    }
+    const provider = this.profiles.buildProvider(active);
+    return {
+      provider,
+      profileId: active.id,
+      providerType: active.providerType,
+      bucket: provider.bucket,
+      keyPrefix: active.keyPrefix,
+    };
+  }
+
+  /**
+   * Returns a provider for a known profileId (or Replit fallback if null/not found).
+   * Used by UploadSessionService when completing/aborting a session.
+   */
+  async getProviderForProfileId(profileId: string | null): Promise<StorageProvider> {
+    if (!profileId) {
+      return this.fallbackProvider;
+    }
+    const profile = await this.profiles.getProfileById(profileId);
+    if (!profile) {
+      this.logger.warn(`Storage profile ${profileId} not found; using Replit fallback`);
+      return this.fallbackProvider;
+    }
+    return this.profiles.buildProvider(profile);
   }
 
   /**

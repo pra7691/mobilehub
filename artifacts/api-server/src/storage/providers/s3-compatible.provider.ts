@@ -3,10 +3,21 @@ import {
   S3Client,
   HeadBucketCommand,
   DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import type { StorageProvider, ProviderUploadResult } from './storage-provider.interface';
+import type {
+  StorageProvider,
+  ProviderUploadResult,
+  MultipartInitResult,
+  PartUrlResult,
+  CompletedPart,
+  MultipartCompleteResult,
+} from './storage-provider.interface';
 
 export interface S3CompatibleCredentials {
   accessKeyId: string;
@@ -95,5 +106,82 @@ export class S3CompatibleStorageProvider implements StorageProvider {
 
   async testConnection(): Promise<void> {
     await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+  }
+
+  async initiateMultipartUpload(params: {
+    keyPrefix: string;
+    submissionId?: string;
+    fileName?: string;
+    contentType?: string;
+  }): Promise<MultipartInitResult> {
+    const ext = params.fileName?.split('.').pop() ?? 'bin';
+    const uuid = randomUUID();
+    const prefix = params.keyPrefix || 'tarzi';
+    const subDir = params.submissionId
+      ? `${prefix}/submissions/${params.submissionId}`
+      : `${prefix}/uploads`;
+    const storageKey = `${subDir}/${uuid}.${ext}`;
+
+    const cmd = new CreateMultipartUploadCommand({
+      Bucket: this.bucket,
+      Key: storageKey,
+      ContentType: params.contentType ?? 'application/octet-stream',
+    });
+    const result = await this.client.send(cmd);
+
+    return {
+      uploadId: result.UploadId!,
+      storageKey,
+      isVirtual: false,
+    };
+  }
+
+  async generatePartUploadUrl(params: {
+    storageKey: string;
+    uploadId: string;
+    partNumber: number;
+  }): Promise<PartUrlResult> {
+    const cmd = new UploadPartCommand({
+      Bucket: this.bucket,
+      Key: params.storageKey,
+      UploadId: params.uploadId,
+      PartNumber: params.partNumber,
+    });
+    const uploadUrl = await getSignedUrl(this.client, cmd, { expiresIn: 900 });
+    return { uploadUrl };
+  }
+
+  async completeMultipartUpload(params: {
+    storageKey: string;
+    uploadId: string;
+    parts: CompletedPart[];
+  }): Promise<MultipartCompleteResult> {
+    const cmd = new CompleteMultipartUploadCommand({
+      Bucket: this.bucket,
+      Key: params.storageKey,
+      UploadId: params.uploadId,
+      MultipartUpload: {
+        Parts: [...params.parts]
+          .sort((a, b) => a.partNumber - b.partNumber)
+          .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
+      },
+    });
+    await this.client.send(cmd);
+    return {
+      storageKey: params.storageKey,
+      mediaUrl: params.storageKey,
+    };
+  }
+
+  async abortMultipartUpload(params: {
+    storageKey: string;
+    uploadId: string;
+  }): Promise<void> {
+    const cmd = new AbortMultipartUploadCommand({
+      Bucket: this.bucket,
+      Key: params.storageKey,
+      UploadId: params.uploadId,
+    });
+    await this.client.send(cmd);
   }
 }

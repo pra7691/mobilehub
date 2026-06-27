@@ -3,3 +3,4 @@
 - [MobileErrorLog module](mobile-error-log-module.md) — NestJS module + Prisma model + OpenAPI spec for mobile error capture with admin resolve/unresolve
 - [Storage module](storage-module.md) — multi-provider storage abstraction; Prisma relation name `media`, Metro blockList for @smithy temp dirs, activation requires lastTestResult=ok
 - [OTP allowlist security](otp-allowlist.md) — test OTP requires explicit phone allowlist; empty allowlist disables test OTP for all phones even if test mode is on
+- [Upload session design](upload-session-design.md) — UploadSession model per-file; isVirtual=true for Replit (single PUT, eager URL on create); S3 real multipart; mediaId @unique enforces idempotent SubmissionMedia on complete

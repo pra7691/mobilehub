@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AbortUploadSession200,
   AdminApproveSubmissionBody,
   AdminBanner,
   AdminBannerPage,
@@ -51,6 +52,8 @@ import type {
   CaptureSettings,
   Category,
   CategoryListResponse,
+  CompleteUploadSessionRequest,
+  CompleteUploadSessionResponse,
   CreateAdminUserRequest,
   CreateBannerBody,
   CreateCategoryRequest,
@@ -63,6 +66,7 @@ import type {
   CreateStorageProfileBody,
   CreateSubcategoryRequest,
   CreateTaskRequest,
+  CreateUploadSessionRequest,
   DashboardStats,
   DeleteMySubmission200,
   DeleteNotificationsUnregisterDevice200,
@@ -105,6 +109,8 @@ import type {
   NotificationListResponse,
   OtpRequestResult,
   OtpSettings,
+  PartUrlRequest,
+  PartUrlResponse,
   PayoutRequestItem,
   PayoutRequestListResponse,
   PayoutSettings,
@@ -160,6 +166,7 @@ import type {
   UpiPaymentMethodBody,
   UploadCompleteRequest,
   UploadFailedRequest,
+  UploadSessionResponse,
   UploadUrlRequest,
   UploadUrlResponse,
   User,
@@ -3033,6 +3040,368 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteMySubmissionMutationOptions(options));
+    }
+
+export const getCreateUploadSessionUrl = () => {
+
+
+
+
+  return `/api/upload-sessions`
+}
+
+/**
+ * @summary Initiate a durable upload session for a single media file
+ */
+export const createUploadSession = async (createUploadSessionRequest: CreateUploadSessionRequest, options?: RequestInit): Promise<UploadSessionResponse> => {
+
+  return customFetch<UploadSessionResponse>(getCreateUploadSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createUploadSessionRequest,)
+  }
+);}
+
+
+
+
+export const getCreateUploadSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createUploadSession>>, TError,{data: BodyType<CreateUploadSessionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createUploadSession>>, TError,{data: BodyType<CreateUploadSessionRequest>}, TContext> => {
+
+const mutationKey = ['createUploadSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createUploadSession>>, {data: BodyType<CreateUploadSessionRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createUploadSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateUploadSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createUploadSession>>>
+    export type CreateUploadSessionMutationBody = BodyType<CreateUploadSessionRequest>
+    export type CreateUploadSessionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Initiate a durable upload session for a single media file
+ */
+export const useCreateUploadSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createUploadSession>>, TError,{data: BodyType<CreateUploadSessionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createUploadSession>>,
+        TError,
+        {data: BodyType<CreateUploadSessionRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateUploadSessionMutationOptions(options));
+    }
+
+export const getGetUploadSessionUrl = (id: string,) => {
+
+
+
+
+  return `/api/upload-sessions/${id}`
+}
+
+/**
+ * @summary Get upload session status
+ */
+export const getUploadSession = async (id: string, options?: RequestInit): Promise<UploadSessionResponse> => {
+
+  return customFetch<UploadSessionResponse>(getGetUploadSessionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUploadSessionQueryKey = (id: string,) => {
+    return [
+    `/api/upload-sessions/${id}`
+    ] as const;
+    }
+
+
+export const getGetUploadSessionQueryOptions = <TData = Awaited<ReturnType<typeof getUploadSession>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUploadSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUploadSessionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUploadSession>>> = ({ signal }) => getUploadSession(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUploadSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUploadSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getUploadSession>>>
+export type GetUploadSessionQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get upload session status
+ */
+
+export function useGetUploadSession<TData = Awaited<ReturnType<typeof getUploadSession>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUploadSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUploadSessionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAbortUploadSessionUrl = (id: string,) => {
+
+
+
+
+  return `/api/upload-sessions/${id}`
+}
+
+/**
+ * @summary Abort an upload session and cancel the multipart upload
+ */
+export const abortUploadSession = async (id: string, options?: RequestInit): Promise<AbortUploadSession200> => {
+
+  return customFetch<AbortUploadSession200>(getAbortUploadSessionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAbortUploadSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abortUploadSession>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof abortUploadSession>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['abortUploadSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof abortUploadSession>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  abortUploadSession(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AbortUploadSessionMutationResult = NonNullable<Awaited<ReturnType<typeof abortUploadSession>>>
+
+    export type AbortUploadSessionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Abort an upload session and cancel the multipart upload
+ */
+export const useAbortUploadSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abortUploadSession>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof abortUploadSession>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getAbortUploadSessionMutationOptions(options));
+    }
+
+export const getGetUploadSessionPartUrlUrl = (id: string,) => {
+
+
+
+
+  return `/api/upload-sessions/${id}/part-url`
+}
+
+/**
+ * @summary Get a presigned URL for uploading a specific part
+ */
+export const getUploadSessionPartUrl = async (id: string,
+    partUrlRequest: PartUrlRequest, options?: RequestInit): Promise<PartUrlResponse> => {
+
+  return customFetch<PartUrlResponse>(getGetUploadSessionPartUrlUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      partUrlRequest,)
+  }
+);}
+
+
+
+
+export const getGetUploadSessionPartUrlMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, TError,{id: string;data: BodyType<PartUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, TError,{id: string;data: BodyType<PartUrlRequest>}, TContext> => {
+
+const mutationKey = ['getUploadSessionPartUrl'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, {id: string;data: BodyType<PartUrlRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  getUploadSessionPartUrl(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GetUploadSessionPartUrlMutationResult = NonNullable<Awaited<ReturnType<typeof getUploadSessionPartUrl>>>
+    export type GetUploadSessionPartUrlMutationBody = BodyType<PartUrlRequest>
+    export type GetUploadSessionPartUrlMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Get a presigned URL for uploading a specific part
+ */
+export const useGetUploadSessionPartUrl = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof getUploadSessionPartUrl>>, TError,{id: string;data: BodyType<PartUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof getUploadSessionPartUrl>>,
+        TError,
+        {id: string;data: BodyType<PartUrlRequest>},
+        TContext
+      > => {
+      return useMutation(getGetUploadSessionPartUrlMutationOptions(options));
+    }
+
+export const getCompleteUploadSessionUrl = (id: string,) => {
+
+
+
+
+  return `/api/upload-sessions/${id}/complete`
+}
+
+/**
+ * @summary Complete the multipart upload and optionally create SubmissionMedia
+ */
+export const completeUploadSession = async (id: string,
+    completeUploadSessionRequest: CompleteUploadSessionRequest, options?: RequestInit): Promise<CompleteUploadSessionResponse> => {
+
+  return customFetch<CompleteUploadSessionResponse>(getCompleteUploadSessionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      completeUploadSessionRequest,)
+  }
+);}
+
+
+
+
+export const getCompleteUploadSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeUploadSession>>, TError,{id: string;data: BodyType<CompleteUploadSessionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeUploadSession>>, TError,{id: string;data: BodyType<CompleteUploadSessionRequest>}, TContext> => {
+
+const mutationKey = ['completeUploadSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeUploadSession>>, {id: string;data: BodyType<CompleteUploadSessionRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  completeUploadSession(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteUploadSessionMutationResult = NonNullable<Awaited<ReturnType<typeof completeUploadSession>>>
+    export type CompleteUploadSessionMutationBody = BodyType<CompleteUploadSessionRequest>
+    export type CompleteUploadSessionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Complete the multipart upload and optionally create SubmissionMedia
+ */
+export const useCompleteUploadSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeUploadSession>>, TError,{id: string;data: BodyType<CompleteUploadSessionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeUploadSession>>,
+        TError,
+        {id: string;data: BodyType<CompleteUploadSessionRequest>},
+        TContext
+      > => {
+      return useMutation(getCompleteUploadSessionMutationOptions(options));
     }
 
 export const getAdminListSubmissionsUrl = (params?: AdminListSubmissionsParams,) => {

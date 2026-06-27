@@ -1,5 +1,12 @@
 import { randomUUID } from 'crypto';
-import type { StorageProvider, ProviderUploadResult } from './storage-provider.interface';
+import type {
+  StorageProvider,
+  ProviderUploadResult,
+  MultipartInitResult,
+  PartUrlResult,
+  CompletedPart,
+  MultipartCompleteResult,
+} from './storage-provider.interface';
 
 const SIDECAR = 'http://127.0.0.1:1106';
 
@@ -107,5 +114,67 @@ export class ReplitStorageProvider implements StorageProvider {
       method: 'PUT',
       ttlSec: 30,
     });
+  }
+
+  async initiateMultipartUpload(params: {
+    keyPrefix: string;
+    submissionId?: string;
+    fileName?: string;
+    contentType?: string;
+  }): Promise<MultipartInitResult> {
+    const dir = getPrivateObjectDir();
+    const ext = params.fileName?.split('.').pop() ?? 'bin';
+    const uuid = randomUUID();
+    const subDir = params.submissionId
+      ? `submissions/${params.submissionId}`
+      : 'uploads';
+    const objectName = `${subDir}/${uuid}.${ext}`;
+    const fullPath = `${dir}/${objectName}`;
+
+    return {
+      uploadId: randomUUID(),
+      storageKey: fullPath,
+      isVirtual: true,
+    };
+  }
+
+  async generatePartUploadUrl(params: {
+    storageKey: string;
+    uploadId: string;
+    partNumber: number;
+  }): Promise<PartUrlResult> {
+    if (params.partNumber !== 1) {
+      throw new Error(
+        'Replit storage only supports single-part uploads (partNumber must be 1)',
+      );
+    }
+    const { bucketName, objectName } = parsePath(params.storageKey);
+    const uploadUrl = await signUrl({
+      bucketName,
+      objectName,
+      method: 'PUT',
+      ttlSec: 900,
+    });
+    return { uploadUrl };
+  }
+
+  async completeMultipartUpload(params: {
+    storageKey: string;
+    uploadId: string;
+    parts: CompletedPart[];
+  }): Promise<MultipartCompleteResult> {
+    void params;
+    const { objectName } = parsePath(params.storageKey);
+    return {
+      storageKey: params.storageKey,
+      mediaUrl: `/objects/${objectName}`,
+    };
+  }
+
+  async abortMultipartUpload(_params: {
+    storageKey: string;
+    uploadId: string;
+  }): Promise<void> {
+    // Virtual session — nothing to abort on the Replit sidecar
   }
 }

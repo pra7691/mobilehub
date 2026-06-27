@@ -28,6 +28,7 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { ReferralSettingsModule } from './referral-settings/referral-settings.module';
 import { BannersModule } from './banners/banners.module';
 import { TranslateModule } from './translate/translate.module';
+import { UploadSessionModule } from './upload-sessions/upload-session.module';
 import { SeedProdController } from './seed-prod.controller';
 
 @Module({
@@ -61,6 +62,7 @@ import { SeedProdController } from './seed-prod.controller';
     ReferralSettingsModule,
     BannersModule,
     TranslateModule,
+    UploadSessionModule,
   ],
   controllers: [SeedProdController],
   providers: [
