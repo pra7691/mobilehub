@@ -29,6 +29,9 @@ export interface LocalDraft {
   retryCount?: number;
   lastErrorCode?: string;
   uploadedAt?: string;
+
+  imuProcessingStatus?: "pending" | "processing" | "done" | "failed";
+  imuValidationStatus?: "ok" | "no_gpmf" | "insufficient" | "error";
 }
 
 interface LegacyLocalDraft {

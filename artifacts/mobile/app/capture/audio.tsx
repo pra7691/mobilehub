@@ -27,17 +27,8 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
 import { reportError } from "@/lib/errorReporting";
+import { hasEnoughStorage } from "@/lib/uploadClient";
 
-const LOW_STORAGE_BYTES = 200 * 1024 * 1024; // 200 MB
-
-async function hasSufficientStorage(): Promise<boolean> {
-  try {
-    const free = await FileSystem.getFreeDiskStorageAsync();
-    return free >= LOW_STORAGE_BYTES;
-  } catch {
-    return true;
-  }
-}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -302,22 +293,15 @@ export default function AudioCaptureScreen() {
         return;
       }
 
-      const hasSpace = await hasSufficientStorage();
+      const hasSpace = await hasEnoughStorage(maxDuration || 1800, 0.5);
       if (!hasSpace) {
-        const confirmed = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            "Low Storage",
-            "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
-            [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-              { text: "Record Anyway", onPress: () => resolve(true) },
-            ]
-          );
-        });
-        if (!confirmed) {
-          busyRef.current = false;
-          return;
-        }
+        Alert.alert(
+          "Insufficient Storage",
+          "Your device doesn't have enough free space for this recording. Please free up storage and try again.",
+          [{ text: "OK" }]
+        );
+        busyRef.current = false;
+        return;
       }
 
       setError(null);

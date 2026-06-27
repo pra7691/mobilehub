@@ -29,18 +29,9 @@ import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
 import type { ImuCaptureSummary } from "@/lib/captureStore";
 import { reportError } from "@/lib/errorReporting";
+import { hasEnoughStorage } from "@/lib/uploadClient";
 
-const LOW_STORAGE_BYTES = 200 * 1024 * 1024; // 200 MB
 const IMU_TARGET_HZ = 100;
-
-async function hasSufficientStorage(): Promise<boolean> {
-  try {
-    const free = await FileSystem.getFreeDiskStorageAsync();
-    return free >= LOW_STORAGE_BYTES;
-  } catch {
-    return true;
-  }
-}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -488,35 +479,29 @@ export default function VideoCaptureScreen() {
 
   const startRecording = useCallback(async () => {
     if (isRecording) return;
-    const hasSpace = await hasSufficientStorage();
-
-    const doStart = () => {
-      setError(null);
-      setElapsed(0);
-      elapsedRef.current = 0;
-      segmentsRef.current = [];
-      segmentDurationsRef.current = [];
-      imuSegmentMetaRef.current = [];
-      captureSessionStartMsRef.current = Date.now();
-      actionRef.current = "stop";
-      backgroundedRef.current = false;
-      setIsRecording(true);
-      setIsPaused(false);
-      void recordSegment();
-    };
+    const hasSpace = await hasEnoughStorage(maxDuration || 600, 50);
 
     if (!hasSpace) {
       Alert.alert(
-        "Low Storage",
-        "Your device has less than 200 MB of free space. Recording may fail or be cut short.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Record Anyway", onPress: doStart },
-        ]
+        "Insufficient Storage",
+        "Your device doesn't have enough free space for this recording. Please free up storage and try again.",
+        [{ text: "OK" }]
       );
       return;
     }
-    doStart();
+
+    setError(null);
+    setElapsed(0);
+    elapsedRef.current = 0;
+    segmentsRef.current = [];
+    segmentDurationsRef.current = [];
+    imuSegmentMetaRef.current = [];
+    captureSessionStartMsRef.current = Date.now();
+    actionRef.current = "stop";
+    backgroundedRef.current = false;
+    setIsRecording(true);
+    setIsPaused(false);
+    void recordSegment();
   }, [isRecording, recordSegment]);
 
   const pauseRecording = useCallback(() => {
