@@ -9,7 +9,7 @@ Mobile data-collection platform where field agents complete tasks via a mobile a
 - `pnpm --filter @workspace/mobile run dev` — run Expo mobile app (served at `/mobile`)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec; automatically rebuilds `lib/api-client-react` declarations so dist is never stale
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
 
@@ -56,6 +56,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
+- **Lib declarations must stay in sync**: `lib/api-client-react` is a composite TypeScript lib that emits to `dist/`. After any manual edit to its source (outside of codegen), run `pnpm run typecheck:libs` to rebuild. The codegen script does this automatically — direct edits do not.
 - NestJS build command is `tsc -p tsconfig.json` (not esbuild). Dev command: `export NODE_ENV=development && pnpm run build && pnpm run start`
 - Old Express stub files (`src/app.ts`, `src/index.ts`, etc.) still exist with empty exports — do NOT delete them, tsconfig includes them
 - Prisma client must be generated before running (`prisma generate` runs automatically via postinstall)
