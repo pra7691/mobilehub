@@ -9,7 +9,8 @@
     "eas-build-pre-install": "corepack enable pnpm && corepack prepare pnpm@10.26.1 --activate",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "codegen:check": "bash scripts/check-codegen.sh"
   },
   "private": true,
   "devDependencies": {
