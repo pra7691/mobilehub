@@ -139,6 +139,7 @@ export default function VideoCaptureScreen() {
   const [flash, setFlash] = useState<FlashMode>("off");
   const [facing, setFacing] = useState<CameraType>("back");
   const [error, setError] = useState<string | null>(null);
+  const [imuWarning, setImuWarning] = useState<string | null>(null);
   // Overlay shown while stopAndEmbed() runs on the final stop
   const [imuProcessing, setImuProcessing] = useState(false);
   // Hard block when imuRequired=true and sensors/module unavailable
@@ -294,9 +295,10 @@ export default function VideoCaptureScreen() {
    *
    * IMU lifecycle per segment:
    *   1. startCapture() before recordAsync()
-   *   2. stopAndEmbed(uri) after segment completes
-   *   3. On embed failure: always abort (show error, reset, return)
-   *   4. Overlay shown only during the final-stop embed
+   *   2. stopAndEmbed(uri) after segment completes — timeout applied regardless of isFinalStop
+   *   3. On final-stop embed failure: abort (show error, reset, return)
+   *   4. On mid-session embed failure: show dismissible warning, keep recording
+   *   5. Overlay shown only during the final-stop embed
    */
   const recordSegment = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -377,16 +379,27 @@ export default function VideoCaptureScreen() {
           },
         });
 
-        // Preserve original segment URI in segmentsRef (already pushed above);
-        // do not navigate to review — show error and let user re-record.
-        setError(
-          isTimeout
-            ? "Motion data processing timed out. Please try again."
-            : "Motion data could not be added to this video. Please record again."
-        );
-        setIsRecording(false);
-        setIsPaused(false);
-        return;
+        if (isFinalStop) {
+          // Preserve original segment URI in segmentsRef (already pushed above);
+          // do not navigate to review — show error and let user re-record.
+          setError(
+            isTimeout
+              ? "Motion data processing timed out. Please try again."
+              : "Motion data could not be added to this video. Please record again."
+          );
+          setIsRecording(false);
+          setIsPaused(false);
+          return;
+        } else {
+          // Mid-session embed failure: raw segment URI is already preserved in
+          // segmentsRef. Show a dismissible warning but keep recording so the
+          // user can continue and still submit the remaining segments.
+          setImuWarning(
+            isTimeout
+              ? "Motion data timed out for one segment. Recording continues."
+              : "Motion data missing for one segment. Recording continues."
+          );
+        }
       } finally {
         if (isFinalStop) setImuProcessing(false);
       }
@@ -761,6 +774,15 @@ export default function VideoCaptureScreen() {
         </View>
       )}
 
+      {imuWarning && !error && (
+        <View style={styles.warningBanner}>
+          <Text style={styles.warningText}>{imuWarning}</Text>
+          <TouchableOpacity onPress={() => setImuWarning(null)}>
+            <Feather name="x" size={16} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Sensor gate spinner — shown while async sensor check is in flight */}
       {taskRecordImu && !sensorGateDone && !imuBlocked && (
         <View style={styles.sensorGateOverlay}>
@@ -905,6 +927,20 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     textDecorationLine: "underline",
   },
+  warningBanner: {
+    position: "absolute",
+    bottom: 140,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(180,100,0,0.88)",
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  warningText: { flex: 1, color: "#fff", fontSize: 13, fontFamily: "Inter_500Medium" },
   bottomBar: {
     position: "absolute",
     bottom: 0,
