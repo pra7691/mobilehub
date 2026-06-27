@@ -40,6 +40,7 @@ import {
   ChevronLeft, ChevronRight, Search, Filter, Image, Video, Mic, X, ExternalLink,
   Info, CheckCircle, XCircle, RefreshCw, Loader2,
 } from "lucide-react";
+import { ImuQualityBadge } from "@/components/imu-quality-badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -746,6 +747,12 @@ export default function Submissions() {
                     )}
                     {(selectedSub.captureMetadata as Record<string, string> | undefined)?.orientation && (
                       <DetailRow label="Orientation" value={(selectedSub.captureMetadata as Record<string, string>).orientation} />
+                    )}
+                    {(selectedSub.captureMetadata as Record<string, unknown> | undefined)?.imuValidationStatus != null && (
+                      <div className="col-span-2 flex items-center gap-2 pt-1">
+                        <span className="text-xs text-muted-foreground">Motion data quality:</span>
+                        <ImuQualityBadge status={(selectedSub.captureMetadata as Record<string, string>).imuValidationStatus} />
+                      </div>
                     )}
                   </div>
                 </section>
