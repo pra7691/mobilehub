@@ -28,7 +28,7 @@ process.on("uncaughtException", (err) => {
 
 const config = getDefaultConfig(projectRoot);
 
-config.watchFolders = [workspaceRoot];
+config.watchFolders = [...(config.watchFolders || []), workspaceRoot];
 
 // Exclude ephemeral temp build directories created by @smithy/* packages
 // (e.g. @smithy/core_tmp_NNNNN/dist-cjs) that get created and deleted

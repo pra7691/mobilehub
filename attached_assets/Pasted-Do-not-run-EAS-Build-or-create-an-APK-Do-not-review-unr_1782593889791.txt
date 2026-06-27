@@ -1,0 +1,79 @@
+Do not run EAS Build or create an APK. Do not review unrelated accumulated diffs, background-upload work, or prior tasks.
+
+Fix and verify only the two remaining Expo Doctor failures, while confirming the already-fixed Android Dev Client startup patch still works.
+
+Current confirmed state:
+
+* Expo SDK 54 native dependency versions are now aligned.
+* `expo-asset` is installed.
+* Duplicate `expo-constants` is resolved.
+* `withDevClientMainActivity.js` now uses `withFinalizedMod`.
+* The plugin is placed after `expo-splash-screen`.
+* Remaining Expo Doctor failures:
+
+  1. `app.json` exists alongside dynamic `app.config.ts`
+  2. Metro `watchFolders` does not include Expo defaults
+
+Required work:
+
+1. Dynamic config cleanup
+
+* Confirm `app.config.ts` contains all Expo configuration.
+* Confirm no scripts, plugins, or tools directly read `app.json`.
+* Remove `artifacts/mobile/app.json` only if safe.
+* Do not alter any values in `app.config.ts`.
+
+2. Metro config repair
+
+* Inspect current `metro.config.js`.
+* Start from Expo’s recommended default Metro config for this monorepo.
+* Preserve only essential custom settings:
+
+  * workspace/monorepo resolution
+  * existing AWS Smithy temporary-folder `blockList` fix
+* Ensure required Expo default `watchFolders` are retained.
+* Do not remove monorepo support.
+
+3. Dev Client startup verification
+   Run:
+
+```bash
+cd ~/workspace/artifacts/mobile
+APP_VARIANT=development pnpm exec expo prebuild --platform android --clean
+```
+
+Inspect generated:
+
+```text
+android/app/src/main/java/com/verbosetechlabs/tarzi/dev/MainActivity.kt
+```
+
+Confirm all are true:
+
+* `SplashScreenManager.registerOnActivity(this)` exists.
+* `super.onCreate(savedInstanceState)` exists.
+* `super.onCreate(null)` does not exist.
+* No custom React context, ReactInstanceManager, DevLauncher, or custom React delegate initialization exists.
+
+4. Final checks
+
+```bash
+cd ~/workspace
+pnpm install --frozen-lockfile
+cd artifacts/mobile
+pnpm dlx expo-doctor@latest
+```
+
+Then delete the generated `android/` folder.
+
+Report only:
+
+* Files changed
+* Whether `app.json` was safely removed
+* Metro changes made
+* Full final Expo Doctor result
+* Prebuild result
+* Full generated `onCreate` method
+* Clear answer: “Ready for Dev APK rebuild: Yes/No”
+
+Do not build the APK in this task.
