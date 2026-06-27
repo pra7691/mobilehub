@@ -6,7 +6,7 @@ import CoreMedia
 // MARK: – Sample storage
 
 private struct ImuSample {
-    let timestamp: TimeInterval
+    let timestamp: TimeInterval   // seconds since boot (ProcessInfo.processInfo.systemUptime epoch)
     let x: Double
     let y: Double
     let z: Double
@@ -17,14 +17,23 @@ private struct ImuSample {
 public class TarziImuModule: Module {
 
     private let motionManager = CMMotionManager()
-    private let motionQueue = OperationQueue()
+    private let motionQueue   = OperationQueue()
 
     private var accelSamples: [ImuSample] = []
     private var gyroSamples:  [ImuSample] = []
-    private var isCapturing = false
+    private var isCapturing   = false
+    private var captureStartSec: TimeInterval = 0.0
+
+    // Disk streaming
+    private var diskHandle:       FileHandle? = nil
+    private let diskLock          = NSLock()
+    private var pendingDiskCount  = 0
+    private let DISK_FLUSH_INTERVAL = 200
 
     public func definition() -> ModuleDefinition {
         Name("TarziImu")
+
+        // ── Availability ────────────────────────────────────────────────────
 
         AsyncFunction("checkSensorAvailability") { (promise: Promise) in
             promise.resolve([
@@ -33,80 +42,134 @@ public class TarziImuModule: Module {
             ])
         }
 
-        AsyncFunction("startCapture") { (promise: Promise) in
+        // ── startCapture ────────────────────────────────────────────────────
+        //
+        // @param imuTempFilePath  Optional path for incremental TIMU disk streaming.
+        //   When provided, a 13-byte TIMU header is written at open time and then
+        //   21-byte records are appended for every sensor sample. Samples are
+        //   flushed every DISK_FLUSH_INTERVAL writes. Requires an EAS build that
+        //   includes write permission for the given directory (documentDirectory
+        //   or cacheDirectory both work; use ensureImuDir() from JS to create it).
+        // @param taskId  Diagnostic identifier only — not stored in the TIMU file.
+
+        AsyncFunction("startCapture") { (imuTempFilePath: String?, taskId: String?, promise: Promise) in
             self.accelSamples.removeAll()
             self.gyroSamples.removeAll()
+            self.closeDiskLocked()
+
+            self.captureStartSec = ProcessInfo.processInfo.systemUptime
             self.isCapturing = true
             self.motionQueue.maxConcurrentOperationCount = 1
 
+            if let path = imuTempFilePath, !path.isEmpty {
+                self.openDiskFile(path: path)
+            }
+
             if self.motionManager.isAccelerometerAvailable {
-                self.motionManager.accelerometerUpdateInterval = 0.01  // 100 Hz
+                self.motionManager.accelerometerUpdateInterval = 0.01   // 100 Hz
                 self.motionManager.startAccelerometerUpdates(to: self.motionQueue) { [weak self] data, _ in
-                    guard let self = self, self.isCapturing, let d = data else { return }
-                    // Convert g → m/s² (multiply by standard gravity 9.80665)
-                    self.accelSamples.append(ImuSample(
-                        timestamp: d.timestamp,
-                        x: d.acceleration.x * 9.80665,
-                        y: d.acceleration.y * 9.80665,
-                        z: d.acceleration.z * 9.80665
-                    ))
+                    guard let self, self.isCapturing, let d = data else { return }
+                    let s = ImuSample(timestamp: d.timestamp,
+                                      x: d.acceleration.x * 9.80665,
+                                      y: d.acceleration.y * 9.80665,
+                                      z: d.acceleration.z * 9.80665)
+                    self.accelSamples.append(s)
+                    self.appendSampleToDisk(type: 0x00, sample: s)
                 }
             }
 
             if self.motionManager.isGyroAvailable {
-                self.motionManager.gyroUpdateInterval = 0.01  // 100 Hz
+                self.motionManager.gyroUpdateInterval = 0.01            // 100 Hz
                 self.motionManager.startGyroUpdates(to: self.motionQueue) { [weak self] data, _ in
-                    guard let self = self, self.isCapturing, let d = data else { return }
-                    self.gyroSamples.append(ImuSample(
-                        timestamp: d.timestamp,
-                        x: d.rotationRate.x,
-                        y: d.rotationRate.y,
-                        z: d.rotationRate.z
-                    ))
+                    guard let self, self.isCapturing, let d = data else { return }
+                    let s = ImuSample(timestamp: d.timestamp,
+                                      x: d.rotationRate.x,
+                                      y: d.rotationRate.y,
+                                      z: d.rotationRate.z)
+                    self.gyroSamples.append(s)
+                    self.appendSampleToDisk(type: 0x01, sample: s)
                 }
             }
 
             promise.resolve(nil)
         }
 
+        // ── stopAndEmbed ────────────────────────────────────────────────────
+
         AsyncFunction("stopAndEmbed") { (videoUri: String, promise: Promise) in
             self.isCapturing = false
             self.motionManager.stopAccelerometerUpdates()
             self.motionManager.stopGyroUpdates()
-            // Flush the motion queue before we snapshot
+            // Drain in-flight sensor callbacks before snapshotting
             self.motionQueue.waitUntilAllOperationsAreFinished()
 
-            let accelList = self.accelSamples
-            let gyroList  = self.gyroSamples
+            let accelList      = self.accelSamples
+            let gyroList       = self.gyroSamples
             self.accelSamples.removeAll()
             self.gyroSamples.removeAll()
+            let captureStart   = self.captureStartSec
+            self.finalizeDisk()
 
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     let (outputUri, validationStatus) = try self.muxGpmf(
-                        videoUri:  videoUri,
-                        accelList: accelList,
-                        gyroList:  gyroList
+                        videoUri:        videoUri,
+                        accelList:       accelList,
+                        gyroList:        gyroList,
+                        captureStartSec: captureStart,
+                        outputPath:      nil
                     )
-
-                    let dur = accelList.count > 1
-                        ? accelList.last!.timestamp - accelList.first!.timestamp
-                        : 0.0
+                    let dur    = accelList.count > 1 ? accelList.last!.timestamp - accelList.first!.timestamp : 0.0
                     let accelHz = dur > 0 ? Double(accelList.count) / dur : 0.0
                     let gyroHz  = dur > 0 ? Double(gyroList.count)  / dur : 0.0
+                    promise.resolve(self.buildResult(
+                        uri: outputUri, validationStatus: validationStatus,
+                        accelCount: accelList.count, gyroCount: gyroList.count,
+                        accelHz: accelHz, gyroHz: gyroHz))
+                } catch {
+                    promise.reject("ERR_EMBED", error.localizedDescription)
+                }
+            }
+        }
 
-                    promise.resolve([
-                        "uri": outputUri,
-                        "metadata": [
-                            "imuEmbedded":                true,
-                            "imuFormat":                  "GPMF",
-                            "accelerometerSampleCount":   accelList.count,
-                            "gyroscopeSampleCount":       gyroList.count,
-                            "accelerometerEffectiveHz":   accelHz,
-                            "gyroscopeEffectiveHz":       gyroHz,
-                            "imuValidationStatus":        validationStatus
-                        ] as [String: Any]
-                    ] as [String: Any])
+        // ── resumeEmbed ─────────────────────────────────────────────────────
+        //
+        // Called by imuRecovery.ts on app restart when a PROCESSING_IMU draft is
+        // found.  Reads a persisted TIMU file, re-muxes IMU into the raw video,
+        // and writes the result to outputUri WITHOUT touching rawVideoUri or
+        // imuTempFilePath.  The caller deletes those only after imuEmbedded = true.
+        //
+        // Fails with ERR_IMU_FILE when the TIMU file is missing, corrupted, or
+        // contains an unrecognised version byte.
+
+        AsyncFunction("resumeEmbed") { (rawVideoUri: String, imuTempFilePath: String, outputUri: String, promise: Promise) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let (captureStartSec, accelList, gyroList) = try self.readTimuFile(imuTempFilePath)
+
+                    if accelList.isEmpty && gyroList.isEmpty {
+                        promise.reject("ERR_IMU_FILE", "TIMU file contains no IMU samples")
+                        return
+                    }
+
+                    let (finalUri, validationStatus) = try self.muxGpmf(
+                        videoUri:        rawVideoUri,
+                        accelList:       accelList,
+                        gyroList:        gyroList,
+                        captureStartSec: captureStartSec,
+                        outputPath:      outputUri
+                    )
+
+                    let allTs   = (accelList + gyroList).map { $0.timestamp }
+                    let durSec  = (allTs.max() ?? 0) - (allTs.min() ?? 0)
+                    let accelHz = durSec > 0 ? Double(accelList.count) / durSec : 0.0
+                    let gyroHz  = durSec > 0 ? Double(gyroList.count)  / durSec : 0.0
+                    promise.resolve(self.buildResult(
+                        uri: finalUri, validationStatus: validationStatus,
+                        accelCount: accelList.count, gyroCount: gyroList.count,
+                        accelHz: accelHz, gyroHz: gyroHz))
+                } catch let e as NSError where e.domain == "TarziImu" {
+                    promise.reject("ERR_IMU_FILE", e.localizedDescription)
                 } catch {
                     promise.reject("ERR_EMBED", error.localizedDescription)
                 }
@@ -114,47 +177,237 @@ public class TarziImuModule: Module {
         }
     }
 
+    // MARK: – Shared result builder
+
+    private func buildResult(uri: String, validationStatus: String,
+                              accelCount: Int, gyroCount: Int,
+                              accelHz: Double, gyroHz: Double) -> [String: Any] {
+        [
+            "uri": uri,
+            "metadata": [
+                "imuEmbedded":               validationStatus == "ok",
+                "imuFormat":                 "GPMF",
+                "accelerometerSampleCount":  accelCount,
+                "gyroscopeSampleCount":      gyroCount,
+                "accelerometerEffectiveHz":  accelHz,
+                "gyroscopeEffectiveHz":      gyroHz,
+                "imuValidationStatus":       validationStatus
+            ] as [String: Any]
+        ]
+    }
+
+    // MARK: – Disk streaming
+    //
+    // TIMU binary format (big-endian throughout):
+    //
+    //   Header 13 bytes:
+    //     [4] "TIMU"   magic
+    //     [1] 0x01     version (reject unknown versions)
+    //     [8] captureStartNs (Int64 BE) — ProcessInfo.systemUptime converted to ns
+    //
+    //   Record 21 bytes (one per sensor sample):
+    //     [1] type — 0x00 accel, 0x01 gyro
+    //     [8] timestampOffsetNs (Int64 BE) — ns since captureStartSec
+    //     [4] x Float32 BE
+    //     [4] y Float32 BE
+    //     [4] z Float32 BE
+
+    private func openDiskFile(path: String) {
+        let url = URL(fileURLWithPath: path)
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                     withIntermediateDirectories: true)
+            try? FileManager.default.removeItem(at: url)                // truncate stale file
+            FileManager.default.createFile(atPath: path, contents: nil) // create empty
+            let handle = try FileHandle(forWritingTo: url)
+            // Write 13-byte header
+            var header = Data()
+            header.append(contentsOf: "TIMU".utf8)
+            header.append(0x01)
+            let startNs = Int64(captureStartSec * 1_000_000_000.0)
+            var startNsBE = startNs.bigEndian
+            withUnsafeBytes(of: &startNsBE) { header.append(contentsOf: $0) }
+            handle.write(header)
+            diskLock.lock()
+            diskHandle = handle
+            diskLock.unlock()
+        } catch {
+            // Disk streaming unavailable — samples remain in memory
+        }
+    }
+
+    private func appendSampleToDisk(type: UInt8, sample: ImuSample) {
+        // Called on motionQueue — no lock needed for the write path,
+        // but lock protects diskHandle from concurrent nil-out in finalizeDisk.
+        diskLock.lock()
+        guard let handle = diskHandle else { diskLock.unlock(); return }
+        diskLock.unlock()
+
+        let offsetNs = Int64((sample.timestamp - captureStartSec) * 1_000_000_000.0)
+        var rec = Data(capacity: 21)
+        rec.append(type)
+        var oNs = offsetNs.bigEndian;   withUnsafeBytes(of: &oNs) { rec.append(contentsOf: $0) }
+        var xBE = Float(sample.x).bitPattern.bigEndian; withUnsafeBytes(of: &xBE) { rec.append(contentsOf: $0) }
+        var yBE = Float(sample.y).bitPattern.bigEndian; withUnsafeBytes(of: &yBE) { rec.append(contentsOf: $0) }
+        var zBE = Float(sample.z).bitPattern.bigEndian; withUnsafeBytes(of: &zBE) { rec.append(contentsOf: $0) }
+        handle.write(rec)
+
+        pendingDiskCount += 1
+        if pendingDiskCount >= DISK_FLUSH_INTERVAL {
+            handle.synchronizeFile()
+            pendingDiskCount = 0
+        }
+    }
+
+    private func finalizeDisk() {
+        diskLock.lock()
+        diskHandle?.synchronizeFile()
+        diskHandle?.closeFile()
+        diskHandle = nil
+        diskLock.unlock()
+        pendingDiskCount = 0
+    }
+
+    private func closeDiskLocked() {
+        diskLock.lock()
+        diskHandle?.closeFile()
+        diskHandle = nil
+        diskLock.unlock()
+        pendingDiskCount = 0
+    }
+
+    // MARK: – TIMU file reader
+
+    private func readBEInt64(data: Data, at offset: Int) -> Int64 {
+        var val: Int64 = 0
+        withUnsafeMutableBytes(of: &val) { dst in
+            data.copyBytes(to: dst, from: offset ..< offset + 8)
+        }
+        return Int64(bigEndian: val)
+    }
+
+    private func readBEUInt32(data: Data, at offset: Int) -> UInt32 {
+        var val: UInt32 = 0
+        withUnsafeMutableBytes(of: &val) { dst in
+            data.copyBytes(to: dst, from: offset ..< offset + 4)
+        }
+        return UInt32(bigEndian: val)
+    }
+
+    private func readTimuFile(_ path: String) throws -> (captureStartSec: TimeInterval,
+                                                          accelSamples: [ImuSample],
+                                                          gyroSamples:  [ImuSample]) {
+        let url = URL(fileURLWithPath: path)
+        guard let data = try? Data(contentsOf: url), data.count >= 13 else {
+            throw NSError(domain: "TarziImu", code: 20,
+                          userInfo: [NSLocalizedDescriptionKey: "TIMU file missing or too small: \(path)"])
+        }
+        // Validate magic
+        let magic = String(bytes: data[0 ..< 4], encoding: .ascii) ?? ""
+        guard magic == "TIMU" else {
+            throw NSError(domain: "TarziImu", code: 21,
+                          userInfo: [NSLocalizedDescriptionKey: "Invalid TIMU magic bytes"])
+        }
+        guard data[4] == 0x01 else {
+            throw NSError(domain: "TarziImu", code: 22,
+                          userInfo: [NSLocalizedDescriptionKey: "Unknown TIMU version 0x\(String(data[4], radix: 16))"])
+        }
+
+        let startNs     = readBEInt64(data: data, at: 5)
+        let captureStart = TimeInterval(startNs) / 1_000_000_000.0
+
+        var accel: [ImuSample] = []
+        var gyro:  [ImuSample] = []
+        var offset = 13
+
+        while offset + 21 <= data.count {
+            let type      = data[offset]
+            let offsetNs  = readBEInt64(data: data, at: offset + 1)
+            let xBits     = readBEUInt32(data: data, at: offset + 9)
+            let yBits     = readBEUInt32(data: data, at: offset + 13)
+            let zBits     = readBEUInt32(data: data, at: offset + 17)
+            let sample    = ImuSample(
+                timestamp: captureStart + TimeInterval(offsetNs) / 1_000_000_000.0,
+                x: Double(Float(bitPattern: xBits)),
+                y: Double(Float(bitPattern: yBits)),
+                z: Double(Float(bitPattern: zBits))
+            )
+            switch type {
+            case 0x00: accel.append(sample)
+            case 0x01: gyro.append(sample)
+            default:   break
+            }
+            offset += 21
+        }
+
+        return (captureStart, accel, gyro)
+    }
+
+    // MARK: – GPMF chunk builder
+    //
+    // Splits samples into 1-second windows keyed by floor(timestamp - captureStartSec).
+    // Returns chunks sorted by chunkIndex — each will become one MP4 muxer sample
+    // with presentationTime = chunkIndex × timescale, giving correct temporal alignment.
+
+    private func buildGpmfChunks(accelList: [ImuSample],
+                                   gyroList:  [ImuSample],
+                                   captureStartSec: TimeInterval) -> [(payload: Data, chunkIndex: Int)] {
+        if accelList.isEmpty && gyroList.isEmpty { return [] }
+
+        var buckets: [Int: (accel: [ImuSample], gyro: [ImuSample])] = [:]
+
+        for s in accelList {
+            let ci = max(0, Int(s.timestamp - captureStartSec))
+            if buckets[ci] == nil { buckets[ci] = ([], []) }
+            buckets[ci]!.accel.append(s)
+        }
+        for s in gyroList {
+            let ci = max(0, Int(s.timestamp - captureStartSec))
+            if buckets[ci] == nil { buckets[ci] = ([], []) }
+            buckets[ci]!.gyro.append(s)
+        }
+
+        return buckets.sorted { $0.key < $1.key }.map { (ci, pair) in
+            (payload: buildGpmfPayload(accelList: pair.accel, gyroList: pair.gyro),
+             chunkIndex: ci)
+        }
+    }
+
     // MARK: – MP4 mux
+    //
+    // Reads the source MP4 byte-by-byte (memory-mapped), builds a multi-chunk
+    // GPMF telemetry track, and writes the result atomically.
+    //
+    // @param outputPath  When non-nil, write to this path without touching videoUri.
+    //                    When nil, replace videoUri in-place (stopAndEmbed path).
 
-    private func muxGpmf(videoUri: String,
-                          accelList: [ImuSample],
-                          gyroList:  [ImuSample]) throws -> (uri: String, validationStatus: String) {
+    private func muxGpmf(videoUri:        String,
+                          accelList:       [ImuSample],
+                          gyroList:        [ImuSample],
+                          captureStartSec: TimeInterval,
+                          outputPath:      String?) throws -> (uri: String, validationStatus: String) {
 
-        // Resolve source URL
         let sourceURL: URL = videoUri.hasPrefix("file://")
             ? URL(string: videoUri)!
             : URL(fileURLWithPath: videoUri)
 
-        // Build GPMF payload
-        let gpmfPayload = buildGpmfPayload(accelList: accelList, gyroList: gyroList)
-
-        // Read source file
         let srcData = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
 
-        // Parse top-level MP4 atoms
-        var topAtoms = parseMp4Atoms(srcData)
-
-        // Collect non-moov bytes (ftyp, mdat, free, …) and moov bytes
+        // Parse top-level atoms to separate prefix (ftyp, mdat, …) from moov
         var prefixBytes = Data()
         var moovBytes   = Data()
-
-        for atom in topAtoms {
-            if atom.type == "moov" {
-                moovBytes = atom.rawBytes
-            } else {
-                prefixBytes.append(contentsOf: atom.rawBytes)
-            }
+        for atom in parseMp4Atoms(srcData) {
+            if atom.type == "moov" { moovBytes = atom.rawBytes }
+            else { prefixBytes.append(contentsOf: atom.rawBytes) }
         }
-
-        if moovBytes.isEmpty {
+        guard !moovBytes.isEmpty else {
             throw NSError(domain: "TarziImu", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "No moov atom in source MP4"])
         }
 
-        // Parse moov to get movie timescale + duration + existing track count
-        let moovInner    = moovBytes.dropFirst(8)  // skip 8-byte box header
-        let moovAtoms    = parseMp4Atoms(moovInner)
-        guard let mvhd   = moovAtoms.first(where: { $0.type == "mvhd" }) else {
+        let moovInner = moovBytes.dropFirst(8)
+        let moovAtoms = parseMp4Atoms(moovInner)
+        guard let mvhd = moovAtoms.first(where: { $0.type == "mvhd" }) else {
             throw NSError(domain: "TarziImu", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "No mvhd in moov"])
         }
@@ -163,108 +416,125 @@ public class TarziImuModule: Module {
         let existingTracks = moovAtoms.filter { $0.type == "trak" }.count
         let newTrackId     = UInt32(existingTracks + 1)
 
-        // The GPMF payload is wrapped in an mdat box placed immediately after
-        // prefixBytes.  The stco chunk offset must point to the first byte of
-        // the payload DATA — i.e. after the 8-byte mdat box header.
-        let chunkOffset = UInt32(prefixBytes.count + 8)
+        // Build GPMF chunks (one per second of recording)
+        let chunks = buildGpmfChunks(accelList: accelList, gyroList: gyroList, captureStartSec: captureStartSec)
 
-        // Build GPMD trak atom
-        let gpmdTrak = buildGpmdTrak(trackId:       newTrackId,
-                                      timescale:     timescale,
-                                      duration:      movieDuration,
-                                      payloadSize:   UInt32(gpmfPayload.count),
-                                      chunkOffset:   chunkOffset)
+        // Concatenate all chunk payloads into one mdat payload
+        var allPayloads = Data()
+        for (payload, _) in chunks { allPayloads.append(payload) }
+        if allPayloads.isEmpty {
+            allPayloads = buildGpmfPayload(accelList: [], gyroList: [])
+        }
 
-        // Build new moov = original moov inner + gpmd trak
-        var newMoovInner = moovInner
+        let gpmfMdat = mp4Box("mdat", payload: allPayloads)
+
+        // Compute per-chunk stco offsets:
+        //   base = prefixBytes.count + 8  (past the 8-byte gpmfMdat header)
+        let baseOffset = UInt32(prefixBytes.count + 8)
+        var chunkOffsets: [UInt32] = []
+        var running: UInt32 = 0
+        for (payload, _) in chunks {
+            chunkOffsets.append(baseOffset + running)
+            running += UInt32(payload.count)
+        }
+        // If no chunks, single empty payload at base offset
+        if chunkOffsets.isEmpty { chunkOffsets = [baseOffset] }
+
+        // Build trak with chunks info
+        let gpmdTrak: Data
+        if chunks.isEmpty {
+            // Fallback: single sample track (empty payload)
+            let emptyChunks = [(payload: allPayloads, chunkOffset: baseOffset)]
+            gpmdTrak = buildGpmdTrak(trackId: newTrackId, timescale: timescale, duration: movieDuration, chunks: emptyChunks)
+        } else {
+            let chunksWithOffsets = zip(chunks, chunkOffsets).map { (c, off) in
+                (payload: c.payload, chunkOffset: off)
+            }
+            gpmdTrak = buildGpmdTrak(trackId: newTrackId, timescale: timescale, duration: movieDuration, chunks: chunksWithOffsets)
+        }
+
+        // Rebuild moov
+        var newMoovInner = Data(moovInner)
         newMoovInner.append(gpmdTrak)
         let newMoov = mp4Box("moov", payload: newMoovInner)
 
-        // Assemble output: [prefix] [mdat box containing gpmf payload] [new moov]
-        // MP4 requires all top-level bytes to live inside properly-typed atoms.
-        // stco points 8 bytes into gpmfMdat (past the size+type header).
-        let gpmfMdat = mp4Box("mdat", payload: gpmfPayload)
+        // Assemble output bytes
         var output = prefixBytes
         output.append(gpmfMdat)
         output.append(newMoov)
 
-        // Validate the in-memory output BEFORE writing to disk so we never
-        // overwrite the source file with a corrupt result.
-        let validationStatus: String
-        if accelList.isEmpty && gyroList.isEmpty {
-            validationStatus = "warning_no_sensor_data"
-        } else {
-            do {
-                try validateGpmfOutput(output,
-                                       accelCount: accelList.count,
-                                       gyroCount:  gyroList.count)
-                validationStatus = "ok"
-            } catch let err as NSError {
-                // Validation failed — still write the file but mark it
-                validationStatus = "error_\(err.code)"
-            }
-        }
+        // Validate in-memory before touching any file
+        let validationStatus = validateGpmfOutput(
+            output,
+            accelCount: accelList.count,
+            gyroCount:  gyroList.count,
+            chunkCount: chunks.isEmpty ? 1 : chunks.count
+        )
 
-        // Write to temp file then atomically replace source
-        let tmpURL = sourceURL.deletingLastPathComponent()
+        // Write to temp file first (atomic replacement)
+        let tmpURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("tarzi_imu_\(Int(Date().timeIntervalSince1970)).mp4")
         try output.write(to: tmpURL, options: .atomic)
 
-        _ = try? FileManager.default.removeItem(at: sourceURL)
-        try FileManager.default.moveItem(at: tmpURL, to: sourceURL)
-
-        return (videoUri, validationStatus)
+        if let outPath = outputPath {
+            // resumeEmbed path: write to outPath, never touch source
+            let outURL = outPath.hasPrefix("file://")
+                ? URL(string: outPath)!
+                : URL(fileURLWithPath: outPath)
+            try? FileManager.default.createDirectory(at: outURL.deletingLastPathComponent(),
+                                                      withIntermediateDirectories: true)
+            try? FileManager.default.removeItem(at: outURL)
+            try FileManager.default.moveItem(at: tmpURL, to: outURL)
+            return (outPath, validationStatus)
+        } else {
+            // stopAndEmbed path: replace source
+            try? FileManager.default.removeItem(at: sourceURL)
+            try FileManager.default.moveItem(at: tmpURL, to: sourceURL)
+            return (videoUri, validationStatus)
+        }
     }
 
     // MARK: – Validation
 
-    /// Parses the assembled output bytes and confirms a `meta`-handler track
-    /// with a `gpmd` sample description exists and that sample counts match.
     private func validateGpmfOutput(_ data: Data,
-                                    accelCount: Int,
-                                    gyroCount: Int) throws {
+                                     accelCount: Int,
+                                     gyroCount:  Int,
+                                     chunkCount: Int) -> String {
+        if accelCount == 0 && gyroCount == 0 { return "warning_no_sensor_data" }
+        if accelCount == 0 || gyroCount == 0 { return "warning_partial_sensor_data" }
+
         let topAtoms = parseMp4Atoms(data)
         guard let moovAtom = topAtoms.first(where: { $0.type == "moov" }) else {
-            throw NSError(domain: "TarziImu", code: 10,
-                          userInfo: [NSLocalizedDescriptionKey: "moov atom missing"])
+            return "error_no_moov"
         }
         let moovAtoms = parseMp4Atoms(moovAtom.payload)
         let gpmdFound = moovAtoms
             .filter { $0.type == "trak" }
             .contains { trak in trakHasGpmdEntry(trak.payload) }
-        guard gpmdFound else {
-            throw NSError(domain: "TarziImu", code: 11,
-                          userInfo: [NSLocalizedDescriptionKey: "gpmd track not found in output"])
-        }
-        guard accelCount > 0 && gyroCount > 0 else {
-            throw NSError(domain: "TarziImu", code: 12,
-                          userInfo: [NSLocalizedDescriptionKey: "zero IMU samples in payload"])
-        }
+        guard gpmdFound else { return "error_no_gpmd_track" }
+
+        if chunkCount < 2 { return "warning_single_gpmd_sample" }
+
+        return "ok"
     }
 
-    /// Returns true when a trak payload contains mdia with handler "meta"
-    /// and an stsd entry of type "gpmd".
     private func trakHasGpmdEntry(_ trakPayload: Data) -> Bool {
         let trakAtoms = parseMp4Atoms(trakPayload)
         guard let mdiaAtom = trakAtoms.first(where: { $0.type == "mdia" }) else { return false }
         let mdiaAtoms = parseMp4Atoms(mdiaAtom.payload)
 
-        // Confirm handler type == "meta"
         guard let hdlrAtom = mdiaAtoms.first(where: { $0.type == "hdlr" }) else { return false }
-        // hdlr FullBox payload: [version(1)][flags(3)][pre-defined(4)][handler_type(4)]…
         let hp = hdlrAtom.payload
         guard hp.count >= 12 else { return false }
         let htStart = hp.startIndex + 8
         let handlerType = String(bytes: hp[htStart ..< htStart + 4], encoding: .ascii) ?? ""
         guard handlerType == "meta" else { return false }
 
-        // Confirm stsd contains a "gpmd" sample entry
         guard let minfAtom = mdiaAtoms.first(where: { $0.type == "minf" }) else { return false }
         let minfAtoms = parseMp4Atoms(minfAtom.payload)
         guard let stblAtom = minfAtoms.first(where: { $0.type == "stbl" }) else { return false }
         let stblAtoms = parseMp4Atoms(stblAtom.payload)
         guard let stsdAtom = stblAtoms.first(where: { $0.type == "stsd" }) else { return false }
-        // stsd FullBox: [version(1)][flags(3)][entry-count(4)] then entries
         guard stsdAtom.payload.count >= 8 else { return false }
         let entries = parseMp4Atoms(stsdAtom.payload.dropFirst(8))
         return entries.contains { $0.type == "gpmd" }
@@ -274,8 +544,8 @@ public class TarziImuModule: Module {
 
     private struct Mp4Atom {
         let type: String
-        let payload: Data   // bytes after the 8-byte header
-        let rawBytes: Data  // includes header
+        let payload: Data
+        let rawBytes: Data
     }
 
     private func parseMp4Atoms(_ data: Data) -> [Mp4Atom] {
@@ -283,33 +553,25 @@ public class TarziImuModule: Module {
         var offset = data.startIndex
         while offset < data.endIndex {
             guard offset + 8 <= data.endIndex else { break }
-            let sizeSlice = data[offset ..< offset + 4]
-            let size32 = sizeSlice.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-            let typeBytes = data[offset + 4 ..< offset + 8]
-            let typeName = String(bytes: typeBytes, encoding: .ascii) ?? "????"
+            let size32 = data[offset ..< offset + 4]
+                .withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+            let typeName = String(bytes: data[offset + 4 ..< offset + 8], encoding: .ascii) ?? "????"
 
             let headerSize: Int
-            let totalSize: Int
+            let totalSize:  Int
 
             if size32 == 1 {
-                // 64-bit extended size
                 guard offset + 16 <= data.endIndex else { break }
                 let size64 = data[offset + 8 ..< offset + 16]
                     .withUnsafeBytes { $0.load(as: UInt64.self).bigEndian }
-                headerSize = 16
-                totalSize  = Int(size64)
+                headerSize = 16; totalSize = Int(size64)
             } else if size32 == 0 {
-                // Extends to EOF
-                totalSize  = data.distance(from: offset, to: data.endIndex)
-                headerSize = 8
+                totalSize = data.distance(from: offset, to: data.endIndex); headerSize = 8
             } else {
-                totalSize  = Int(size32)
-                headerSize = 8
+                totalSize = Int(size32); headerSize = 8
             }
 
-            guard totalSize >= headerSize,
-                  offset + totalSize <= data.endIndex else { break }
-
+            guard totalSize >= headerSize, offset + totalSize <= data.endIndex else { break }
             let raw     = data[offset ..< offset + totalSize]
             let payload = data[offset + headerSize ..< offset + totalSize]
             atoms.append(Mp4Atom(type: typeName, payload: payload, rawBytes: Data(raw)))
@@ -318,13 +580,10 @@ public class TarziImuModule: Module {
         return atoms
     }
 
-    // Parse mvhd to extract (timescale, duration). Handles v0 (32-bit) and v1 (64-bit).
     private func parseMvhd(_ payload: Data) -> (timescale: UInt32, duration: UInt32) {
-        // FullBox: [version 1B][flags 3B] then fields
         guard payload.count >= 4 else { return (1000, 0) }
         let version = payload[payload.startIndex]
         if version == 1 {
-            // v1: creation(8) modification(8) timescale(4) duration(8) …
             guard payload.count >= 28 else { return (1000, 0) }
             let ts = payload[payload.startIndex + 20 ..< payload.startIndex + 24]
                 .withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
@@ -332,7 +591,6 @@ public class TarziImuModule: Module {
                 .withUnsafeBytes { $0.load(as: UInt64.self).bigEndian }
             return (ts, UInt32(min(dur64, UInt64(UInt32.max))))
         } else {
-            // v0: creation(4) modification(4) timescale(4) duration(4) …
             guard payload.count >= 16 else { return (1000, 0) }
             let ts  = payload[payload.startIndex + 8  ..< payload.startIndex + 12]
                 .withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
@@ -346,7 +604,7 @@ public class TarziImuModule: Module {
 
     private func be32(_ v: UInt32) -> [UInt8] {
         [UInt8((v >> 24) & 0xFF), UInt8((v >> 16) & 0xFF),
-         UInt8((v >> 8) & 0xFF),  UInt8(v & 0xFF)]
+         UInt8((v >> 8)  & 0xFF), UInt8(v & 0xFF)]
     }
     private func be16(_ v: UInt16) -> [UInt8] {
         [UInt8((v >> 8) & 0xFF), UInt8(v & 0xFF)]
@@ -372,191 +630,148 @@ public class TarziImuModule: Module {
         return mp4Box(type, payload: fb + payload)
     }
 
-    // tkhd  (track header, version 0)
     private func buildTkhd(trackId: UInt32, duration: UInt32) -> Data {
         var p: [UInt8] = []
-        p += be32(0)         // creation time
-        p += be32(0)         // modification time
-        p += be32(trackId)
-        p += be32(0)         // reserved
-        p += be32(duration)
-        p += [UInt8](repeating: 0, count: 8)   // reserved (2 × 32)
-        p += be16(0)         // layer
-        p += be16(0)         // alternate group
-        p += be16(0)         // volume
-        p += be16(0)         // reserved
-        // Unity matrix (9 × 32-bit fixed-point)
+        p += be32(0); p += be32(0); p += be32(trackId); p += be32(0); p += be32(duration)
+        p += [UInt8](repeating: 0, count: 8)
+        p += be16(0); p += be16(0); p += be16(0); p += be16(0)
         p += be32(0x00010000); p += be32(0); p += be32(0)
-        p += be32(0);          p += be32(0x00010000); p += be32(0)
-        p += be32(0);          p += be32(0); p += be32(0x40000000)
-        p += be32(0)         // width  (0 for non-visual)
-        p += be32(0)         // height
-        return fullBox("tkhd", version: 0, flags: 3, payload: p)  // flags 3 = enabled+in-movie
+        p += be32(0); p += be32(0x00010000); p += be32(0)
+        p += be32(0); p += be32(0); p += be32(0x40000000)
+        p += be32(0); p += be32(0)
+        return fullBox("tkhd", version: 0, flags: 3, payload: p)
     }
 
-    // mdhd  (media header, version 0)
     private func buildMdhd(timescale: UInt32, duration: UInt32) -> Data {
         var p: [UInt8] = []
-        p += be32(0)          // creation time
-        p += be32(0)          // modification time
-        p += be32(timescale)
-        p += be32(duration)
-        p += be16(0x55C4)     // language = "und" (ISO 639-2)
-        p += be16(0)          // pre-defined
+        p += be32(0); p += be32(0)
+        p += be32(timescale); p += be32(duration)
+        p += be16(0x55C4); p += be16(0)
         return fullBox("mdhd", payload: p)
     }
 
-    // hdlr
     private func buildHdlr(handlerType: String, name: String) -> Data {
         var p: [UInt8] = []
-        p += be32(0)          // pre-defined
+        p += be32(0)
         p += Array(handlerType.utf8.prefix(4))
-        p += [UInt8](repeating: 0, count: 12)  // reserved
+        p += [UInt8](repeating: 0, count: 12)
         p += Array((name + "\0").utf8)
         return fullBox("hdlr", payload: p)
     }
 
-    // nmhd  (null media header)
     private func buildNmhd() -> Data { fullBox("nmhd", payload: []) }
 
-    // url   (data entry URL, self-contained)
     private func buildUrl() -> Data { fullBox("url ", flags: 1, payload: []) }
 
-    // dref  (data reference)
     private func buildDref() -> Data {
-        var p = be32(1)       // entry count = 1
-        p += Array(buildUrl())
-        return fullBox("dref", payload: p)
+        var p = be32(1); p += Array(buildUrl()); return fullBox("dref", payload: p)
     }
 
-    // dinf
     private func buildDinf() -> Data { mp4Box("dinf", payload: buildDref()) }
 
-    // gpmd sample entry inside stsd
     private func buildGpmdEntry(dataRefIndex: UInt16 = 1) -> Data {
-        var p: [UInt8] = [UInt8](repeating: 0, count: 6)  // reserved
+        var p: [UInt8] = [UInt8](repeating: 0, count: 6)
         p += be16(dataRefIndex)
         return mp4Box("gpmd", payload: p)
     }
 
-    // stsd
     private func buildStsd() -> Data {
-        var p = be32(1)       // entry count
-        p += Array(buildGpmdEntry())
+        var p = be32(1); p += Array(buildGpmdEntry())
         return fullBox("stsd", payload: p)
     }
 
-    // stts  (1 entry: 1 sample with duration = movieDuration)
-    private func buildStts(duration: UInt32) -> Data {
-        var p = be32(1)       // entry count
-        p += be32(1)          // sample count
-        p += be32(duration)   // sample delta
+    // stts: N chunks, each with sample delta = timescale (1 second in movie units).
+    // Using one compact entry saves space when all deltas are equal.
+    private func buildStts(chunkCount: UInt32, timescale: UInt32) -> Data {
+        var p = be32(1)            // 1 stts entry
+        p += be32(chunkCount)      // covers all N samples
+        p += be32(timescale)       // each sample lasts 1 second in movie units
         return fullBox("stts", payload: p)
     }
 
-    // stsc  (1 chunk, 1 sample per chunk)
+    // stsc: every chunk contains exactly 1 sample
     private func buildStsc() -> Data {
-        var p = be32(1)       // entry count
-        p += be32(1)          // first chunk
-        p += be32(1)          // samples per chunk
-        p += be32(1)          // sample description index
+        var p = be32(1); p += be32(1); p += be32(1); p += be32(1)
         return fullBox("stsc", payload: p)
     }
 
-    // stsz  (uniform size = 0, then 1 explicit entry)
-    private func buildStsz(sampleSize: UInt32) -> Data {
-        var p = be32(0)       // uniform sample size (0 = per-sample list)
-        p += be32(1)          // sample count
-        p += be32(sampleSize)
+    // stsz: per-sample (per-chunk) sizes
+    private func buildStsz(sizes: [UInt32]) -> Data {
+        var p = be32(0)            // no uniform size
+        p += be32(UInt32(sizes.count))
+        for s in sizes { p += be32(s) }
         return fullBox("stsz", payload: p)
     }
 
-    // stco  (absolute chunk offset)
-    private func buildStco(offset: UInt32) -> Data {
-        var p = be32(1)       // entry count
-        p += be32(offset)
+    // stco: per-chunk absolute byte offsets in the file
+    private func buildStco(offsets: [UInt32]) -> Data {
+        var p = be32(UInt32(offsets.count))
+        for o in offsets { p += be32(o) }
         return fullBox("stco", payload: p)
     }
 
-    // stbl
-    private func buildStbl(payloadSize: UInt32,
-                            duration:    UInt32,
-                            chunkOffset: UInt32) -> Data {
+    private func buildStbl(chunks: [(payload: Data, chunkOffset: UInt32)],
+                            timescale: UInt32) -> Data {
+        let sizes   = chunks.map { UInt32($0.payload.count) }
+        let offsets = chunks.map { $0.chunkOffset }
         var inner = Data()
         inner.append(buildStsd())
-        inner.append(buildStts(duration: duration))
+        inner.append(buildStts(chunkCount: UInt32(chunks.count), timescale: timescale))
         inner.append(buildStsc())
-        inner.append(buildStsz(sampleSize: payloadSize))
-        inner.append(buildStco(offset: chunkOffset))
+        inner.append(buildStsz(sizes: sizes))
+        inner.append(buildStco(offsets: offsets))
         return mp4Box("stbl", payload: inner)
     }
 
-    // minf
-    private func buildMinf(payloadSize: UInt32,
-                            duration:    UInt32,
-                            chunkOffset: UInt32) -> Data {
+    private func buildMinf(chunks: [(payload: Data, chunkOffset: UInt32)],
+                            timescale: UInt32) -> Data {
         var inner = Data()
         inner.append(buildNmhd())
         inner.append(buildDinf())
-        inner.append(buildStbl(payloadSize:  payloadSize,
-                               duration:     duration,
-                               chunkOffset:  chunkOffset))
+        inner.append(buildStbl(chunks: chunks, timescale: timescale))
         return mp4Box("minf", payload: inner)
     }
 
-    // mdia
-    private func buildMdia(timescale:   UInt32,
-                            duration:    UInt32,
-                            payloadSize: UInt32,
-                            chunkOffset: UInt32) -> Data {
+    private func buildMdia(timescale: UInt32,
+                            duration:  UInt32,
+                            chunks: [(payload: Data, chunkOffset: UInt32)]) -> Data {
         var inner = Data()
         inner.append(buildMdhd(timescale: timescale, duration: duration))
         inner.append(buildHdlr(handlerType: "meta", name: "GoPro TCD"))
-        inner.append(buildMinf(payloadSize:  payloadSize,
-                               duration:     duration,
-                               chunkOffset:  chunkOffset))
+        inner.append(buildMinf(chunks: chunks, timescale: timescale))
         return mp4Box("mdia", payload: inner)
     }
 
-    // Complete trak for GPMD
-    private func buildGpmdTrak(trackId:     UInt32,
-                                timescale:   UInt32,
-                                duration:    UInt32,
-                                payloadSize: UInt32,
-                                chunkOffset: UInt32) -> Data {
+    private func buildGpmdTrak(trackId:   UInt32,
+                                timescale: UInt32,
+                                duration:  UInt32,
+                                chunks: [(payload: Data, chunkOffset: UInt32)]) -> Data {
         var inner = Data()
         inner.append(buildTkhd(trackId: trackId, duration: duration))
-        inner.append(buildMdia(timescale:   timescale,
-                               duration:    duration,
-                               payloadSize: payloadSize,
-                               chunkOffset: chunkOffset))
+        inner.append(buildMdia(timescale: timescale, duration: duration, chunks: chunks))
         return mp4Box("trak", payload: inner)
     }
 
     // MARK: – GPMF binary builder
     //
     // GPMF KLV layout (big-endian):
-    //   [4B FourCC][1B type][1B element-size][2B repeat-count][data, 4B-aligned]
+    //   [4B FourCC][1B type][1B el-size][2B repeat][data 4B-aligned]
     //
-    // Containers (DEVC, STRM): type=0x00, el-size=4, repeat=inner_len/4
+    // Containers: type=0x00, el-size=4, repeat=inner_len/4
     // 'c' string:  type=0x63, el-size=1,  repeat=strlen
     // 's' int16:   type=0x73, el-size=2,  repeat=1
     // 'L' uint32:  type=0x4C, el-size=4,  repeat=1
-    // 'f' float32: type=0x66, el-size=12, repeat=N (3-axis × 4B each)
+    // 'f' float32: type=0x66, el-size=12, repeat=N
 
     private func gpmfPad(_ d: Data) -> Data {
-        let r = d.count % 4
-        guard r != 0 else { return d }
+        let r = d.count % 4; guard r != 0 else { return d }
         return d + Data(repeating: 0, count: 4 - r)
     }
 
-    private func gpmfHdr(fourCC: String, type: UInt8,
-                          elSize: UInt8, repeat rpt: UInt16) -> Data {
+    private func gpmfHdr(fourCC: String, type: UInt8, elSize: UInt8, repeat rpt: UInt16) -> Data {
         var d = Data(Array(fourCC.utf8.prefix(4)))
-        d.append(type)
-        d.append(elSize)
-        var r = rpt.bigEndian
-        withUnsafeBytes(of: &r) { d.append(contentsOf: $0) }
+        d.append(type); d.append(elSize)
+        var r = rpt.bigEndian; withUnsafeBytes(of: &r) { d.append(contentsOf: $0) }
         return d
     }
 
@@ -570,15 +785,13 @@ public class TarziImuModule: Module {
 
     private func gpmfString(_ fourCC: String, value: String) -> Data {
         let bytes = Data(value.utf8)
-        var d = gpmfHdr(fourCC: fourCC, type: 0x63, elSize: 1,
-                        repeat: UInt16(bytes.count))
+        var d = gpmfHdr(fourCC: fourCC, type: 0x63, elSize: 1, repeat: UInt16(bytes.count))
         d.append(gpmfPad(bytes))
         return d
     }
 
     private func gpmfInt16(_ fourCC: String, value: Int16) -> Data {
-        var v = value.bigEndian
-        var pad: Int16 = 0
+        var v = value.bigEndian; var pad: Int16 = 0
         var d = gpmfHdr(fourCC: fourCC, type: 0x73, elSize: 2, repeat: 1)
         withUnsafeBytes(of: &v)   { d.append(contentsOf: $0) }
         withUnsafeBytes(of: &pad) { d.append(contentsOf: $0) }
@@ -592,10 +805,8 @@ public class TarziImuModule: Module {
         return d
     }
 
-    // 3-axis float32: el-size=12 (3 × 4B), repeat=N samples
     private func gpmfFloat3d(_ fourCC: String, samples: [ImuSample]) -> Data {
-        var d = gpmfHdr(fourCC: fourCC, type: 0x66, elSize: 12,
-                        repeat: UInt16(samples.count))
+        var d = gpmfHdr(fourCC: fourCC, type: 0x66, elSize: 12, repeat: UInt16(samples.count))
         for s in samples {
             var x = Float32(s.x).bitPattern.bigEndian
             var y = Float32(s.y).bitPattern.bigEndian
@@ -604,8 +815,7 @@ public class TarziImuModule: Module {
             withUnsafeBytes(of: &y) { d.append(contentsOf: $0) }
             withUnsafeBytes(of: &z) { d.append(contentsOf: $0) }
         }
-        // 12 × N is always 4-byte aligned
-        return d
+        return d   // 12 × N is always 4-byte aligned
     }
 
     private func buildAccelStream(_ samples: [ImuSample]) -> Data {
@@ -628,8 +838,7 @@ public class TarziImuModule: Module {
         return gpmfContainer("STRM", inner: inner)
     }
 
-    private func buildGpmfPayload(accelList: [ImuSample],
-                                   gyroList:  [ImuSample]) -> Data {
+    private func buildGpmfPayload(accelList: [ImuSample], gyroList: [ImuSample]) -> Data {
         var inner = Data()
         inner.append(gpmfString("DVNM", "Tarzi Mobile"))
         inner.append(buildAccelStream(accelList))

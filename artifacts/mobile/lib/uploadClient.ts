@@ -870,6 +870,288 @@ export async function abortAndDeleteDraft(draft: LocalDraft): Promise<void> {
   await deleteDraft(draft.id);
 }
 
+// ─── Audio / Image upload (state-machine backed) ─────────────────────────────
+//
+// Both AUDIO and IMAGE drafts use the same _runMediaUpload core:
+//   1. QUEUE  — validates all local files exist
+//   2. Initiate submission → get per-file presigned upload URLs
+//   3. START_UPLOADING → upload each file via single PUT (virtual), with retries
+//   4. COMPLETING → markUploadComplete
+//   5. COMPLETE
+//
+// Per-file progress is tracked in draft.completedParts (partNumber = file index + 1,
+// etag = mediaId) so individual file failures don't re-upload already-done items on
+// a retry.  Note: presigned URLs from initiateSubmission are single-use, so a full
+// retry calls initiateSubmission again to get fresh URLs.
+
+function getMediaMimeType(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    m4a: "audio/mp4",
+    aac: "audio/aac",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    opus: "audio/ogg",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    heic: "image/heic",
+  };
+  return map[ext] ?? "application/octet-stream";
+}
+
+async function _runMediaUpload(
+  initial: LocalDraft,
+  onProgress: ((p: VideoUploadProgress) => void) | undefined,
+  signal: AbortSignal
+): Promise<{ submissionId: string }> {
+  let draft = await applyTransition(initial, { type: "QUEUE" }, saveDraft);
+  onProgress?.({
+    phase: "preparing",
+    partsComplete: 0,
+    partsTotal: draft.mediaUris.length,
+    bytesUploaded: 0,
+  });
+
+  // ── Pre-flight: all files must be readable ─────────────────────────────────
+  for (const uri of draft.mediaUris) {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists) {
+      draft = await applyTransition(
+        draft,
+        { type: "FAIL_RECOVERABLE", lastErrorCode: "FILE_NOT_FOUND" },
+        saveDraft
+      );
+      throw new Error("A media file was not found. Please re-record.");
+    }
+  }
+
+  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+  // ── Initiate submission ────────────────────────────────────────────────────
+  // Fresh call every attempt (presigned URLs are single-use, not cacheable).
+
+  const mediaFiles = await Promise.all(
+    draft.mediaUris.map(async (uri) => {
+      const filename    = uri.split("/").pop() ?? "media";
+      const contentType = getMediaMimeType(filename);
+      let fileSize: number | undefined;
+      try {
+        const info = await FileSystem.getInfoAsync(uri);
+        if (info.exists && "size" in info) fileSize = (info as { size: number }).size;
+      } catch { /* ignore */ }
+      return { filename, fileSize, contentType };
+    })
+  );
+
+  let submissionId: string;
+  let uploadTargets: Array<{
+    mediaId: string;
+    uploadUrl: string;
+    filename: string;
+    storageKey: string;
+    sortOrder: number;
+  }>;
+
+  try {
+    const result = await initiateSubmission({
+      taskId:       draft.taskId,
+      mediaFiles,
+      durationSeconds: draft.durationSeconds,
+      imageCount:   draft.collectionType === "IMAGE" ? draft.mediaUris.length : undefined,
+      captureMetadata: draft.imuMetadata as Record<string, unknown> | undefined,
+    });
+    submissionId  = result.submissionId;
+    uploadTargets = result.uploadTargets;
+    draft         = await persistUpdate(draft, { submissionId });
+  } catch (err) {
+    const status = extractHttpStatus(err);
+    draft = await applyTransition(
+      draft,
+      { type: "FAIL_RECOVERABLE", lastErrorCode: status ? String(status) : "INITIATE_FAILED" },
+      saveDraft
+    );
+    void logUploadError(draft, err, status, "initiate_media_submission");
+    throw err;
+  }
+
+  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+  // ── Start uploading (state transition records sessionId = submissionId) ────
+  draft = await applyTransition(
+    draft,
+    { type: "START_UPLOADING", sessionId: submissionId, reconciledParts: [] },
+    saveDraft
+  );
+
+  const uploadedMedia: Array<{ mediaId: string; fileSize?: number }> = [];
+  let bytesUploaded = 0;
+  const failedMediaIds: string[] = [];
+
+  for (let i = 0; i < uploadTargets.length; i++) {
+    const target = uploadTargets[i]!;
+    const uri    = draft.mediaUris[i];
+
+    if (!uri) {
+      failedMediaIds.push(target.mediaId);
+      continue;
+    }
+    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+    onProgress?.({
+      phase:        "uploading",
+      partsComplete: i,
+      partsTotal:   uploadTargets.length,
+      bytesUploaded,
+    });
+
+    const contentType = getMediaMimeType(target.filename);
+    let lastErr: unknown = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const { bytes } = await uploadPartVirtual(target.uploadUrl, uri, contentType, signal);
+        bytesUploaded += bytes;
+        uploadedMedia.push({ mediaId: target.mediaId, fileSize: bytes });
+        // Track per-file completion so the caller can inspect progress on the draft
+        const newPart: CompletedPart = { partNumber: i + 1, etag: target.mediaId, bytes };
+        draft = await persistUpdate(draft, {
+          completedParts: [
+            ...(draft.completedParts ?? []).filter((p) => p.partNumber !== i + 1),
+            newPart,
+          ],
+        });
+        lastErr = null;
+        break;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") throw err;
+        const status = extractHttpStatus(err);
+        if (status && !isRetryableStatus(status)) {
+          lastErr = err;
+          break; // non-retryable — no point retrying
+        }
+        if (attempt >= MAX_RETRIES) {
+          lastErr = err;
+          break;
+        }
+        await waitForOnline(signal);
+        await sleep(backoffMs(attempt), signal);
+      }
+    }
+
+    if (lastErr !== null) {
+      failedMediaIds.push(target.mediaId);
+      void logUploadError(draft, lastErr, extractHttpStatus(lastErr), `media_upload_file_${i + 1}`);
+    }
+  }
+
+  if (failedMediaIds.length > 0) {
+    await markUploadFailed(submissionId, {
+      failureReason: `${failedMediaIds.length} file(s) failed to upload`,
+      failedMediaIds,
+    }).catch(() => {});
+    draft = await applyTransition(
+      draft,
+      { type: "FAIL_RECOVERABLE", lastErrorCode: "UPLOAD_PARTIAL_FAILURE" },
+      saveDraft
+    );
+    throw new Error(
+      `${failedMediaIds.length} of ${uploadTargets.length} file(s) failed. Your draft was saved — please try again.`
+    );
+  }
+
+  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+
+  onProgress?.({
+    phase:        "completing",
+    partsComplete: uploadTargets.length,
+    partsTotal:   uploadTargets.length,
+    bytesUploaded,
+  });
+
+  // ── Complete ───────────────────────────────────────────────────────────────
+  try {
+    await markUploadComplete(submissionId, { uploadedMedia });
+  } catch (err) {
+    const status = extractHttpStatus(err);
+    draft = await applyTransition(
+      draft,
+      { type: "FAIL_RECOVERABLE", lastErrorCode: status ? `COMPLETE_${status}` : "COMPLETE_FAILED" },
+      saveDraft
+    );
+    void logUploadError(draft, err, status, "mark_media_upload_complete");
+    throw err;
+  }
+
+  await applyTransition(draft, { type: "COMPLETE", uploadedAt: new Date().toISOString() }, saveDraft);
+
+  onProgress?.({
+    phase:        "verifying",
+    partsComplete: uploadTargets.length,
+    partsTotal:   uploadTargets.length,
+    bytesUploaded,
+  });
+
+  return { submissionId };
+}
+
+/**
+ * Start (or resume) an audio draft upload.
+ *
+ * Wraps _runMediaUpload with the shared upload-lock so repeated calls return
+ * the same in-flight promise instead of double-uploading.
+ */
+export async function startAudioUpload(
+  initialDraft: LocalDraft,
+  onProgress?: (p: VideoUploadProgress) => void,
+  externalSignal?: AbortSignal
+): Promise<{ submissionId: string }> {
+  const draftId  = initialDraft.id;
+  const existing = uploadLocks.get(draftId);
+  if (existing) return existing.promise;
+
+  await refreshTokenBeforeUpload();
+
+  const ctrl = new AbortController();
+  externalSignal?.addEventListener("abort", () => ctrl.abort(), { once: true });
+
+  const promise = _runMediaUpload(initialDraft, onProgress, ctrl.signal).finally(() => {
+    uploadLocks.delete(draftId);
+  });
+  uploadLocks.set(draftId, { ctrl, promise });
+  return promise;
+}
+
+/**
+ * Start (or resume) an image draft upload.
+ *
+ * Multiple images are uploaded sequentially, each with per-file retry.
+ * Progress is reported in partsComplete = number of files uploaded so far.
+ */
+export async function startImageUpload(
+  initialDraft: LocalDraft,
+  onProgress?: (p: VideoUploadProgress) => void,
+  externalSignal?: AbortSignal
+): Promise<{ submissionId: string }> {
+  const draftId  = initialDraft.id;
+  const existing = uploadLocks.get(draftId);
+  if (existing) return existing.promise;
+
+  await refreshTokenBeforeUpload();
+
+  const ctrl = new AbortController();
+  externalSignal?.addEventListener("abort", () => ctrl.abort(), { once: true });
+
+  const promise = _runMediaUpload(initialDraft, onProgress, ctrl.signal).finally(() => {
+    uploadLocks.delete(draftId);
+  });
+  uploadLocks.set(draftId, { ctrl, promise });
+  return promise;
+}
+
 // ─── Pre-recording storage check ─────────────────────────────────────────────
 
 /**

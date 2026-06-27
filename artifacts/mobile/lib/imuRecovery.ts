@@ -1,7 +1,17 @@
 import * as FileSystem from "expo-file-system/legacy";
 
-import { listDrafts, saveDraft, type LocalDraft } from "./drafts";
+import {
+  isAvailable as imuIsAvailable,
+  resumeEmbed as imuResumeEmbed,
+} from "@workspace/tarzi-imu";
+import {
+  listDrafts,
+  saveDraft,
+  DRAFTS_DIR,
+  type LocalDraft,
+} from "./drafts";
 import { reportError } from "./errorReporting";
+import type { ImuCaptureSummary } from "./captureStore";
 
 // ─── RECORDING_INTERRUPTED recovery ──────────────────────────────────────────
 
@@ -33,13 +43,10 @@ async function recoverRecordingInterrupted(draft: LocalDraft): Promise<LocalDraf
     };
   }
 
-  // Video file is present. Resolve IMU status.
   if (!draft.imuRequired) {
-    // IMU not required — video is uploadable as-is.
     return { ...draft, uploadStatus: "LOCAL_READY", imuProcessingStatus: "done" };
   }
 
-  // IMU is required. Check if it was already successfully embedded.
   const imuAlreadyEmbedded =
     draft.imuMetadata?.imuEmbedded === true &&
     draft.imuMetadata.imuValidationStatus === "ok";
@@ -48,13 +55,10 @@ async function recoverRecordingInterrupted(draft: LocalDraft): Promise<LocalDraf
     return { ...draft, uploadStatus: "LOCAL_READY", imuProcessingStatus: "done" };
   }
 
-  // IMU not embedded. Check if the temp file is available for re-muxing.
   if (draft.imuTempFilePath) {
     try {
       const info = await FileSystem.getInfoAsync(draft.imuTempFilePath);
-      if (info.exists && "size" in info && (info as { size: number }).size > 0) {
-        // IMU temp file is present — transition to PROCESSING_IMU so the
-        // EAS native build can resume muxing on the next launch.
+      if (info.exists && "size" in info && (info as { size: number }).size > 13) {
         return {
           ...draft,
           uploadStatus: "PROCESSING_IMU",
@@ -62,11 +66,10 @@ async function recoverRecordingInterrupted(draft: LocalDraft): Promise<LocalDraf
         };
       }
     } catch {
-      // Fall through to FAILED_RECOVERABLE
+      // fall through to FAILED_RECOVERABLE
     }
   }
 
-  // IMU required but neither embedded data nor temp file available.
   return {
     ...draft,
     uploadStatus: "FAILED_RECOVERABLE",
@@ -78,33 +81,116 @@ async function recoverRecordingInterrupted(draft: LocalDraft): Promise<LocalDraf
 // ─── PROCESSING_IMU recovery ──────────────────────────────────────────────────
 
 async function recoverProcessingImu(draft: LocalDraft): Promise<LocalDraft> {
-  // Native disk streaming (updated tarzi-imu module) is required to complete
-  // GPMF muxing after an app restart. Without an EAS development build that
-  // includes the native disk-streaming module, re-muxing cannot be performed.
-  //
-  // TODO (EAS build): When the native disk-streaming module is available:
-  //   1. Call imuIsAvailable() to confirm the native module is loaded.
-  //   2. Check that draft.rawVideoUri and draft.imuTempFilePath both exist.
-  //   3. Call tarziImuResumeEmbed(draft.rawVideoUri!, draft.imuTempFilePath!)
-  //      to produce the GPMF-embedded file.
-  //   4. Call moveMediaToDrafts(result.uri, filename) to persist atomically.
-  //   5. Update draft.mediaUris with the new URI and transition to LOCAL_READY.
-
-  // If IMU is not actually required, the existing video is uploadable without it.
   if (!draft.imuRequired) {
     return { ...draft, uploadStatus: "LOCAL_READY", imuProcessingStatus: "done" };
   }
 
+  // Native module available — attempt re-mux from the persisted TIMU file
+  if (imuIsAvailable()) {
+    const rawVideoUri     = draft.rawVideoUri ?? draft.mediaUris[0];
+    const imuTempFilePath = draft.imuTempFilePath;
+
+    if (!rawVideoUri || !imuTempFilePath) {
+      return {
+        ...draft,
+        uploadStatus: "FAILED_RECOVERABLE",
+        lastErrorCode: "PROCESSING_IMU_MISSING_FILES",
+        imuProcessingStatus: "failed",
+      };
+    }
+
+    const [videoInfo, imuInfo] = await Promise.all([
+      FileSystem.getInfoAsync(rawVideoUri).catch(() => ({ exists: false } as FileSystem.FileInfo)),
+      FileSystem.getInfoAsync(imuTempFilePath).catch(() => ({ exists: false } as FileSystem.FileInfo)),
+    ]);
+
+    if (!videoInfo.exists) {
+      return {
+        ...draft,
+        uploadStatus: "FAILED_RECOVERABLE",
+        lastErrorCode: "RECORDING_INTERRUPTED_FILE_LOST",
+        imuProcessingStatus: "failed",
+      };
+    }
+
+    const imuSize = imuInfo.exists && "size" in imuInfo ? (imuInfo as { size: number }).size : 0;
+    if (!imuInfo.exists || imuSize < 13) {
+      return {
+        ...draft,
+        uploadStatus: "FAILED_RECOVERABLE",
+        lastErrorCode: "PROCESSING_IMU_TEMP_FILE_MISSING",
+        imuProcessingStatus: "failed",
+      };
+    }
+
+    // Build output path in persistent documentDirectory so it survives restarts
+    const outputFilename = `${draft.id}_embedded.mp4`;
+    const outputUri      = `${DRAFTS_DIR}${outputFilename}`;
+
+    try {
+      const result = await imuResumeEmbed(rawVideoUri, imuTempFilePath, outputUri);
+
+      if (!result.metadata.imuEmbedded || result.metadata.imuValidationStatus !== "ok") {
+        return {
+          ...draft,
+          uploadStatus: "FAILED_RECOVERABLE",
+          lastErrorCode: `GPMF_${result.metadata.imuValidationStatus.toUpperCase()}`,
+          imuProcessingStatus: "failed",
+        };
+      }
+
+      // Validation passed — clean up source and temp files
+      void FileSystem.deleteAsync(rawVideoUri, { idempotent: true }).catch(() => {});
+      void FileSystem.deleteAsync(imuTempFilePath, { idempotent: true }).catch(() => {});
+
+      const imuSummary: ImuCaptureSummary = {
+        imuEmbedded: true,
+        imuFormat: result.metadata.imuFormat,
+        imuTargetHz: 100,
+        accelerometerSampleCount: result.metadata.accelerometerSampleCount,
+        gyroscopeSampleCount: result.metadata.gyroscopeSampleCount,
+        accelerometerEffectiveHz: result.metadata.accelerometerEffectiveHz,
+        gyroscopeEffectiveHz: result.metadata.gyroscopeEffectiveHz,
+        imuCaptureStartedAtRelativeMs: 0,
+        imuCaptureEndedAtRelativeMs: 0,
+        imuValidationStatus: "ok",
+        deviceModel: "recovered",
+        osVersion: "recovered",
+      };
+
+      return {
+        ...draft,
+        mediaUris: [outputUri],
+        rawVideoUri: undefined,
+        imuTempFilePath: undefined,
+        imuMetadata: imuSummary,
+        uploadStatus: "LOCAL_READY",
+        imuProcessingStatus: "done",
+      };
+    } catch (err) {
+      void reportError({
+        errorType: "UNKNOWN",
+        message: `resumeEmbed failed: ${err instanceof Error ? err.message : String(err)}`,
+        metadata: { draftId: draft.id, taskId: draft.taskId },
+      });
+      return {
+        ...draft,
+        uploadStatus: "FAILED_RECOVERABLE",
+        lastErrorCode: "PROCESSING_IMU_REMUX_FAILED",
+        imuProcessingStatus: "failed",
+      };
+    }
+  }
+
+  // Native module not loaded (Expo Go / web) — keep draft if temp file exists
   if (draft.imuTempFilePath) {
     try {
       const info = await FileSystem.getInfoAsync(draft.imuTempFilePath);
-      if (info.exists && "size" in info && (info as { size: number }).size > 0) {
-        // IMU temp file present — keep the draft in PROCESSING_IMU so the
-        // native EAS build can resume muxing. Return unchanged.
-        return draft;
+      if (info.exists && "size" in info && (info as { size: number }).size > 13) {
+        return draft; // unchanged — EAS native build will resume on next launch
       }
     } catch {
-      // Fall through to FAILED_RECOVERABLE
+      // fall through
     }
   }
 
@@ -119,21 +205,17 @@ async function recoverProcessingImu(draft: LocalDraft): Promise<LocalDraft> {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Called on every app launch (before rendering UI) to recover drafts that were
- * interrupted during video recording or IMU processing.
+ * Called on every app launch (before rendering UI) to recover interrupted drafts.
  *
- * RECORDING_INTERRUPTED — validates the video file and IMU status, then
- *   transitions to:
- *   - LOCAL_READY    — video exists + IMU not required, or IMU already embedded
- *   - PROCESSING_IMU — video exists + IMU required + IMU temp file present
- *                      (native EAS build will resume muxing)
- *   - FAILED_RECOVERABLE — video file lost, or IMU required but temp file gone
- *                          (user must re-record; shown with clear message)
+ * RECORDING_INTERRUPTED — validates video + IMU state, then transitions to:
+ *   LOCAL_READY        — file exists + no IMU required, or IMU already embedded
+ *   PROCESSING_IMU     — file exists + IMU temp file present → attempt re-mux
+ *   FAILED_RECOVERABLE — file lost, or IMU required but temp file gone
  *
- * PROCESSING_IMU — checks for the IMU temp file needed for native re-muxing.
- *   - LOCAL_READY        — when IMU is not required (video is uploadable as-is)
- *   - Unchanged          — when IMU temp file exists (native EAS build handles it)
- *   - FAILED_RECOVERABLE — when IMU temp file is missing (user must re-record)
+ * PROCESSING_IMU — when native module is loaded, calls resumeEmbed() to produce
+ *   the final GPMF-embedded MP4 and transitions to LOCAL_READY on success.
+ *   On Expo Go (no native module) the draft is kept in PROCESSING_IMU if the
+ *   temp file is still present, or transitioned to FAILED_RECOVERABLE otherwise.
  */
 export async function recoverAllRecordingDrafts(): Promise<void> {
   let drafts: LocalDraft[];

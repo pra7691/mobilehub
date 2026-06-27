@@ -26,6 +26,12 @@ import { useGetTask } from "@workspace/api-client-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
+import {
+  saveDraft,
+  moveMediaToDrafts,
+  generateDraftId,
+  type LocalDraft,
+} from "@/lib/drafts";
 import { reportError } from "@/lib/errorReporting";
 import { hasEnoughStorage } from "@/lib/uploadClient";
 
@@ -157,6 +163,8 @@ export default function AudioCaptureScreen() {
   const maxDuration = task?.maximumDurationSeconds ?? 0;
 
   // Keep refs in sync for AppState listener and timer callbacks
+  const taskRef = useRef(task);
+  useEffect(() => { taskRef.current = task; }, [task]);
   useEffect(() => {
     recordingStateRef.current = recordingState;
   }, [recordingState]);
@@ -164,7 +172,40 @@ export default function AudioCaptureScreen() {
     elapsedRef.current = elapsed;
   }, [elapsed]);
 
-  // Stop recording gracefully when app goes to background
+  // Persist an interrupted audio recording as a LOCAL_READY draft so it
+  // survives the process kill and appears in the user's draft list.
+  const saveInterruptedDraftRef = useRef<((uri: string, elapsedSec: number) => Promise<void>) | undefined>(undefined);
+  saveInterruptedDraftRef.current = async (uri: string, elapsedSec: number) => {
+    const t = taskRef.current;
+    if (!t || !taskId || elapsedSec <= 0) return;
+    const minDur = t.minimumDurationSeconds ?? 0;
+    if (minDur > 0 && elapsedSec < minDur) return; // too short to be useful
+    try {
+      const ext = uri.split(".").pop() ?? "m4a";
+      const filename = `audio_${Date.now()}.${ext}`;
+      const persistedUri = await moveMediaToDrafts(uri, filename);
+      const draft: LocalDraft = {
+        id: generateDraftId(),
+        taskId,
+        taskTitle: t.title,
+        collectionType: "AUDIO",
+        paymentAmount: t.paymentAmount ?? 0,
+        currency: "USD",
+        mediaUris: [persistedUri],
+        durationSeconds: elapsedSec,
+        createdAt: new Date().toISOString(),
+        uploadStatus: "LOCAL_READY",
+        completedParts: [],
+        retryCount: 0,
+      };
+      await saveDraft(draft);
+    } catch {
+      // Non-fatal — app is going to background regardless
+    }
+  };
+
+  // Stop recording gracefully when app goes to background and save a draft
+  // so the recording survives a process kill.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (
@@ -180,6 +221,11 @@ export default function AudioCaptureScreen() {
         void (async () => {
           try {
             await recorder.stop();
+            const uri = recorder.uri;
+            const elapsedSec = elapsedRef.current;
+            if (uri && elapsedSec > 0) {
+              await saveInterruptedDraftRef.current?.(uri, elapsedSec);
+            }
           } catch {
             // Recorder may already be stopped/released — ignore
           } finally {
@@ -188,6 +234,7 @@ export default function AudioCaptureScreen() {
             recordingStateRef.current = "idle";
             setElapsed(0);
             elapsedRef.current = 0;
+            setError(null);
           }
         })();
       }

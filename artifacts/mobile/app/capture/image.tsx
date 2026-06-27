@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { CameraView, type CameraType, type FlashMode } from "expo-camera";
+import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  AppState,
   Platform,
   ScrollView,
   StyleSheet,
@@ -18,6 +20,12 @@ import { useGetTask } from "@workspace/api-client-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import { setPendingCapture } from "@/lib/captureStore";
+import {
+  saveDraft,
+  copyMediaToDrafts,
+  generateDraftId,
+  type LocalDraft,
+} from "@/lib/drafts";
 
 export default function ImageCaptureScreen() {
   const router = useRouter();
@@ -53,6 +61,54 @@ export default function ImageCaptureScreen() {
     else if (task.preferredCamera === "REAR") setFacing("back");
   }, [task?.preferredCamera]);
 
+  // Refs that stay current inside AppState callback (no stale closure)
+  const taskRef  = useRef(task);
+  const photosRef = useRef(photos);
+  useEffect(() => { taskRef.current = task; },   [task]);
+  useEffect(() => { photosRef.current = photos; }, [photos]);
+
+  // When the app is backgrounded while capturing photos, copy the photos
+  // captured so far to the persistent drafts directory and save a LOCAL_READY
+  // draft. This ensures the photos survive a process kill.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") {
+        const t        = taskRef.current;
+        const current  = photosRef.current;
+        const minC     = t?.minimumImageCount ?? 1;
+        if (!t || !taskId || current.length < minC) return;
+
+        void (async () => {
+          try {
+            const persistedUris = await Promise.all(
+              current.map(async (uri, i) => {
+                const ext = uri.split(".").pop() ?? "jpg";
+                return copyMediaToDrafts(uri, `img_${Date.now()}_${i}.${ext}`);
+              })
+            );
+            const draft: LocalDraft = {
+              id: generateDraftId(),
+              taskId,
+              taskTitle: t.title,
+              collectionType: "IMAGE",
+              paymentAmount: t.paymentAmount ?? 0,
+              currency: "USD",
+              mediaUris: persistedUris,
+              createdAt: new Date().toISOString(),
+              uploadStatus: "LOCAL_READY",
+              completedParts: [],
+              retryCount: 0,
+            };
+            await saveDraft(draft);
+          } catch {
+            // Non-fatal — app is going to background regardless
+          }
+        })();
+      }
+    });
+    return () => sub.remove();
+  }, [taskId]);
+
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || capturing) return;
     if (photos.length >= maxCount) {
@@ -71,7 +127,11 @@ export default function ImageCaptureScreen() {
     setCapturing(false);
   }, [capturing, photos.length, maxCount]);
 
-  const removePhoto = useCallback((index: number) => {
+  const removePhoto = useCallback(async (index: number) => {
+    const uri = photosRef.current[index];
+    if (uri) {
+      void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+    }
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
@@ -180,7 +240,7 @@ export default function ImageCaptureScreen() {
                 <Image source={{ uri }} style={styles.thumbImg} contentFit="cover" />
                 <TouchableOpacity
                   style={styles.removeBtn}
-                  onPress={() => removePhoto(idx)}
+                  onPress={() => void removePhoto(idx)}
                 >
                   <Feather name="x" size={12} color="#fff" />
                 </TouchableOpacity>

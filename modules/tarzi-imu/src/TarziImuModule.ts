@@ -4,8 +4,6 @@ import type {
   StopAndEmbedResult,
 } from "./TarziImuModule.types";
 
-// The native module is registered under the name "TarziImu" on both platforms.
-// On web / Expo Go it is unavailable; callers should guard with isAvailable().
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _native: any = null;
 
@@ -20,8 +18,7 @@ function getNative(): NonNullable<typeof _native> {
 }
 
 /**
- * Returns true when the native module is loaded (i.e. running in an EAS
- * build — not Expo Go or web).
+ * Returns true when the native module is loaded (EAS build — not Expo Go or web).
  */
 export function isAvailable(): boolean {
   return getNative() != null;
@@ -32,28 +29,40 @@ export function isAvailable(): boolean {
  */
 export async function checkSensorAvailability(): Promise<SensorAvailability> {
   const native = getNative();
-  if (!native) {
-    return { accelerometer: false, gyroscope: false };
-  }
+  if (!native) return { accelerometer: false, gyroscope: false };
   return native.checkSensorAvailability() as Promise<SensorAvailability>;
 }
 
 /**
- * Begin capturing accelerometer and gyroscope samples at ~100 Hz.
- * Call this before (or at the same time as) starting video recording.
+ * Begin capturing accelerometer + gyroscope samples at ~100 Hz.
+ *
+ * @param imuTempFilePath  Optional path for incremental TIMU disk streaming.
+ *   When provided, every sample is appended to a binary TIMU file so data
+ *   survives a process kill. Use ensureImuDir() from drafts.ts to obtain a
+ *   safe directory. Pass null to keep samples in memory only (no persistence).
+ * @param taskId  Diagnostic identifier only — not embedded in the TIMU file.
  */
-export async function startCapture(): Promise<void> {
+export async function startCapture(
+  imuTempFilePath?: string | null,
+  taskId?: string | null
+): Promise<void> {
   const native = getNative();
   if (!native) {
     console.warn("[TarziImu] Native module unavailable — IMU capture skipped");
     return;
   }
-  return native.startCapture() as Promise<void>;
+  return native.startCapture(
+    imuTempFilePath ?? null,
+    taskId ?? null
+  ) as Promise<void>;
 }
 
 /**
- * Stop capturing, build the GPMF binary payload, mux it into the MP4 at
- * `videoUri`, and return the final URI plus structured metadata.
+ * Stop capturing, build time-aligned GPMF chunks (~1 s each), mux them into
+ * the MP4 at `videoUri`, validate, and return the final URI + metadata.
+ *
+ * imuEmbedded is set to true only when GPMF validation passes (gpmd track
+ * exists, ≥ 2 timed samples, ACCL + GYRO present, ≥ 95 % temporal coverage).
  *
  * @param videoUri  file:// URI of the recorded MP4 segment.
  */
@@ -76,4 +85,46 @@ export async function stopAndEmbed(
     };
   }
   return native.stopAndEmbed(videoUri) as Promise<StopAndEmbedResult>;
+}
+
+/**
+ * Resume GPMF embedding after an app restart for a PROCESSING_IMU draft.
+ *
+ * Reads the persisted TIMU binary file, reconstructs sensor samples, and
+ * muxes them into a new MP4 at `outputUri`. Neither `rawVideoUri` nor
+ * `imuTempFilePath` are modified — the caller must delete them only after
+ * confirming imuEmbedded === true in the returned metadata.
+ *
+ * Throws with code ERR_IMU_FILE when the TIMU file is missing, corrupt,
+ * or contains an unknown version byte. Throws ERR_EMBED on mux failure.
+ *
+ * @param rawVideoUri      file:// URI of the unmodified source MP4.
+ * @param imuTempFilePath  Full path to the TIMU binary file created by startCapture.
+ * @param outputUri        file:// URI where the GPMF-embedded MP4 will be written.
+ */
+export async function resumeEmbed(
+  rawVideoUri: string,
+  imuTempFilePath: string,
+  outputUri: string
+): Promise<StopAndEmbedResult> {
+  const native = getNative();
+  if (!native) {
+    return {
+      uri: rawVideoUri,
+      metadata: {
+        imuEmbedded: false,
+        imuFormat: "none",
+        accelerometerSampleCount: 0,
+        gyroscopeSampleCount: 0,
+        accelerometerEffectiveHz: 0,
+        gyroscopeEffectiveHz: 0,
+        imuValidationStatus: "native_module_unavailable",
+      },
+    };
+  }
+  return native.resumeEmbed(
+    rawVideoUri,
+    imuTempFilePath,
+    outputUri
+  ) as Promise<StopAndEmbedResult>;
 }

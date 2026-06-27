@@ -425,14 +425,13 @@ export default function VideoCaptureScreen() {
 
     if (imuActive) {
       try {
-        // Generate the disk-streaming temp path before capture starts.
-        // When the tarzi-imu EAS native module supports disk streaming, pass
-        // this path to imuStartCapture(path) so samples flush to disk rather
-        // than staying in memory — enabling GPMF re-mux after app restart.
-        // TODO (EAS): update imuStartCapture signature to accept filePath.
+        // Generate a per-segment temp path for TIMU disk streaming.
+        // Passed to the native module so IMU samples flush to disk in real time,
+        // enabling GPMF re-mux via resumeEmbed if the process is killed mid-segment.
         const imuDir = await ensureImuDir();
-        currentImuTempPathRef.current = `${imuDir}imu_${Date.now()}.bin`;
-        await imuStartCapture();
+        const imuTempPath = `${imuDir}imu_${Date.now()}.bin`;
+        currentImuTempPathRef.current = imuTempPath;
+        await imuStartCapture(imuTempPath, taskId ?? null);
       } catch {
         // Non-fatal start failure — IMU will be missing for this segment
         currentImuTempPathRef.current = undefined;

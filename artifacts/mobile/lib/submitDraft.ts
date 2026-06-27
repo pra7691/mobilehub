@@ -1,12 +1,8 @@
-import * as FileSystem from "expo-file-system/legacy";
 import {
-  initiateSubmission,
-  markUploadComplete,
   markUploadFailed,
 } from "@workspace/api-client-react";
 import type { LocalDraft } from "./drafts";
-import { reportError } from "./errorReporting";
-import { type VideoUploadProgress } from "./uploadClient";
+import { type VideoUploadProgress, startVideoUpload, startAudioUpload, startImageUpload } from "./uploadClient";
 import { uploadWithFallback } from "./backgroundUploadManager";
 
 export type SubmitPhase = "preparing" | "uploading" | "submitting";
@@ -17,31 +13,15 @@ export interface SubmitProgress {
   total: number;
 }
 
-function getContentType(filename: string): string {
-  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  const map: Record<string, string> = {
-    mp4: "video/mp4",
-    mov: "video/quicktime",
-    m4a: "audio/mp4",
-    aac: "audio/aac",
-    mp3: "audio/mpeg",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-  };
-  return map[ext] ?? "application/octet-stream";
-}
-
 /**
  * Submit a draft for review.
  *
- * VIDEO drafts are routed through the multipart upload client with a
- * durable 15-state state machine. Every transition is written to
- * AsyncStorage so in-progress uploads can be resumed after a crash or
- * network drop.
+ * All three collection types now route through state-machine upload clients that
+ * support deduplication, state persistence, retries, and abort signals.
  *
- * IMAGE and AUDIO drafts use the existing single-PUT flow unchanged.
+ * VIDEO  → uploadWithFallback (backgroundUploadManager → multipart state machine)
+ * AUDIO  → startAudioUpload   (lock + state machine + per-file retry)
+ * IMAGE  → startImageUpload   (lock + state machine + per-file retry)
  */
 export async function submitDraft(
   draft: LocalDraft,
@@ -51,8 +31,13 @@ export async function submitDraft(
   if (draft.collectionType === "VIDEO") {
     return _submitVideoDraft(draft, onProgress, signal);
   }
-  return _submitMediaDraft(draft, onProgress, signal);
+  if (draft.collectionType === "AUDIO") {
+    return _submitAudioDraft(draft, onProgress, signal);
+  }
+  return _submitImageDraft(draft, onProgress, signal);
 }
+
+// ── Progress bridge ────────────────────────────────────────────────────────────
 
 function _bridgeProgress(
   p: VideoUploadProgress,
@@ -62,11 +47,13 @@ function _bridgeProgress(
   const phase: SubmitPhase =
     p.phase === "preparing"
       ? "preparing"
-      : p.phase === "verifying"
+      : p.phase === "verifying" || p.phase === "completing"
         ? "submitting"
         : "uploading";
   onProgress({ phase, current: p.partsComplete, total: Math.max(p.partsTotal, 1) });
 }
+
+// ── VIDEO ──────────────────────────────────────────────────────────────────────
 
 async function _submitVideoDraft(
   draft: LocalDraft,
@@ -91,184 +78,37 @@ async function _submitVideoDraft(
   );
 }
 
-async function _submitMediaDraft(
+// ── AUDIO ──────────────────────────────────────────────────────────────────────
+
+async function _submitAudioDraft(
   draft: LocalDraft,
   onProgress?: (progress: SubmitProgress) => void,
   signal?: AbortSignal
 ): Promise<{ submissionId: string }> {
-  onProgress?.({ phase: "preparing", current: 0, total: draft.mediaUris.length });
+  return startAudioUpload(
+    draft,
+    (p) => _bridgeProgress(p, onProgress),
+    signal
+  );
+}
 
-  const mediaFiles: Array<{
-    filename: string;
-    fileSize?: number;
-    contentType?: string;
-  }> = [];
-  for (const uri of draft.mediaUris) {
-    const filename = uri.split("/").pop() ?? "media";
-    const contentType = getContentType(filename);
-    let fileSize: number | undefined;
-    try {
-      const info = await FileSystem.getInfoAsync(uri);
-      if (info.exists && "size" in info) fileSize = info.size;
-    } catch {
-      // ignore
-    }
-    mediaFiles.push({ filename, fileSize, contentType });
-  }
+// ── IMAGE ──────────────────────────────────────────────────────────────────────
 
-  if (signal?.aborted) throw new Error("Upload cancelled");
-
-  let submissionId: string;
-  let uploadTargets: Array<{
-    mediaId: string;
-    uploadUrl: string;
-    filename: string;
-    storageKey: string;
-    sortOrder: number;
-  }>;
-
-  try {
-    const result = await initiateSubmission({
-      taskId: draft.taskId,
-      mediaFiles,
-      durationSeconds: draft.durationSeconds,
-      imageCount:
-        draft.collectionType === "IMAGE" ? draft.mediaUris.length : undefined,
-      captureMetadata: draft.imuMetadata as Record<string, unknown> | undefined,
-    });
-    submissionId = result.submissionId;
-    uploadTargets = result.uploadTargets;
-  } catch (err) {
-    const isApiError = err && typeof err === "object" && "status" in err;
-    await reportError({
-      errorType: "SUBMISSION_INITIATE_FAILED",
-      message: err instanceof Error ? err.message : String(err),
-      endpoint: "/api/submissions/initiate",
-      httpMethod: "POST",
-      httpStatus: isApiError ? (err as { status: number }).status : undefined,
-      collectionType: draft.collectionType,
-      metadata: { taskId: draft.taskId, fileCount: draft.mediaUris.length },
-    });
-    throw err;
-  }
-
+async function _submitImageDraft(
+  draft: LocalDraft,
+  onProgress?: (progress: SubmitProgress) => void,
+  signal?: AbortSignal
+): Promise<{ submissionId: string }> {
   if (signal?.aborted) {
-    await markUploadFailed(submissionId, {
+    await markUploadFailed(draft.submissionId ?? "unknown", {
       failureReason: "Upload cancelled by user",
     }).catch(() => {});
     throw new Error("Upload cancelled");
   }
 
-  const uploadedMedia: Array<{ mediaId: string; fileSize?: number }> = [];
-  const failedMediaIds: string[] = [];
-  const failedDetails: Array<{ mediaId: string; error: string }> = [];
-
-  for (let i = 0; i < uploadTargets.length; i++) {
-    const target = uploadTargets[i]!;
-    const uri = draft.mediaUris[i];
-
-    if (!uri) {
-      failedMediaIds.push(target.mediaId);
-      failedDetails.push({ mediaId: target.mediaId, error: "URI missing" });
-      continue;
-    }
-
-    onProgress?.({
-      phase: "uploading",
-      current: i + 1,
-      total: uploadTargets.length,
-    });
-
-    if (signal?.aborted) {
-      failedMediaIds.push(...uploadTargets.slice(i).map((t) => t.mediaId));
-      break;
-    }
-
-    try {
-      const contentType = getContentType(target.filename);
-      const result = await FileSystem.uploadAsync(target.uploadUrl, uri, {
-        httpMethod: "PUT",
-        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: { "Content-Type": contentType },
-      });
-
-      if (result.status >= 200 && result.status < 300) {
-        let fileSize: number | undefined;
-        try {
-          const info = await FileSystem.getInfoAsync(uri);
-          if (info.exists && "size" in info) fileSize = info.size;
-        } catch {
-          /* ignore */
-        }
-        uploadedMedia.push({ mediaId: target.mediaId, fileSize });
-      } else {
-        failedMediaIds.push(target.mediaId);
-        failedDetails.push({
-          mediaId: target.mediaId,
-          error: `HTTP ${result.status}: ${result.body?.slice(0, 200) ?? ""}`,
-        });
-      }
-    } catch (err) {
-      failedMediaIds.push(target.mediaId);
-      failedDetails.push({
-        mediaId: target.mediaId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  if (failedMediaIds.length > 0) {
-    await markUploadFailed(submissionId, {
-      failureReason: `${failedMediaIds.length} file(s) failed to upload`,
-      failedMediaIds,
-    }).catch(() => {});
-
-    await reportError({
-      errorType: "SUBMISSION_UPLOAD_FAILED",
-      message: `${failedMediaIds.length} of ${uploadTargets.length} file(s) failed to upload`,
-      collectionType: draft.collectionType,
-      metadata: {
-        taskId: draft.taskId,
-        submissionId,
-        failedCount: failedMediaIds.length,
-        totalCount: uploadTargets.length,
-        failures: failedDetails,
-      },
-    });
-
-    throw new Error(
-      `${failedMediaIds.length} of ${uploadTargets.length} file(s) failed to upload. Your draft was saved — please try submitting again.`
-    );
-  }
-
-  if (signal?.aborted) {
-    await markUploadFailed(submissionId, {
-      failureReason: "Upload cancelled by user",
-    }).catch(() => {});
-    throw new Error("Upload cancelled");
-  }
-
-  onProgress?.({
-    phase: "submitting",
-    current: uploadTargets.length,
-    total: uploadTargets.length,
-  });
-
-  try {
-    await markUploadComplete(submissionId, { uploadedMedia });
-  } catch (err) {
-    const isApiError = err && typeof err === "object" && "status" in err;
-    await reportError({
-      errorType: "API_ERROR",
-      message: err instanceof Error ? err.message : String(err),
-      endpoint: `/api/submissions/${submissionId}/upload-complete`,
-      httpMethod: "POST",
-      httpStatus: isApiError ? (err as { status: number }).status : undefined,
-      collectionType: draft.collectionType,
-      metadata: { taskId: draft.taskId, submissionId },
-    });
-    throw err;
-  }
-
-  return { submissionId };
+  return startImageUpload(
+    draft,
+    (p) => _bridgeProgress(p, onProgress),
+    signal
+  );
 }

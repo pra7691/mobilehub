@@ -3,6 +3,7 @@ export {
   checkSensorAvailability,
   startCapture,
   stopAndEmbed,
+  resumeEmbed,
 } from "./TarziImuModule";
 
 export type {
@@ -16,6 +17,7 @@ import {
   checkSensorAvailability,
   startCapture,
   stopAndEmbed,
+  resumeEmbed,
 } from "./TarziImuModule";
 
 export const TarziImuVideoService = {
@@ -23,4 +25,5 @@ export const TarziImuVideoService = {
   checkSensorAvailability,
   startCapture,
   stopAndEmbed,
+  resumeEmbed,
 } as const;
