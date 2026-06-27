@@ -54,6 +54,11 @@ export class CreateStorageProfileDto {
   @IsString()
   @MaxLength(500)
   secretAccessKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  accountId?: string;
 }
 
 export class UpdateStorageProfileDto {
@@ -101,4 +106,9 @@ export class UpdateStorageProfileDto {
   @IsString()
   @MaxLength(500)
   secretAccessKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  accountId?: string;
 }

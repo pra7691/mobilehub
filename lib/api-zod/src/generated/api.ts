@@ -4029,7 +4029,7 @@ export const GetAppSettingsBannerResponse = zod.object({
 export const ListStorageProfilesResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DIGITALOCEAN_SPACES']),
   "keyPrefix": zod.string().nullish(),
   "isActive": zod.boolean(),
   "lastTestResult": zod.string().nullish(),
@@ -4046,7 +4046,7 @@ export const ListStorageProfilesResponse = zod.array(ListStorageProfilesResponse
  */
 export const CreateStorageProfileBody = zod.object({
   "name": zod.string(),
-  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DIGITALOCEAN_SPACES']),
   "keyPrefix": zod.string().optional(),
   "accessKeyId": zod.string().optional(),
   "secretAccessKey": zod.string().optional(),
@@ -4067,7 +4067,7 @@ export const GetStorageProfileParams = zod.object({
 export const GetStorageProfileResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DIGITALOCEAN_SPACES']),
   "keyPrefix": zod.string().nullish(),
   "isActive": zod.boolean(),
   "lastTestResult": zod.string().nullish(),
@@ -4099,7 +4099,7 @@ export const UpdateStorageProfileBody = zod.object({
 export const UpdateStorageProfileResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DIGITALOCEAN_SPACES']),
   "keyPrefix": zod.string().nullish(),
   "isActive": zod.boolean(),
   "lastTestResult": zod.string().nullish(),
@@ -4142,7 +4142,7 @@ export const ActivateStorageProfileParams = zod.object({
 export const ActivateStorageProfileResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DIGITALOCEAN_SPACES']),
   "keyPrefix": zod.string().nullish(),
   "isActive": zod.boolean(),
   "lastTestResult": zod.string().nullish(),
@@ -4163,7 +4163,7 @@ export const DeactivateStorageProfileParams = zod.object({
 export const DeactivateStorageProfileResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DO_SPACES']),
+  "providerType": zod.enum(['REPLIT', 'AWS_S3', 'CLOUDFLARE_R2', 'DIGITALOCEAN_SPACES']),
   "keyPrefix": zod.string().nullish(),
   "isActive": zod.boolean(),
   "lastTestResult": zod.string().nullish(),

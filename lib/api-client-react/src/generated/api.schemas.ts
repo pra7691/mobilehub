@@ -1627,7 +1627,7 @@ export const StorageProfileProviderType = {
   REPLIT: 'REPLIT',
   AWS_S3: 'AWS_S3',
   CLOUDFLARE_R2: 'CLOUDFLARE_R2',
-  DO_SPACES: 'DO_SPACES',
+  DIGITALOCEAN_SPACES: 'DIGITALOCEAN_SPACES',
 } as const;
 
 export interface StorageProfile {
@@ -1650,7 +1650,7 @@ export const CreateStorageProfileBodyProviderType = {
   REPLIT: 'REPLIT',
   AWS_S3: 'AWS_S3',
   CLOUDFLARE_R2: 'CLOUDFLARE_R2',
-  DO_SPACES: 'DO_SPACES',
+  DIGITALOCEAN_SPACES: 'DIGITALOCEAN_SPACES',
 } as const;
 
 export interface CreateStorageProfileBody {

@@ -63,12 +63,12 @@ const PROVIDER_LABELS: Record<string, string> = {
   REPLIT: "Replit Object Storage",
   AWS_S3: "AWS S3",
   CLOUDFLARE_R2: "Cloudflare R2",
-  DO_SPACES: "DigitalOcean Spaces",
+  DIGITALOCEAN_SPACES: "DigitalOcean Spaces",
 };
 
-type ProviderType = "REPLIT" | "AWS_S3" | "CLOUDFLARE_R2" | "DO_SPACES";
+type ProviderType = "REPLIT" | "AWS_S3" | "CLOUDFLARE_R2" | "DIGITALOCEAN_SPACES";
 
-const S3_PROVIDERS: ProviderType[] = ["AWS_S3", "CLOUDFLARE_R2", "DO_SPACES"];
+const S3_PROVIDERS: ProviderType[] = ["AWS_S3", "CLOUDFLARE_R2", "DIGITALOCEAN_SPACES"];
 
 function providerBadge(type: string) {
   const colors: Record<string, string> = {
@@ -174,7 +174,7 @@ function ProfileDialog({ open, onClose, existing }: ProfileDialogProps) {
   });
 
   const isS3 = S3_PROVIDERS.includes(form.providerType);
-  const needsEndpoint = form.providerType === "CLOUDFLARE_R2" || form.providerType === "DO_SPACES";
+  const needsEndpoint = form.providerType === "CLOUDFLARE_R2" || form.providerType === "DIGITALOCEAN_SPACES";
   const needsAccountId = form.providerType === "CLOUDFLARE_R2";
   const saving = createMutation.isPending || updateMutation.isPending;
 

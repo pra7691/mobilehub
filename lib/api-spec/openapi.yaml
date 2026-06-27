@@ -5704,7 +5704,7 @@ components:
           type: string
         providerType:
           type: string
-          enum: [REPLIT, AWS_S3, CLOUDFLARE_R2, DO_SPACES]
+          enum: [REPLIT, AWS_S3, CLOUDFLARE_R2, DIGITALOCEAN_SPACES]
         keyPrefix:
           type: string
           nullable: true
@@ -5733,7 +5733,7 @@ components:
           type: string
         providerType:
           type: string
-          enum: [REPLIT, AWS_S3, CLOUDFLARE_R2, DO_SPACES]
+          enum: [REPLIT, AWS_S3, CLOUDFLARE_R2, DIGITALOCEAN_SPACES]
         keyPrefix:
           type: string
         accessKeyId:

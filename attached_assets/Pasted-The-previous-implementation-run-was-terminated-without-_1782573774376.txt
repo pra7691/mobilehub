@@ -1,0 +1,231 @@
+The previous implementation run was terminated without a final report.
+
+Do not modify code in this task. Inspect the current codebase, git changes/diffs, task logs, and any work completed in the latest implementation run. Provide a detailed factual report only.
+
+We are trying to make Tarzi recording and uploads reliable for video, audio, and image tasks, including IMU/GPMF video telemetry and all interruption/recovery cases.
+
+## 1. Full change report
+
+List every fix, change, module, file, API, native change, database change, mobile UI change, and configuration change completed in the recent work.
+
+There were many small fixes and edge-case changes. Identify all of them, even if they were not part of the final large prompt.
+
+For each item, provide:
+
+* Fix/change name
+* Problem it addresses
+* Files changed
+* Current status: implemented / partial / not started
+* Evidence from code
+* Whether it was tested
+
+Do not give a vague summary. I need a complete list of all fixes completed so far.
+
+## 2. IMU / embedded video telemetry report
+
+Confirm whether IMU data is actually embedded inside the final uploaded MP4 video.
+
+Check specifically:
+
+* Is accelerometer data captured?
+* Is gyroscope data captured?
+* Are native timestamps captured?
+* Is IMU data saved only temporarily, stored separately, or embedded in the MP4?
+* Is GoPro-style GPMF implemented?
+* Does the final MP4 contain a `gpmd` metadata track?
+* Are `ACCL` and `GYRO` streams present?
+* Is final MP4 validation implemented before upload?
+* Is IMU data preserved if the app closes before muxing?
+* Is the final uploaded cloud file confirmed to retain embedded IMU data?
+
+For every answer, state:
+
+* Yes / No / Partial
+* Exact code evidence
+* Exact limitation
+
+Do not claim GoPro-compatible GPMF is complete unless it has been verified from an actual generated MP4.
+
+## 3. Recording edge-case coverage
+
+For each item below, report separately for:
+
+* Video recording
+* Audio recording
+* Image capture
+* Video upload
+* Audio upload
+* Image upload
+
+Use this status format:
+
+* Covered
+* Partially covered
+* Not covered
+* Not applicable
+
+Then explain actual current behavior and exact code evidence.
+
+### Recording interruption cases
+
+1. Screen locks while camera/video recording is open.
+2. Screen locks while audio recording is active.
+3. Screen unlocks after recording was interrupted.
+4. App goes to background while recording.
+5. App is minimized while recording.
+6. User opens another app during recording.
+7. Incoming call or camera/microphone interruption.
+8. Camera permission is revoked during recording.
+9. Microphone permission is revoked during audio/video recording.
+10. App crashes during recording.
+11. OS kills the app during recording.
+12. User force-closes/swipes away the app during recording.
+13. Phone reboots during recording.
+14. Device runs out of storage during recording.
+15. Camera stops unexpectedly.
+16. Audio recorder stops unexpectedly.
+17. IMU sensor becomes unavailable during video recording.
+18. IMU data collection stops while video continues.
+19. App closes after video recording but before IMU/GPMF embedding finishes.
+20. Video file is incomplete, corrupt, zero-byte, or unplayable after interruption.
+21. Audio file is incomplete, corrupt, zero-byte, or unplayable after interruption.
+22. User cancels recording manually.
+23. User switches orientation during recording.
+24. Device overheats or recording is stopped by the OS.
+
+Important:
+For screen lock, backgrounding, app minimization, crash, force-close, and reboot, state clearly whether recording is safely finalized, stopped, resumed, or lost.
+
+The app must not silently continue recording or IMU capture after a lock/background event unless that behavior is truly supported and verified.
+
+## 4. Upload edge-case coverage
+
+Report coverage for images, videos, and audio separately.
+
+1. User starts upload and minimizes the app.
+2. User starts upload and locks the screen.
+3. User starts upload and returns later.
+4. App crashes while uploading.
+5. OS kills app while uploading.
+6. User force-closes app while uploading.
+7. Phone reboots while upload is pending.
+8. Internet disconnects during upload.
+9. Internet reconnects after interruption.
+10. Wi-Fi changes to mobile data.
+11. Mobile data changes to Wi-Fi.
+12. Slow or unstable Internet.
+13. Captive portal / no real Internet connection.
+14. Signed upload URL expires.
+15. Login token expires.
+16. Backend returns 500 error.
+17. Storage provider returns 5xx error.
+18. Storage provider returns 429 or rate limiting.
+19. Upload is tapped multiple times.
+20. Retry is tapped multiple times.
+21. Same file upload resumes after app restart.
+22. Same upload creates duplicate media records.
+23. Same upload creates duplicate submissions.
+24. Storage provider is changed while an upload is pending.
+25. Storage provider is changed while an upload is in progress.
+26. Local file is deleted or missing before resume.
+27. Local file changes/corrupts before resume.
+28. User logs out during upload.
+29. User account is disabled during upload.
+30. Device storage becomes low during processing/upload.
+31. Upload reaches 100% but completion API fails.
+32. Multipart upload partially completes.
+33. Remote multipart upload is abandoned.
+34. User cancels an upload.
+35. User deletes a pending local draft.
+
+For each one, state:
+
+* Current behavior
+* Whether recovery is possible
+* Whether user sees a clear message
+* Whether duplicates are prevented
+* Whether the file remains safe and recoverable
+* Whether it was tested on a real device
+
+## 5. Local draft and recovery report
+
+Confirm whether the app currently has persistent local drafts for image, audio, and video.
+
+For each media type, report:
+
+* Where the local file is stored
+* Whether it survives app restart
+* Whether it survives app crash
+* Whether it survives force-close
+* Whether it survives reboot
+* Whether it survives app update
+* Whether it survives uninstall or clear-storage
+* Whether upload progress is persisted
+* Whether uploads resume automatically or only after the user opens the app
+* Whether local draft cleanup is implemented
+
+## 6. Background behavior
+
+Report Android and iOS separately.
+
+State clearly:
+
+* Can recording continue when app is backgrounded?
+* Can recording continue when screen is locked?
+* Can upload continue when app is backgrounded?
+* Is Android WorkManager implemented?
+* Is Android foreground upload service implemented?
+* Is iOS background URLSession implemented?
+* What happens after user force-stop?
+* What happens after uninstall or cleared app storage?
+
+Do not state that something continues in background unless native implementation and real-device testing confirm it.
+
+## 7. Testing report
+
+List all tests actually run, with:
+
+* Platform: Android / iPhone / simulator / emulator / unit test only
+* Exact scenario
+* Result
+* Any errors found
+* Whether the test proves real-device behavior
+
+Also list every required test that has not been run.
+
+## 8. Final status table
+
+Provide one clear table with these rows:
+
+* IMU capture
+* GPMF embedding
+* Final MP4 telemetry validation
+* Video interruption recovery
+* Audio interruption recovery
+* Image interruption recovery
+* Video resumable upload
+* Audio resumable upload
+* Image resumable upload
+* Offline handling
+* App restart recovery
+* Force-close recovery
+* Duplicate prevention
+* Storage provider switch safety
+* Background upload Android
+* Background upload iOS
+* Error logging
+* Real-device testing
+
+Use only:
+
+* Complete
+* Partial
+* Not started
+* Not verified
+
+End with:
+
+1. What is currently safe to use in production
+2. What is unsafe or unverified
+3. Exact next implementation steps, in priority order
+4. Whether IMU is truly embedded inside uploaded MP4 files today

@@ -136,6 +136,15 @@ export class StorageProfileService {
     return this.maskProfile(p);
   }
 
+  /** Build R2 endpoint from accountId when no explicit endpoint is provided */
+  private resolveEndpoint(dto: { endpoint?: string; accountId?: string; providerType?: string }): string | null {
+    if (dto.endpoint) return dto.endpoint;
+    if (dto.accountId && dto.providerType === 'CLOUDFLARE_R2') {
+      return `https://${dto.accountId}.r2.cloudflarestorage.com`;
+    }
+    return null;
+  }
+
   async create(dto: CreateStorageProfileDto): Promise<ProfileResponse> {
     const creds: DecryptedCredentials = {};
     if (dto.accessKeyId) creds.accessKeyId = dto.accessKeyId;
@@ -149,7 +158,7 @@ export class StorageProfileService {
         providerType: dto.providerType as any,
         bucket: dto.bucket ?? null,
         region: dto.region ?? null,
-        endpoint: dto.endpoint ?? null,
+        endpoint: this.resolveEndpoint(dto) ?? null,
         publicBaseUrl: dto.publicBaseUrl ?? null,
         keyPrefix: dto.keyPrefix ?? 'tarzi',
         encryptedCredentials: hasCredentials
@@ -172,6 +181,13 @@ export class StorageProfileService {
 
     const hasCredentials = !!(updatedCreds.accessKeyId || updatedCreds.secretAccessKey);
 
+    // Resolve endpoint: explicit dto.endpoint wins; accountId auto-builds R2 URL.
+    // Use existing providerType as fallback when dto.providerType is not supplied.
+    const effectiveProviderType = dto.providerType ?? existing.providerType;
+    const resolvedEndpoint = (dto.endpoint !== undefined || dto.accountId !== undefined)
+      ? this.resolveEndpoint({ endpoint: dto.endpoint, accountId: dto.accountId, providerType: effectiveProviderType })
+      : undefined;
+
     const p = await this.prisma.storageProfile.update({
       where: { id },
       data: {
@@ -179,14 +195,14 @@ export class StorageProfileService {
         ...(dto.providerType !== undefined && { providerType: dto.providerType as any }),
         ...(dto.bucket !== undefined && { bucket: dto.bucket }),
         ...(dto.region !== undefined && { region: dto.region }),
-        ...(dto.endpoint !== undefined && { endpoint: dto.endpoint }),
+        ...(resolvedEndpoint !== undefined && { endpoint: resolvedEndpoint }),
         ...(dto.publicBaseUrl !== undefined && { publicBaseUrl: dto.publicBaseUrl }),
         ...(dto.keyPrefix !== undefined && { keyPrefix: dto.keyPrefix }),
         encryptedCredentials: hasCredentials
           ? this.encryptCredentials(updatedCreds)
           : null,
         // Reset test result if provider-relevant fields changed
-        ...(dto.providerType || dto.bucket || dto.endpoint || dto.accessKeyId || dto.secretAccessKey
+        ...(dto.providerType || dto.bucket || dto.endpoint || dto.accountId || dto.accessKeyId || dto.secretAccessKey
           ? { lastTestedAt: null, lastTestResult: null }
           : {}),
       },
