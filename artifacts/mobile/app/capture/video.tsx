@@ -129,6 +129,9 @@ export default function VideoCaptureScreen() {
   const captureSessionStartMsRef = useRef<number>(0);
   // Why IMU is unavailable when imuSkipped=true
   const imuUnavailableReasonRef = useRef<string>("");
+  // Set when the user explicitly discards an active recording so recordSegment
+  // skips draft persistence on async completion (distinct from OS backgrounding).
+  const wasDiscardedRef = useRef(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -519,6 +522,14 @@ export default function VideoCaptureScreen() {
       }
     }
 
+    if (wasDiscardedRef.current) {
+      // Explicit user discard — stop without saving any draft.
+      wasDiscardedRef.current = false;
+      backgroundedRef.current = false;
+      resetRecordingState();
+      return;
+    }
+
     if (backgroundedRef.current) {
       backgroundedRef.current = false;
       // The app was backgrounded during an active segment — save whatever footage
@@ -743,7 +754,9 @@ export default function VideoCaptureScreen() {
             style: "destructive",
             onPress: () => {
               actionRef.current = "stop";
-              backgroundedRef.current = true;
+              // Use a dedicated flag so recordSegment knows this is a user
+              // discard (not an OS background event) and skips draft saving.
+              wasDiscardedRef.current = true;
               cameraRef.current?.stopRecording();
               resetRecordingState();
               router.back();
