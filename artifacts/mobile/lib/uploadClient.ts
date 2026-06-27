@@ -347,18 +347,30 @@ async function _runUpload(
   onProgress?.({ phase: "preparing", partsComplete: 0, partsTotal: 1, bytesUploaded: 0 });
 
   // ── Pre-flight validation ─────────────────────────────────────────────────
+  // All failures here transition the draft out of QUEUED so it never gets
+  // stuck in an in-progress state with disabled UI interactions.
 
   const videoUri = draft.mediaUris[0];
-  if (!videoUri) throw new Error("No video file found in draft.");
+  if (!videoUri) {
+    draft = await applyTransition(draft, { type: "FAIL_FINAL", lastErrorCode: "NO_MEDIA_URI" }, saveDraft);
+    throw new Error("No video file found in draft.");
+  }
 
   const info = await FileSystem.getInfoAsync(videoUri);
   if (!info.exists) {
+    draft = await applyTransition(draft, { type: "FAIL_RECOVERABLE", lastErrorCode: "FILE_NOT_FOUND" }, saveDraft);
+    void logUploadError(draft, new Error("File not found"), undefined, "preflight_file_check");
     throw new Error("Video file not found on device. Please re-record.");
   }
   const fileSize = "size" in info && info.size > 0 ? info.size : 0;
-  if (fileSize === 0) throw new Error("Video file is empty. Please re-record.");
+  if (fileSize === 0) {
+    draft = await applyTransition(draft, { type: "FAIL_RECOVERABLE", lastErrorCode: "FILE_EMPTY" }, saveDraft);
+    void logUploadError(draft, new Error("File empty"), undefined, "preflight_file_check");
+    throw new Error("Video file is empty. Please re-record.");
+  }
 
   if (draft.durationSeconds != null && draft.durationSeconds <= 0) {
+    draft = await applyTransition(draft, { type: "FAIL_RECOVERABLE", lastErrorCode: "ZERO_DURATION" }, saveDraft);
     throw new Error("Video has zero duration. Please re-record.");
   }
 
@@ -366,18 +378,45 @@ async function _runUpload(
   const filename = videoUri.split("/").pop() ?? "video.mp4";
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   if (!VALID_VIDEO_EXTS.has(ext)) {
+    draft = await applyTransition(draft, { type: "FAIL_RECOVERABLE", lastErrorCode: `INVALID_EXT_${ext.toUpperCase()}` }, saveDraft);
     throw new Error(
       `Unsupported file type: .${ext}. Expected an MP4 or MOV video file. Please re-record.`
     );
   }
   const mimeType = ext === "mov" ? "video/quicktime" : "video/mp4";
 
-  // IMU / GPMF validation — check draft-level status first, fall back to metadata
+  // GPMF / IMU validation — uses the status persisted by tarzi-imu's stopAndEmbed,
+  // which is the tarzi-imu validation API (no standalone post-capture validate function
+  // is exported; validation runs at capture time and is stored on the draft).
+  // draft.imuValidationStatus is the canonical field; imuMetadata is the fallback.
   if (draft.imuRequired) {
-    const validationStatus = draft.imuValidationStatus ?? draft.imuMetadata?.imuValidationStatus;
-    if (!draft.imuMetadata?.imuEmbedded || validationStatus !== "ok") {
+    const gpmfStatus = draft.imuValidationStatus ?? draft.imuMetadata?.imuValidationStatus;
+    if (!draft.imuMetadata?.imuEmbedded) {
+      draft = await applyTransition(
+        draft,
+        { type: "FAIL_RECOVERABLE", lastErrorCode: "GPMF_NOT_EMBEDDED" },
+        saveDraft
+      );
+      void logUploadError(draft, new Error("IMU not embedded"), undefined, "preflight_gpmf_check");
+      throw new Error("This task requires embedded motion sensor data. Please re-record.");
+    }
+    if (gpmfStatus !== "ok") {
+      draft = await applyTransition(
+        draft,
+        {
+          type: "FAIL_RECOVERABLE",
+          lastErrorCode: `GPMF_${(gpmfStatus ?? "UNKNOWN").toUpperCase()}`,
+        },
+        saveDraft
+      );
+      void logUploadError(
+        draft,
+        new Error(`GPMF validation status: ${gpmfStatus}`),
+        undefined,
+        "preflight_gpmf_check"
+      );
       throw new Error(
-        "This task requires valid motion sensor data (IMU). Please re-record."
+        "Motion sensor data (GPMF) validation failed. Please re-record to capture valid IMU telemetry."
       );
     }
   }
@@ -601,11 +640,29 @@ async function _runUpload(
 
         const httpStatus = extractHttpStatus(err);
 
-        // Network loss — wait for connectivity then retry
+        // Network loss — apply the same retry framework as retryable HTTP errors:
+        // START_RETRY → wait for connectivity → backoff jitter → BACK_TO_UPLOADING.
+        // Enforces the same MAX_RETRIES cap so the upload eventually fails cleanly.
         if (!httpStatus) {
-          draft = await applyTransition(draft, { type: "PAUSE_NETWORK" }, saveDraft);
+          if (attempt >= MAX_RETRIES) {
+            draft = await applyTransition(
+              draft,
+              { type: "FAIL_FINAL", lastErrorCode: "NETWORK_ERROR", retryCount: attempt },
+              saveDraft
+            );
+            void logUploadError(draft, err, undefined, "network_max_retries_exceeded");
+            throw new Error(
+              "Upload failed: connection lost after too many retries. Please check your network and try again."
+            );
+          }
+          draft = await applyTransition(
+            draft,
+            { type: "START_RETRY", retryCount: attempt + 1, lastErrorCode: "NETWORK_ERROR" },
+            saveDraft
+          );
           await waitForOnline(signal);
-          draft = await applyTransition(draft, { type: "RESUME_FROM_NETWORK" }, saveDraft);
+          await sleep(backoffMs(attempt), signal);
+          draft = await applyTransition(draft, { type: "BACK_TO_UPLOADING" }, saveDraft);
           attempt++;
           continue;
         }
