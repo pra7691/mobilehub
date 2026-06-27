@@ -219,15 +219,19 @@ export default function VideoCaptureScreen() {
       return;
     }
 
-    void checkSensorAvailability().then(
-      (sensors: { accelerometer: boolean; gyroscope: boolean }) => {
+    void checkSensorAvailability()
+      .then((sensors: { accelerometer: boolean; gyroscope: boolean }) => {
         if (!sensors.accelerometer || !sensors.gyroscope) {
           handleUnavailable("sensors_unavailable");
         } else {
           setSensorGateDone(true);
         }
-      }
-    );
+      })
+      .catch(() => {
+        // Native call failed — treat as sensors unavailable to avoid indefinite
+        // disabled-button state.
+        handleUnavailable("sensors_unavailable");
+      });
   }, [task, taskRecordImu, taskImuRequired, sensorGateDone, router]);
 
   // Stop recording gracefully when app goes to background
@@ -323,6 +327,12 @@ export default function VideoCaptureScreen() {
       // Recording cancelled or failed
     }
 
+    // Always push rawUri first to preserve the original segment URI.
+    // On embed success the last entry is replaced with the embedded URI.
+    if (rawUri) {
+      segmentsRef.current.push(rawUri);
+    }
+
     // Embed IMU data into the segment
     if (rawUri && imuActive) {
       const isFinalStop = actionRef.current === "stop";
@@ -330,8 +340,8 @@ export default function VideoCaptureScreen() {
       try {
         const embedResult = await imuStopAndEmbed(rawUri);
         imuSegmentMetaRef.current.push(embedResult.metadata);
-        // Replace rawUri with the GPMF-embedded URI
-        rawUri = embedResult.uri;
+        // Replace the last entry in-place with the GPMF-embedded URI
+        segmentsRef.current[segmentsRef.current.length - 1] = embedResult.uri;
       } catch (imuErr) {
         if (isFinalStop) setImuProcessing(false);
 
@@ -352,18 +362,17 @@ export default function VideoCaptureScreen() {
           },
         });
 
+        // Preserve original segment URI in segmentsRef; do not navigate to
+        // review — show error and let user re-record via the Retake action.
         setError(
           "Motion data could not be added to this video. Please record again."
         );
-        resetRecordingState();
+        setIsRecording(false);
+        setIsPaused(false);
         return;
       } finally {
         if (isFinalStop) setImuProcessing(false);
       }
-    }
-
-    if (rawUri) {
-      segmentsRef.current.push(rawUri);
     }
 
     if (backgroundedRef.current) {

@@ -67,10 +67,14 @@ export async function submitDraft(
   let submissionId: string;
   let uploadTargets: Array<{ mediaId: string; uploadUrl: string; filename: string; storageKey: string; sortOrder: number }>;
 
-  // IMU upload guard — fail closed: block if imuRequired=true and metadata is
-  // absent OR imuEmbedded is false. Never let a required-IMU task through without
-  // validated embedding.
-  if (draft.imuRequired && (!draft.imuMetadata || !draft.imuMetadata.imuEmbedded)) {
+  // IMU upload guard — fail closed: block if imuRequired=true unless metadata
+  // is present, imuEmbedded is true, AND imuValidationStatus === "ok".
+  if (
+    draft.imuRequired &&
+    (!draft.imuMetadata ||
+      !draft.imuMetadata.imuEmbedded ||
+      draft.imuMetadata.imuValidationStatus !== "ok")
+  ) {
     throw new Error(
       "This task requires motion sensor data (IMU) to be captured. Please retake the video."
     );
