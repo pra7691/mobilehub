@@ -1,0 +1,133 @@
+Continue from the existing Tarzi codebase.
+
+Fix only the native IMU/GPMF implementation for VIDEO tasks. Do not modify audio/image uploads, storage profiles, or general upload recovery in this task.
+
+Current confirmed problems:
+
+* IMU samples are stored only in memory.
+* `startCapture()` does not accept an IMU temp-file path.
+* Android writes one GPMF sample at timestamp 0.
+* Android/iOS return `imuEmbedded: true` even when validation is not truly successful.
+* `resumeEmbed()` does not exist.
+* Interrupted video drafts cannot safely complete IMU embedding after restart.
+
+## Required implementation
+
+### 1. Persist IMU samples during recording
+
+Update Android, iOS, and TypeScript interfaces.
+
+`startCapture()` must accept:
+
+* `imuTempFilePath`
+* recording-start monotonic timestamp
+* video task/draft ID
+
+During recording:
+
+* Append accelerometer and gyroscope samples to the temp file continuously.
+* Do not keep the full recording only in RAM.
+* Store native monotonic timestamp, sensor type, X/Y/Z values, and units.
+* Flush safely at regular intervals.
+* Close and finalize the IMU file when recording stops.
+
+Keep only a small in-memory buffer if needed for writing efficiency.
+
+### 2. Correctly align IMU with video time
+
+* Use recording-start monotonic time as zero.
+* Convert every IMU timestamp into an offset relative to video start.
+* Preserve actual sensor timing; do not fake one sample per video frame.
+* Build telemetry chunks across the full video duration.
+* Target chunks of approximately one second each.
+
+### 3. Write valid timed GPMF
+
+For both Android and iOS:
+
+* Final MP4 must have a `gpmd` telemetry track.
+* Include `ACCL` and `GYRO` streams.
+* Do not write only one GPMF sample at time zero.
+* Write multiple timed GPMF samples distributed across the whole recording duration.
+* Each telemetry sample must have correct MP4 presentation time and duration.
+* Keep standard GPMF metadata such as `DEVC`, `STRM`, `STNM`, `SCAL`, `SIUN`, `TSMP`, `ACCL`, and `GYRO`.
+
+For Android:
+
+* Fix MediaMuxer writing so each GPMF chunk gets its correct presentation timestamp.
+
+For iOS:
+
+* Ensure MP4 timing tables contain one entry per telemetry sample/chunk and match the actual sample timing.
+
+### 4. Implement safe resume embedding
+
+Add native and TypeScript method:
+
+* `resumeEmbed(rawVideoUri, imuTempFilePath, outputUri, recordingMetadata)`
+
+On app restart:
+
+* When a `PROCESSING_IMU` or interrupted video draft has both valid raw video and valid IMU temp file, call `resumeEmbed()`.
+* Create the final MP4 in a new output path.
+* Do not overwrite or delete the raw video or IMU file until final validation passes.
+* After validation succeeds, atomically save the embedded MP4 as the draft file.
+* Then clean up temporary raw video and IMU files.
+* When either input is missing/corrupt, mark the draft `FAILED_RECOVERABLE` and require re-recording.
+
+### 5. Fix false success reporting
+
+Remove all hardcoded `imuEmbedded: true` results.
+
+Set:
+
+* `imuEmbedded: true` only when final MP4 validation passes.
+* `imuValidationStatus: VALID` only when all validation checks pass.
+* Otherwise return `imuEmbedded: false` with a specific safe failure code.
+
+Never allow upload of an IMU-required video unless:
+
+* `imuEmbedded === true`
+* `imuValidationStatus === VALID`
+* accelerometer sample count > 0
+* gyroscope sample count > 0
+
+### 6. Real validation
+
+Create native validation that checks the generated MP4 for:
+
+* playable MP4 output
+* `gpmd` telemetry track exists
+* more than one timed telemetry sample exists
+* `ACCL` exists with samples
+* `GYRO` exists with samples
+* first telemetry timestamp is near recording start
+* last telemetry timestamp is near video end
+* telemetry covers at least 95% of video duration
+* no invalid or empty GPMF payload
+
+Add a parser-level validation where practical. Do not validate only by checking that a track exists.
+
+### 7. Error handling
+
+When embedding or validation fails:
+
+* retain raw video and IMU temp files for recovery where valid
+* mark draft failed recoverably
+* show: “Motion data could not be added to this video. Please record again.”
+* log safe diagnostics only
+* do not upload the video as IMU-enabled
+
+### 8. Required final report
+
+At the end provide:
+
+1. Every Android, iOS, and TypeScript file changed
+2. Exact IMU temp-file format used
+3. Confirmation that IMU is disk-persisted during recording
+4. Confirmation that `resumeEmbed()` is implemented
+5. Exact GPMF timing strategy used
+6. Validation output from one generated test MP4
+7. Whether `imuEmbedded` is now based on real validation
+8. Any remaining limitation
+9. Do not claim cloud-upload verification in this task unless an uploaded MP4 was actually downloaded and parsed.
