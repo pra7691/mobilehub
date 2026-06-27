@@ -1,0 +1,263 @@
+Continue from the existing Tarzi Expo mobile app.
+
+Implement embedded IMU telemetry for every VIDEO task using GoPro-compatible GPMF inside the final MP4 video file.
+
+Do not implement this as:
+
+* JSON stored only in the database
+* CSV uploaded separately
+* sidecar file delivered instead of embedded telemetry
+* one IMU point per video frame
+* fake interpolated sensor data
+
+Definition of done:
+A completed Tarzi video must contain an embedded MP4 telemetry track that is readable by GoPro GPMF tools/parsers and contains accelerometer and gyroscope data.
+
+1. IMU Capture Requirements
+
+Capture these native device sensors during VIDEO recording:
+
+* Accelerometer: X, Y, Z
+* Gyroscope: X, Y, Z
+
+Do not capture GPS in this version.
+
+Sampling:
+
+* Target IMU sample rate: 100 Hz
+* Record the real native sensor timestamps for every sensor event.
+* Do not assume every device produces exactly 100 samples per second.
+* Store actual sample count, timestamps, and effective sample rate.
+* Use monotonic native timestamps, not wall-clock timestamps.
+
+Units:
+
+* Accelerometer: meters per second squared, m/s²
+* Gyroscope: radians per second, rad/s
+* Clearly document axis convention in metadata.
+
+Synchronization:
+
+* Start sensor capture immediately before video recording starts.
+* Stop sensor capture immediately when video recording stops.
+* Synchronize IMU samples to the video timeline using recording-start monotonic timestamp as zero.
+* Preserve raw IMU samples rather than resampling to video FPS.
+* Video frames and IMU samples must remain time-aligned through MP4 presentation timestamps.
+
+2. GoPro-Compatible GPMF Embedding
+
+Embed IMU telemetry in the final MP4 file using GoPro-compatible GPMF structure.
+
+Required MP4/GPMF behavior:
+
+* MP4 metadata track handler type: `meta`
+* GPMF sample description/data type: `gpmd`
+* Use GPMF payloads with streams for:
+
+  * Accelerometer: `ACCL`
+  * Gyroscope: `GYRO`
+* Include relevant GPMF metadata:
+
+  * `STRM`
+  * `STNM`
+  * `DVNM`
+  * `SCAL`
+  * `SIUN`
+  * `TSMP`
+* Store a human-readable device name such as:
+
+  * `Tarzi Mobile`
+* Store sensor stream names clearly:
+
+  * `Accelerometer`
+  * `Gyroscope`
+
+Do not use Android generic `application/gyro` metadata alone as the final solution. The output must contain a real GPMF-compatible `gpmd` telemetry track.
+
+Use a native GPMF writer and native MP4 muxing/post-processing layer.
+
+3. Native Architecture
+
+Current Expo Camera recording must be extended safely.
+
+Implement:
+
+* Native Android module
+* Native iOS module
+* Shared Expo/React Native interface
+
+Suggested service name:
+
+* `TarziImuVideoService`
+
+Responsibilities:
+
+* Start native accelerometer and gyroscope capture
+* Maintain timestamped sensor buffer efficiently
+* Stop capture safely
+* Create GPMF payloads
+* Mux GPMF telemetry into the captured MP4
+* Validate final MP4 telemetry track
+* Return final processed video URI only after validation succeeds
+
+Important:
+
+* Do not rely on JavaScript sensor listeners for actual high-quality IMU capture.
+* Sensor capture and GPMF writing must run natively.
+* Expo Go is not sufficient for this feature.
+* Ensure this works in EAS development, preview, and production builds.
+
+4. Recording Flow
+
+For VIDEO tasks:
+
+1. User taps Start Recording.
+2. Verify device has both accelerometer and gyroscope.
+3. Start native IMU capture.
+4. Start video recording.
+5. During recording, buffer timestamped IMU data.
+6. User stops video recording.
+7. Stop IMU capture.
+8. Show processing state:
+
+   * “Preparing motion data…”
+9. Mux IMU data into the video MP4 as GPMF.
+10. Validate embedded GPMF metadata.
+11. Save only the final IMU-embedded MP4 as the video draft.
+12. Continue to normal review and upload flow.
+
+Do not allow upload until GPMF embedding validation succeeds for an IMU-required video task.
+
+5. Task Configuration
+
+Add VIDEO task settings in Admin:
+
+* Record IMU Data: enabled by default
+* IMU Required: enabled by default
+* Target IMU Sampling Rate: fixed at 100 Hz for version one
+
+Rules:
+
+* New VIDEO tasks should have IMU recording enabled by default.
+* Admin may disable IMU only for a specific VIDEO task.
+* IMAGE and AUDIO tasks must not use IMU capture.
+* Existing VIDEO tasks should be migrated with IMU recording enabled by default.
+
+6. Unsupported Device Handling
+
+Before recording:
+
+* Check accelerometer availability.
+* Check gyroscope availability.
+
+If the task requires IMU and either sensor is unavailable:
+
+* Do not start recording.
+* Show:
+  “This device does not support the motion sensors required for this task.”
+
+If IMU is optional:
+
+* Allow recording only after clear user confirmation.
+* Mark submission metadata:
+
+  * `imuEmbedded: false`
+  * `imuUnavailableReason`
+
+Never claim IMU exists when it was not embedded.
+
+7. Local Draft and Submission Metadata
+
+Store only a summary in local draft/submission metadata:
+
+* imuEmbedded: true/false
+* imuFormat: GPMF
+* imuTargetHz: 100
+* accelerometerSampleCount
+* gyroscopeSampleCount
+* accelerometerEffectiveHz
+* gyroscopeEffectiveHz
+* imuCaptureStartedAtRelativeMs
+* imuCaptureEndedAtRelativeMs
+* imuValidationStatus
+* deviceModel
+* OS version
+
+Do not duplicate the full raw IMU stream in database JSON.
+
+The full sensor data must remain embedded inside the final MP4.
+
+8. Upload and Admin Review
+
+Upload the final GPMF-embedded MP4 exactly as normal video media.
+
+Admin submission detail should display:
+
+* IMU Embedded: Yes / No
+* IMU Format: GPMF
+* Accelerometer sample count
+* Gyroscope sample count
+* Effective IMU rate
+* Validation status
+
+Do not attempt to render raw IMU graphs in version one.
+
+9. Validation
+
+Before marking a video draft ready:
+
+* Inspect final MP4 structure.
+* Confirm metadata track exists.
+* Confirm `gpmd` GPMF telemetry is present.
+* Confirm both `ACCL` and `GYRO` streams are present.
+* Confirm sample timestamps cover the video recording duration.
+* Confirm sample count is greater than zero.
+
+Add an automated validation test using a GoPro GPMF parser or equivalent parser.
+
+Do not mark this feature complete merely because sensor data was captured in memory.
+
+10. Permissions
+
+Add/update:
+
+* iOS motion usage permission message:
+  “Tarzi uses device motion data to record movement information with video tasks.”
+* Do not add Android HIGH_SAMPLING_RATE_SENSORS permission because version one targets 100 Hz.
+* Keep existing Camera and Microphone permissions unchanged.
+
+11. Error Handling
+
+If IMU capture, GPMF generation, or muxing fails:
+
+* Keep original temporary video and sensor buffer until failure is handled.
+* Show:
+  “Motion data could not be added to this video. Please record again.”
+* Do not upload as IMU-enabled.
+* Log safe error details to Mobile Error Logs.
+* Include task ID, device platform, IMU stage, and safe error message.
+* Never expose raw native stack traces to user.
+
+12. Testing
+
+Test on real Android and iPhone devices:
+
+1. Record a 30-second video.
+2. Confirm final MP4 contains GPMF telemetry track.
+3. Extract telemetry using a GPMF parser.
+4. Confirm ACCL and GYRO are present.
+5. Confirm sample counts are reasonable for 100 Hz.
+6. Confirm timestamps span the video duration.
+7. Confirm uploaded file still contains embedded telemetry after cloud upload/download.
+8. Confirm unsupported devices are blocked for IMU-required tasks.
+9. Confirm image/audio tasks remain unchanged.
+10. Confirm camera close, safe-area controls, upload, and review flows still work.
+
+At the end provide:
+
+* Native files/modules created
+* GPMF writer/muxer approach used
+* Exact MP4 track validation result
+* Sample GPMF extraction output from one test recording
+* Confirmation that raw IMU is embedded in the uploaded MP4, not stored only as a sidecar file
+* Known device limitations
