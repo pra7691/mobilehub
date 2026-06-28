@@ -1,18 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { setAuthTokenGetter, refreshTokens } from '@workspace/api-client-react';
+import { AuthContext } from './auth-context';
+export type { AuthContextType } from './auth-context';
 
 const ACCESS_KEY = 'capto_admin_token';
 const REFRESH_KEY = 'capto_admin_refresh_token';
 const REFRESH_BEFORE_EXPIRY_SEC = 60;
-
-interface AuthContextType {
-  token: string | null;
-  login: (accessToken: string, refreshToken: string) => void;
-  logout: () => void;
-  isAuthenticated: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function decodeJwtExp(token: string): number | null {
   try {
