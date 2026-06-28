@@ -202,7 +202,12 @@ export default function ProfileScreen() {
             colors={colors}
           />
         )}
-        <MenuRow icon="info" label={t("profile.version", { version: appVersion })} onPress={() => {}} colors={colors} chevron={false} last />
+        <MenuRow icon="info" label={t("profile.version", { version: appVersion })} onPress={() => {}} colors={colors} chevron={false} last={Constants.expoConfig?.extra?.appVariant !== "preview"} />
+        {Constants.expoConfig?.extra?.appVariant === "preview" && (
+          <Text style={{ fontSize: 11, color: "#06b6d4", fontFamily: "Inter_500Medium", textAlign: "center", paddingVertical: 8, letterSpacing: 0.3 }}>
+            QA Build • Staging
+          </Text>
+        )}
       </View>
 
       {/* Logout */}

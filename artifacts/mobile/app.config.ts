@@ -1,22 +1,27 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
-// Switch between production and development variants via APP_VARIANT env var.
-// Production (default): owner=primeaid, package=com.verbosetechlabs.tarzi
-// Development:          owner=verbosetech, package=com.verbosetechlabs.tarzi.dev
+// Switch between variants via APP_VARIANT env var.
+//
+// production (default): owner=primeaid,    package=com.verbosetechlabs.tarzi
+// development:          owner=verbosetech, package=com.verbosetechlabs.tarzi.dev  (dev-client, Metro)
+// preview:              owner=verbosetech, package=com.verbosetechlabs.tarzi.dev  (no dev-client, bundled JS)
 //
 // Usage:
-//   APP_VARIANT=development eas build --profile development
-//   eas build --profile production                         (APP_VARIANT unset = production)
+//   APP_VARIANT=development eas build --profile development   — dev-client APK with Metro
+//   APP_VARIANT=preview     eas build --profile preview       — standalone QA APK, no Metro required
+//   eas build --profile production                            — production AAB (APP_VARIANT unset)
 
-const IS_DEV = process.env.APP_VARIANT === "development";
+const APP_VARIANT = process.env.APP_VARIANT ?? "production";
+const IS_DEV     = APP_VARIANT === "development";
+const IS_PREVIEW = APP_VARIANT === "preview";
 
 export default (_ctx: ConfigContext): ExpoConfig => ({
-  name: IS_DEV ? "Tarzi Dev" : "Tarzi",
+  name: IS_DEV ? "Tarzi Dev" : IS_PREVIEW ? "Tarzi QA" : "Tarzi",
   slug: "tarzi",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
-  scheme: IS_DEV ? "tarzi-dev" : "tarzi",
+  scheme: IS_DEV ? "tarzi-dev" : IS_PREVIEW ? "tarzi-preview" : "tarzi",
   userInterfaceStyle: "dark",
   newArchEnabled: true,
 
@@ -28,7 +33,7 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
 
   ios: {
     supportsTablet: false,
-    bundleIdentifier: IS_DEV
+    bundleIdentifier: (IS_DEV || IS_PREVIEW)
       ? "com.verbosetechlabs.tarzi.dev"
       : "com.verbosetechlabs.tarzi",
     infoPlist: {
@@ -46,7 +51,7 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/images/icon.png",
       backgroundColor: "#0a0a0a",
     },
-    package: IS_DEV ? "com.verbosetechlabs.tarzi.dev" : "com.verbosetechlabs.tarzi",
+    package: (IS_DEV || IS_PREVIEW) ? "com.verbosetechlabs.tarzi.dev" : "com.verbosetechlabs.tarzi",
     versionCode: 7,
     permissions: [
       "android.permission.CAMERA",
@@ -125,12 +130,13 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
 
   extra: {
     eas: {
-      // Development: verbosetech project (7de0a784). Production: primeaid project (85cd9282). Never swap these.
-      projectId: IS_DEV
+      // Development/Preview: verbosetech project (7de0a784). Production: primeaid project (85cd9282). Never swap these.
+      projectId: (IS_DEV || IS_PREVIEW)
         ? "7de0a784-0329-44f7-9569-34ffb768733b"
         : "85cd9282-6693-4098-b2f7-ede669317a8d",
     },
+    appVariant: APP_VARIANT,
   },
 
-  owner: IS_DEV ? "verbosetech" : "primeaid",
+  owner: (IS_DEV || IS_PREVIEW) ? "verbosetech" : "primeaid",
 });

@@ -17,8 +17,14 @@
       }
     },
     "preview": {
+      "developmentClient": false,
       "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "remote"
+      },
       "env": {
+        "APP_VARIANT": "preview",
         "EXPO_PUBLIC_API_BASE_URL": "https://mobile-data-hub.replit.app/api"
       }
     },
