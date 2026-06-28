@@ -66,6 +66,14 @@ export default function OtpScreen() {
       { data: { sessionId, otp: otpStr } },
       {
         onSuccess: async (tokens) => {
+          if (!tokens?.accessToken || !tokens?.refreshToken) {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            Alert.alert(
+              "Login response was invalid",
+              "The server did not return valid credentials. Please try again."
+            );
+            return;
+          }
           await login(tokens.accessToken, tokens.refreshToken);
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
