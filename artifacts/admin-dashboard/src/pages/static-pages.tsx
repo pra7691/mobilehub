@@ -197,8 +197,8 @@ export default function StaticPagesAdmin() {
 
             <Tabs defaultValue="en">
               <TabsList>
-                <TabsTrigger value="en">🇬🇧 English</TabsTrigger>
-                <TabsTrigger value="hi">🇮🇳 हिंदी</TabsTrigger>
+                <TabsTrigger value="en">English</TabsTrigger>
+                <TabsTrigger value="hi">हिंदी</TabsTrigger>
               </TabsList>
               <TabsContent value="en" className="space-y-3 mt-3">
                 <div className="space-y-2">

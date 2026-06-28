@@ -23,7 +23,7 @@ function CategoryCard({ category, onPress, subcategoriesLabel, tasksLabel }: {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardIconContainer}>
-        <Text style={styles.cardIcon}>{category.icon || "📁"}</Text>
+        <Text style={styles.cardIcon}>{category.icon || ""}</Text>
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardName} numberOfLines={1}>{category.name}</Text>
@@ -342,7 +342,7 @@ export default function CategoriesScreen() {
             onPress={() =>
               router.push({
                 pathname: "/category/[id]",
-                params: { id: item.id, name: item.name, icon: item.icon ?? "📁" },
+                params: { id: item.id, name: item.name, icon: item.icon ?? "" },
               })
             }
           />
@@ -352,7 +352,7 @@ export default function CategoriesScreen() {
           // Never show it while loading, fetching, or in an error state.
           !categoriesFetching && !categoriesLoading && !categoriesError ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📂</Text>
+              <Text style={styles.emptyIcon}></Text>
               <Text style={styles.emptyText}>{t("home.noCategories")}</Text>
               <Text style={styles.emptySubtext}>{t("home.noCategoriesSubtitle")}</Text>
               <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>

@@ -20,7 +20,6 @@ import { FolderTree, Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronLeft, 
 import { toast } from "sonner";
 import { useTranslate } from "@/hooks/useTranslate";
 
-const EMOJI_SUGGESTIONS = ["📸","🎙️","🎥","🔍","🛒","🏠","🌿","🚗","🍕","👔","💻","📚","🏋️","🎮","✈️","🎨","🔬","📊","🌍","🏥"];
 
 export default function Categories() {
   const queryClient = useQueryClient();
@@ -150,7 +149,7 @@ export default function Categories() {
               </TableRow>
             ) : data.data.map(cat => (
               <TableRow key={cat.id} className="border-gray-800 hover:bg-gray-800/50">
-                <TableCell className="text-2xl">{cat.icon || "📁"}</TableCell>
+                <TableCell className="text-2xl">{cat.icon || ""}</TableCell>
                 <TableCell className="font-medium text-white">{cat.name}</TableCell>
                 <TableCell className="text-gray-400 text-sm">{(cat as any).nameHi || "—"}</TableCell>
                 <TableCell className="text-center text-gray-400">{cat.displayOrder}</TableCell>
@@ -203,21 +202,16 @@ export default function Categories() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Icon (emoji)</Label>
+              <Label>Icon</Label>
               <div className="flex gap-2 items-center">
-                <Input value={icon} onChange={e => setIcon(e.target.value)} placeholder="📸" className="bg-gray-800 border-gray-700 text-white w-20 text-2xl text-center" maxLength={4} />
-                <div className="flex flex-wrap gap-1 flex-1">
-                  {EMOJI_SUGGESTIONS.map(e => (
-                    <button key={e} onClick={() => setIcon(e)} className="text-xl hover:bg-gray-700 rounded p-0.5 transition-colors" type="button">{e}</button>
-                  ))}
-                </div>
+                <Input value={icon} onChange={e => setIcon(e.target.value)} placeholder="" className="bg-gray-800 border-gray-700 text-white w-20 text-2xl text-center" maxLength={4} />
               </div>
             </div>
 
             <Tabs defaultValue="en">
               <TabsList className="bg-gray-800 border border-gray-700">
-                <TabsTrigger value="en" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇬🇧 English</TabsTrigger>
-                <TabsTrigger value="hi" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇮🇳 हिंदी</TabsTrigger>
+                <TabsTrigger value="en" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">English</TabsTrigger>
+                <TabsTrigger value="hi" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">हिंदी</TabsTrigger>
               </TabsList>
               <TabsContent value="en" className="space-y-3 mt-3">
                 <div className="space-y-1.5">

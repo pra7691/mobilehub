@@ -40,10 +40,10 @@ async function main() {
   }
 
   // ── Categories ──────────────────────────────────────────────────────────────
-  const catPhotography = await prisma.category.create({ data: { name: 'Photography', description: 'Capture high-quality images of products, people, and environments for AI training datasets.', icon: '📸', displayOrder: 1, isActive: true } });
-  const catAudio = await prisma.category.create({ data: { name: 'Audio Recording', description: 'Record voice samples, ambient sounds, and speech data for AI voice and speech recognition models.', icon: '🎙️', displayOrder: 2, isActive: true } });
-  const catVideo = await prisma.category.create({ data: { name: 'Video Collection', description: 'Capture video footage of real-world scenes, activities, and environments for computer vision datasets.', icon: '🎥', displayOrder: 3, isActive: true } });
-  const catVerify = await prisma.category.create({ data: { name: 'Data Verification', description: 'Verify and validate existing business listings, map data, and factual information.', icon: '🔍', displayOrder: 4, isActive: true } });
+  const catPhotography = await prisma.category.create({ data: { name: 'Photography', description: 'Capture high-quality images of products, people, and environments for AI training datasets.', icon: '', displayOrder: 1, isActive: true } });
+  const catAudio = await prisma.category.create({ data: { name: 'Audio Recording', description: 'Record voice samples, ambient sounds, and speech data for AI voice and speech recognition models.', icon: '', displayOrder: 2, isActive: true } });
+  const catVideo = await prisma.category.create({ data: { name: 'Video Collection', description: 'Capture video footage of real-world scenes, activities, and environments for computer vision datasets.', icon: '', displayOrder: 3, isActive: true } });
+  const catVerify = await prisma.category.create({ data: { name: 'Data Verification', description: 'Verify and validate existing business listings, map data, and factual information.', icon: '', displayOrder: 4, isActive: true } });
 
   console.log('Created 4 categories');
 

@@ -32,9 +32,9 @@ import {
 const MIN_FREE_BYTES_TO_SAVE = 50 * 1024 * 1024; // 50 MB
 
 const TYPE_ICON: Record<string, string> = {
-  VIDEO: "🎥",
-  IMAGE: "📷",
-  AUDIO: "🎙️",
+  VIDEO: "Video",
+  IMAGE: "Image",
+  AUDIO: "Audio",
 };
 
 // ─── Audio Playback Component ─────────────────────────────────────────────────

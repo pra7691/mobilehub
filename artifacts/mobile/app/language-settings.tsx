@@ -14,8 +14,8 @@ import { useLanguage, type Language } from '@/contexts/LanguageContext';
 import { useColors } from '@/hooks/useColors';
 
 const LANGUAGES: { code: Language; nativeLabel: string; label: string; flag: string }[] = [
-  { code: 'en', nativeLabel: 'English', label: 'English', flag: '🇬🇧' },
-  { code: 'hi', nativeLabel: 'हिंदी', label: 'Hindi', flag: '🇮🇳' },
+  { code: 'en', nativeLabel: 'English', label: 'English', flag: 'EN' },
+  { code: 'hi', nativeLabel: 'हिंदी', label: 'Hindi', flag: 'HI' },
 ];
 
 export default function LanguageSettingsScreen() {

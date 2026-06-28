@@ -6,9 +6,9 @@ import { useListTasks, type Task } from "@workspace/api-client-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const TYPE_COLORS: Record<string, { bg: string; text: string; icon: string }> = {
-  VIDEO: { bg: "#2d1b69", text: "#c4b5fd", icon: "🎥" },
-  IMAGE: { bg: "#1e3a5f", text: "#93c5fd", icon: "📷" },
-  AUDIO: { bg: "#451a03", text: "#fdba74", icon: "🎙️" },
+  VIDEO: { bg: "#2d1b69", text: "#c4b5fd", icon: "Video" },
+  IMAGE: { bg: "#1e3a5f", text: "#93c5fd", icon: "Photo" },
+  AUDIO: { bg: "#451a03", text: "#fdba74", icon: "Audio" },
 };
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -45,10 +45,10 @@ function TaskCard({ task, onPress }: { task: Task; onPress: () => void }) {
         </View>
         <View style={styles.taskInfo}>
           {isVideoOrAudio && task.minimumDurationSeconds != null && (
-            <Text style={styles.taskInfoText}>⏱ {task.minimumDurationSeconds}s{task.maximumDurationSeconds ? `–${task.maximumDurationSeconds}s` : ""}</Text>
+            <Text style={styles.taskInfoText}>{task.minimumDurationSeconds}s{task.maximumDurationSeconds ? `–${task.maximumDurationSeconds}s` : ""}</Text>
           )}
           {isImage && task.minimumImageCount != null && (
-            <Text style={styles.taskInfoText}>🖼 {task.minimumImageCount}{task.maximumImageCount ? `–${task.maximumImageCount}` : "+"} photos</Text>
+            <Text style={styles.taskInfoText}>{task.minimumImageCount}{task.maximumImageCount ? `–${task.maximumImageCount}` : "+"} photos</Text>
           )}
         </View>
         <Text style={styles.cardArrow}>›</Text>
@@ -82,9 +82,9 @@ export default function SubcategoryScreen() {
 
   const typeFilters = [
     { label: "All", value: null },
-    { label: "🎥 Video", value: "VIDEO" },
-    { label: "📷 Image", value: "IMAGE" },
-    { label: "🎙️ Audio", value: "AUDIO" },
+    { label: "Video", value: "VIDEO" },
+    { label: "Image", value: "IMAGE" },
+    { label: "Audio", value: "AUDIO" },
   ];
 
   return (
@@ -133,7 +133,7 @@ export default function SubcategoryScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📋</Text>
+              <Text style={styles.emptyIcon}></Text>
               <Text style={styles.emptyText}>No tasks available</Text>
               {activeTypeFilter && <Text style={styles.emptySubtext}>Try removing the filter</Text>}
             </View>

@@ -67,9 +67,9 @@ const SUBMISSION_STATUS_CONFIG: Record<
 };
 
 const COLLECTION_TYPE_ICON: Record<string, string> = {
-  VIDEO: "🎥",
-  IMAGE: "📷",
-  AUDIO: "🎙️",
+  VIDEO: "Video",
+  IMAGE: "Image",
+  AUDIO: "Audio",
 };
 
 type TabId = "drafts" | "needs_action" | "under_review" | "rejected" | "completed";
@@ -547,7 +547,7 @@ function DraftCard({
     >
       <View style={styles.cardTop}>
         <Text style={styles.taskTitle} numberOfLines={1}>
-          {COLLECTION_TYPE_ICON[item.collectionType] ?? "📁"} {item.taskTitle}
+          {COLLECTION_TYPE_ICON[item.collectionType] ? `${COLLECTION_TYPE_ICON[item.collectionType]} · ` : ""}{item.taskTitle}
         </Text>
         <View
           style={[

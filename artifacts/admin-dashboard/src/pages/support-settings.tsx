@@ -117,8 +117,8 @@ export default function SupportSettings() {
               <Label>Support Message <span className="text-muted-foreground text-xs">(optional — shown at top of support page)</span></Label>
               <Tabs defaultValue="en">
                 <TabsList>
-                  <TabsTrigger value="en">🇬🇧 English</TabsTrigger>
-                  <TabsTrigger value="hi">🇮🇳 हिंदी</TabsTrigger>
+                  <TabsTrigger value="en">English</TabsTrigger>
+                  <TabsTrigger value="hi">हिंदी</TabsTrigger>
                 </TabsList>
                 <TabsContent value="en" className="mt-3">
                   <Textarea

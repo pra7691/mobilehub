@@ -180,7 +180,7 @@ export class TasksService {
     if (dto.status === TaskStatus.active && existing.status !== TaskStatus.active) {
       setImmediate(() => {
         void this.notificationsService.broadcast({
-          title: '📋 New Task Available',
+          title: 'New Task Available',
           body: `"${existing.title}" is now available. Open the app to start collecting!`,
           type: NotificationType.NEW_TASK,
           relatedEntityType: NotificationEntityType.TASK,

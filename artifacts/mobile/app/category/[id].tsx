@@ -38,7 +38,7 @@ export default function CategoryScreen() {
           <Text style={styles.backText}>‹ Back</Text>
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.categoryIcon}>{icon || "📁"}</Text>
+          <Text style={styles.categoryIcon}>{icon || ""}</Text>
           <View>
             <Text style={styles.headerTitle}>{name}</Text>
             <Text style={styles.headerSubtitle}>{data?.meta.total ?? 0} subcategories</Text>
@@ -59,12 +59,12 @@ export default function CategoryScreen() {
           renderItem={({ item }) => (
             <SubcategoryCard
               sub={item}
-              onPress={() => router.push({ pathname: "/subcategory/[id]", params: { id: item.id, name: item.name, categoryName: name, categoryIcon: icon ?? "📁" } })}
+              onPress={() => router.push({ pathname: "/subcategory/[id]", params: { id: item.id, name: item.name, categoryName: name, categoryIcon: icon ?? "" } })}
             />
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📂</Text>
+              <Text style={styles.emptyIcon}></Text>
               <Text style={styles.emptyText}>{t("category.noSubcategories")}</Text>
             </View>
           }

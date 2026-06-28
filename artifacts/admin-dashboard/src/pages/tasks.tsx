@@ -283,9 +283,9 @@ export default function Tasks() {
           <SelectTrigger className="w-36 bg-gray-800 border-gray-700 text-white"><SelectValue placeholder="All types" /></SelectTrigger>
           <SelectContent className="bg-gray-800 border-gray-700">
             <SelectItem value="all" className="text-gray-300">All types</SelectItem>
-            <SelectItem value="VIDEO" className="text-gray-300">🎥 Video</SelectItem>
-            <SelectItem value="IMAGE" className="text-gray-300">📷 Image</SelectItem>
-            <SelectItem value="AUDIO" className="text-gray-300">🎙️ Audio</SelectItem>
+            <SelectItem value="VIDEO" className="text-gray-300">Video</SelectItem>
+            <SelectItem value="IMAGE" className="text-gray-300">Image</SelectItem>
+            <SelectItem value="AUDIO" className="text-gray-300">Audio</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -539,8 +539,8 @@ export default function Tasks() {
             <TabsContent value="content" className="mt-4">
               <Tabs defaultValue="content-en">
                 <TabsList className="bg-gray-700 border border-gray-600 w-full mb-4">
-                  <TabsTrigger value="content-en" className="flex-1 data-[state=active]:bg-cyan-500 data-[state=active]:text-black text-xs">🇬🇧 English</TabsTrigger>
-                  <TabsTrigger value="content-hi" className="flex-1 data-[state=active]:bg-cyan-500 data-[state=active]:text-black text-xs">🇮🇳 हिंदी</TabsTrigger>
+                  <TabsTrigger value="content-en" className="flex-1 data-[state=active]:bg-cyan-500 data-[state=active]:text-black text-xs">English</TabsTrigger>
+                  <TabsTrigger value="content-hi" className="flex-1 data-[state=active]:bg-cyan-500 data-[state=active]:text-black text-xs">हिंदी</TabsTrigger>
                 </TabsList>
                 <TabsContent value="content-en" className="space-y-4">
                   <div className="space-y-1.5">

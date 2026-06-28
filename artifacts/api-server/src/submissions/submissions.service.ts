@@ -783,7 +783,7 @@ export class SubmissionsService {
 
       void this.notificationsService.dispatch({
         userId: submission.userId,
-        title: '✅ Submission Approved',
+        title: 'Submission Approved',
         body: `Your submission for "${taskTitle}" has been approved. ${submission.currencySnapshot === 'INR' ? '₹' : submission.currencySnapshot === 'NGN' ? '₦' : '$'}${amount.toFixed(2)} credited to your wallet.`,
         type: NotificationType.SUBMISSION_APPROVED,
         relatedEntityType: NotificationEntityType.SUBMISSION,
@@ -827,7 +827,7 @@ export class SubmissionsService {
     setImmediate(() => {
       void this.notificationsService.dispatch({
         userId: submission.userId,
-        title: '❌ Submission Rejected',
+        title: 'Submission Rejected',
         body: `Your submission for "${taskTitle}" was rejected. ${body.rejectionReason}`,
         type: NotificationType.SUBMISSION_REJECTED,
         relatedEntityType: NotificationEntityType.SUBMISSION,
@@ -871,7 +871,7 @@ export class SubmissionsService {
     setImmediate(() => {
       void this.notificationsService.dispatch({
         userId: submission.userId,
-        title: '🔄 Resubmission Required',
+        title: 'Resubmission Required',
         body: `Your submission for "${taskTitle}" needs changes. ${body.resubmissionReason}`,
         type: NotificationType.RESUBMISSION_REQUIRED,
         relatedEntityType: NotificationEntityType.SUBMISSION,

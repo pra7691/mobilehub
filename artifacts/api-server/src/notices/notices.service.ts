@@ -80,7 +80,7 @@ export class NoticesService {
     if (publishNow) {
       setImmediate(() => {
         void this.notificationsService.broadcast({
-          title: `📢 ${notice.title}`,
+          title: notice.title,
           body: notice.content.length > 100 ? notice.content.slice(0, 97) + '…' : notice.content,
           type: NotificationType.APP_NOTICE,
           relatedEntityType: NotificationEntityType.NOTICE,
@@ -106,7 +106,7 @@ export class NoticesService {
     if (justActivated) {
       setImmediate(() => {
         void this.notificationsService.broadcast({
-          title: `📢 ${updated.title}`,
+          title: updated.title,
           body: updated.content.length > 100 ? updated.content.slice(0, 97) + '…' : updated.content,
           type: NotificationType.APP_NOTICE,
           relatedEntityType: NotificationEntityType.NOTICE,

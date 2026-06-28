@@ -160,7 +160,7 @@ export default function Subcategories() {
               <TableRow key={sub.id} className="border-gray-800 hover:bg-gray-800/50">
                 <TableCell>
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span>{sub.category?.icon ?? "📁"}</span>
+                    <span>{sub.category?.icon ?? ""}</span>
                     <span className="text-gray-300">{sub.category?.name ?? sub.categoryId}</span>
                   </div>
                 </TableCell>
@@ -222,8 +222,8 @@ export default function Subcategories() {
 
             <Tabs defaultValue="en">
               <TabsList className="bg-gray-800 border border-gray-700">
-                <TabsTrigger value="en" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇬🇧 English</TabsTrigger>
-                <TabsTrigger value="hi" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">🇮🇳 हिंदी</TabsTrigger>
+                <TabsTrigger value="en" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">English</TabsTrigger>
+                <TabsTrigger value="hi" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-black">हिंदी</TabsTrigger>
               </TabsList>
               <TabsContent value="en" className="space-y-3 mt-3">
                 <div className="space-y-1.5">

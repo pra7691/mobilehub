@@ -17,9 +17,9 @@ import { useTaskPermissions } from "@/hooks/useTaskPermissions";
 import type { CollectionType } from "@/lib/drafts";
 
 const TYPE_CONFIG: Record<string, { bg: string; text: string; icon: string; label: string }> = {
-  VIDEO: { bg: "#2d1b69", text: "#c4b5fd", icon: "🎥", label: "Video" },
-  IMAGE: { bg: "#1e3a5f", text: "#93c5fd", icon: "📷", label: "Photo" },
-  AUDIO: { bg: "#451a03", text: "#fdba74", icon: "🎙️", label: "Audio" },
+  VIDEO: { bg: "#2d1b69", text: "#c4b5fd", icon: "Video", label: "Video" },
+  IMAGE: { bg: "#1e3a5f", text: "#93c5fd", icon: "Photo", label: "Photo" },
+  AUDIO: { bg: "#451a03", text: "#fdba74", icon: "Audio", label: "Audio" },
 };
 
 const CAPTURE_ROUTE: Record<string, string> = {

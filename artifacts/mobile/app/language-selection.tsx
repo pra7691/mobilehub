@@ -13,8 +13,8 @@ import * as Haptics from 'expo-haptics';
 import { useLanguage, type Language } from '@/contexts/LanguageContext';
 
 const LANGUAGES: { code: Language; label: string; nativeLabel: string; flag: string }[] = [
-  { code: 'en', label: 'English', nativeLabel: 'English', flag: '🇬🇧' },
-  { code: 'hi', label: 'Hindi', nativeLabel: 'हिंदी', flag: '🇮🇳' },
+  { code: 'en', label: 'English', nativeLabel: 'English', flag: 'EN' },
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिंदी', flag: 'HI' },
 ];
 
 export default function LanguageSelectionScreen() {
