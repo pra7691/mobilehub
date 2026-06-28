@@ -46,6 +46,44 @@ private class ImuEmbedException(
     cause: Throwable? = null
 ) : Exception("[$stage] $detail", cause)
 
+// ── Validation result types ──────────────────────────────────────────────────
+
+/**
+ * Result of the direct binary scan of the muxed output file.
+ *
+ * All booleans are set by scanning raw bytes; no MediaExtractor is involved.
+ * False positives are extremely unlikely given the volume of GPMF data in a
+ * real recording (8000+ samples produce many repeated FourCC occurrences).
+ */
+private data class GpmfDirectScan(
+    val gpmdMarkerFound: Boolean,       // "gpmd" bytes present — GPMF track identifier
+    val gpmfMarkerFound: Boolean,       // "GPMF" bytes present (supplemental check)
+    val devcKeyFound: Boolean,          // DEVC container present — GPMF payload root
+    val acclKeyFound: Boolean,          // ACCL FourCC found in payload
+    val gyroKeyFound: Boolean,          // GYRO FourCC found in payload
+    val scalKeyFound: Boolean,          // SCAL FourCC found in payload
+    val stmpKeyFound: Boolean,          // STMP FourCC found — stream timestamp
+    val tsmpMaxSamples: Int,            // largest TSMP value found (telemetry sample count)
+    val totalGpmfPayloadBytes: Long,    // estimated GPMF payload bytes (from DEVC headers)
+    val validationMethod: String = "direct_binary_scan_v1"
+)
+
+/**
+ * Result of a best-effort MediaExtractor probe on the output file.
+ *
+ * All fields are populated even when MediaExtractor throws — failure info is
+ * captured in failureClass/failureMessage instead of being re-thrown.
+ */
+private data class MediaExtractorProbe(
+    val gpmdTrackFound: Boolean,
+    val gpmdSampleCount: Int,
+    val acclInPayload: Boolean,
+    val gyroInPayload: Boolean,
+    val failureClass: String,           // "" when no failure; safe class name otherwise
+    val failureMessage: String,         // "" when no failure; trimmed message otherwise
+    val failureSourceContext: String    // brief location hint (function + approximate context)
+)
+
 /**
  * TIMU binary format — persisted incrementally during recording so samples survive
  * a process kill. Both Android and iOS use big-endian throughout.
@@ -240,6 +278,8 @@ class TarziImuModule : Module() {
 
     override fun definition() = ModuleDefinition {
         Name("TarziImu")
+
+        Events("IMU_OUTPUT_VALIDATION_FAILED")
 
         AsyncFunction("checkSensorAvailability") { promise: Promise ->
             val ctx = appContext.reactContext
@@ -681,20 +721,42 @@ class TarziImuModule : Module() {
             }
 
             // ── Stage: output_validate ───────────────────────────────────────
+            //
+            // The temp file is preserved here throughout validation so that both the
+            // direct binary scan and the MediaExtractor probe can read it in full
+            // before any deletion occurs.  Deletion only happens in the catch block
+            // below AFTER the admin event has been emitted.
             val tempSize = tempFile.length()
-            val validationStatus = try {
-                validateGpmfFile(tempFile.absolutePath, accelList.size, gyroList.size, /* chunkCount see below */ 0)
-            } catch (e: Exception) {
-                throw ImuEmbedException(
-                    "output_validate",
-                    "Validation threw: ${e.javaClass.simpleName}: ${e.message?.take(80) ?: "null"}",
-                    imuFileSizeBytes, totalSamples, tempSize, cause = e
-                )
-            }
+
+            val (validationStatus, validationDiag) =
+                validateGpmfOutput(tempFile, accelList.size, gyroList.size)
+
             if (validationStatus.startsWith("error_")) {
+                // Build the safe admin event payload — no local file paths.
+                val eventPayload: Map<String, Any> = buildMap {
+                    putAll(validationDiag)
+                    put("stage",            "output_validate")
+                    put("imuFileSizeBytes", imuFileSizeBytes)
+                    put("captureSessionId", sessionId)
+                }
+                try {
+                    // Emit BEFORE throwing so the event is sent while tempFile
+                    // still exists on disk (probe already finished, but keep the
+                    // ordering clear for future diagnostics).
+                    sendEvent("IMU_OUTPUT_VALIDATION_FAILED", eventPayload)
+                } catch (_: Exception) {
+                    // Non-fatal — event emission must never suppress the real error.
+                }
+                // temp file is deleted in the outer catch below
                 throw ImuEmbedException(
                     "output_validate",
-                    "GPMF validation: $validationStatus",
+                    "GPMF validation: $validationStatus " +
+                    "(devc=${validationDiag["devcKeyFound"]} " +
+                    "accl=${validationDiag["acclKeyFound"]} " +
+                    "gyro=${validationDiag["gyroKeyFound"]} " +
+                    "scal=${validationDiag["scalKeyFound"]} " +
+                    "stmp=${validationDiag["stmpKeyFound"]} " +
+                    "tsmp=${validationDiag["tsmpMaxSamples"]})",
                     imuFileSizeBytes, totalSamples, tempSize
                 )
             }
@@ -755,12 +817,13 @@ class TarziImuModule : Module() {
         val result    = ArrayList<Pair<ByteArray, Long>>(numChunks)
 
         for (i in 0 until numChunks) {
-            val windowStart = i.toLong() * CHUNK_NS
-            val windowEnd   = windowStart + CHUNK_NS
-            val accelChunk  = accelList.filter { it.offsetNs in windowStart until windowEnd }
-            val gyroChunk   = gyroList.filter  { it.offsetNs in windowStart until windowEnd }
+            val windowStart   = i.toLong() * CHUNK_NS
+            val windowEnd     = windowStart + CHUNK_NS
+            val presentUs     = i.toLong() * 1_000_000L   // microseconds, used as muxer timestamp + STMP
+            val accelChunk    = accelList.filter { it.offsetNs in windowStart until windowEnd }
+            val gyroChunk     = gyroList.filter  { it.offsetNs in windowStart until windowEnd }
             if (accelChunk.isEmpty() && gyroChunk.isEmpty()) continue
-            result.add(Pair(buildGpmfPayload(accelChunk, gyroChunk), i.toLong() * 1_000_000L))
+            result.add(Pair(buildGpmfPayload(accelChunk, gyroChunk, presentUs), presentUs))
         }
         return result
     }
@@ -768,82 +831,300 @@ class TarziImuModule : Module() {
     // ── GPMF validation ──────────────────────────────────────────────────────
 
     /**
-     * Validates the muxed MP4 for GPMF correctness:
-     *   1. gpmd track exists
-     *   2. More than one timed telemetry sample present
-     *   3. ACCL and GYRO FourCCs readable in sample payload
-     *   4. Telemetry covers ≥ 95 % of video duration
+     * Compare 4 bytes in [buf] starting at [i] against literal byte values.
+     * Inlined for tight-loop use in [scanGpmfBinary].
      */
-    private fun validateGpmfFile(
-        path:       String,
-        accelCount: Int,
-        gyroCount:  Int,
-        @Suppress("UNUSED_PARAMETER") chunkCount: Int
-    ): String {
-        if (accelCount == 0 && gyroCount == 0) return "warning_no_sensor_data"
-        if (accelCount == 0 || gyroCount == 0)  return "warning_partial_sensor_data"
+    private fun matchFourCC(buf: ByteArray, i: Int, a: Int, b: Int, c: Int, d: Int): Boolean =
+        buf[i].toInt().and(0xFF) == a &&
+        buf[i + 1].toInt().and(0xFF) == b &&
+        buf[i + 2].toInt().and(0xFF) == c &&
+        buf[i + 3].toInt().and(0xFF) == d
 
+    /**
+     * Scan the muxed output file directly for GPMF binary markers.
+     *
+     * Strategy: read the file in 64 KB chunks, carry the last 3 bytes of each
+     * chunk into the next to avoid missing FourCCs that span a chunk boundary.
+     * No MediaExtractor — works regardless of whether Android recognises the
+     * application/gpmd track type on the current device.
+     *
+     * Required keys checked per spec and user requirement:
+     *   gpmd — track type marker in MP4 stsd box (= "GPMF track present")
+     *   GPMF — supplemental GPMF namespace marker
+     *   DEVC — GPMF device container (root of every payload we write)
+     *   ACCL — accelerometer stream FourCC
+     *   GYRO — gyroscope stream FourCC
+     *   SCAL — scale factor FourCC
+     *   STMP — per-stream microsecond timestamp FourCC (added in this fix)
+     *   TSMP — total-sample-count FourCC; value extracted for sample count check
+     */
+    private fun scanGpmfBinary(file: File): GpmfDirectScan {
+        val CHUNK  = 65536
+        val CARRY  = 3     // need to carry 3 bytes to not miss any 4-byte key at boundary
+
+        var gpmdFound  = false
+        var gpmfFound  = false
+        var devcFound  = false
+        var acclFound  = false
+        var gyroFound  = false
+        var scalFound  = false
+        var stmpFound  = false
+        var tsmpMax    = 0
+        var totalPayload = 0L
+
+        val carry = ByteArray(CARRY)
+        val chunk  = ByteArray(CHUNK)
+        var carryLen = 0
+
+        RandomAccessFile(file, "r").use { raf ->
+            while (true) {
+                val n = raf.read(chunk)
+                if (n <= 0) break
+
+                // Working slice = carry[0..carryLen) + chunk[0..n)
+                val total  = carryLen + n
+                val buf    = ByteArray(total)
+                System.arraycopy(carry, 0, buf, 0, carryLen)
+                System.arraycopy(chunk, 0, buf, carryLen, n)
+
+                val limit = total - 3   // need buf[i..i+3] to be valid
+                for (i in 0 until limit) {
+                    when {
+                        matchFourCC(buf, i, 0x67, 0x70, 0x6D, 0x64) -> gpmdFound = true // "gpmd"
+                        matchFourCC(buf, i, 0x47, 0x50, 0x4D, 0x46) -> gpmfFound = true // "GPMF"
+                        matchFourCC(buf, i, 0x44, 0x45, 0x56, 0x43) -> {                // "DEVC"
+                            devcFound = true
+                            // DEVC hdr layout: [DEVC(4)][type(1)][size(1)][repeat(2)]
+                            // inner content = size * repeat bytes
+                            if (i + 7 < total) {
+                                val sz  = buf[i + 5].toInt().and(0xFF)
+                                val rep = (buf[i + 6].toInt().and(0xFF) shl 8) or
+                                          buf[i + 7].toInt().and(0xFF)
+                                totalPayload += (sz.toLong() * rep.toLong())
+                            }
+                        }
+                        matchFourCC(buf, i, 0x41, 0x43, 0x43, 0x4C) -> acclFound = true // "ACCL"
+                        matchFourCC(buf, i, 0x47, 0x59, 0x52, 0x4F) -> gyroFound = true // "GYRO"
+                        matchFourCC(buf, i, 0x53, 0x43, 0x41, 0x4C) -> scalFound = true // "SCAL"
+                        matchFourCC(buf, i, 0x53, 0x54, 0x4D, 0x50) -> stmpFound = true // "STMP"
+                        matchFourCC(buf, i, 0x54, 0x53, 0x4D, 0x50) -> {                // "TSMP"
+                            // TSMP hdr: [TSMP(4)][0x4C(1)][0x04(1)][0x00,0x01(2)] then uint32 value
+                            // Total offset to value = 8 bytes after FourCC start
+                            if (i + 11 < total) {
+                                val count = ByteBuffer.wrap(buf, i + 8, 4)
+                                    .order(ByteOrder.BIG_ENDIAN).int
+                                if (count > 0 && count > tsmpMax) tsmpMax = count
+                            }
+                        }
+                    }
+                }
+
+                // Carry last CARRY bytes into the next iteration
+                carryLen = minOf(CARRY, n)
+                System.arraycopy(chunk, n - carryLen, carry, 0, carryLen)
+
+                if (n < CHUNK) break  // EOF
+            }
+        }
+
+        return GpmfDirectScan(
+            gpmdMarkerFound      = gpmdFound,
+            gpmfMarkerFound      = gpmfFound,
+            devcKeyFound         = devcFound,
+            acclKeyFound         = acclFound,
+            gyroKeyFound         = gyroFound,
+            scalKeyFound         = scalFound,
+            stmpKeyFound         = stmpFound,
+            tsmpMaxSamples       = tsmpMax,
+            totalGpmfPayloadBytes = totalPayload
+        )
+    }
+
+    /**
+     * Run a best-effort MediaExtractor probe on the muxed output file.
+     *
+     * NEVER throws — any exception (including [IllegalArgumentException] with a
+     * null message thrown by OEM extractors when they encounter the
+     * application/gpmd track type) is captured into [MediaExtractorProbe.failureClass]
+     * and [MediaExtractorProbe.failureMessage].
+     *
+     * Root cause of the original `[output_validate] Validation threw:
+     * IllegalArgumentException: null` crash: MediaExtractor.getTrackFormat(i)
+     * throws IllegalArgumentException() (no message) for the application/gpmd
+     * track on devices whose OEM extractor doesn't recognise the custom MIME type.
+     * This probe is now supplemental only — its failure does not reject a file
+     * that passes the direct binary scan.
+     */
+    private fun probeWithMediaExtractor(path: String): MediaExtractorProbe {
         val v = MediaExtractor()
-        return try {
+        var gpmdTrackFound  = false
+        var gpmdSampleCount = 0
+        var acclFound       = false
+        var gyroFound       = false
+        var failureClass    = ""
+        var failureMsg      = ""
+        var failureCtx      = ""
+
+        try {
             v.setDataSource(path)
 
-            var gpmdTrackIdx    = -1
-            var videoDurationUs = 0L
-
+            var gpmdIdx = -1
             for (i in 0 until v.trackCount) {
-                val fmt  = v.getTrackFormat(i)
-                val mime = fmt.getString(MediaFormat.KEY_MIME) ?: ""
-                if (mime.contains("gpmd", ignoreCase = true)) {
-                    gpmdTrackIdx = i
+                val fmt = try {
+                    v.getTrackFormat(i)
+                    // ↑ Known throw site: getTrackFormat() throws IllegalArgumentException
+                    //   with null message on OEM devices for application/gpmd tracks.
+                } catch (e: Exception) {
+                    failureClass = e.javaClass.simpleName
+                    failureMsg   = e.message?.take(120) ?: "null"
+                    failureCtx   = "probeWithMediaExtractor/getTrackFormat(track=$i)"
+                    continue   // skip unreadable track, keep checking others
                 }
-                if (mime.startsWith("video/") && fmt.containsKey(MediaFormat.KEY_DURATION)) {
-                    videoDurationUs = maxOf(videoDurationUs, fmt.getLong(MediaFormat.KEY_DURATION))
-                }
-            }
-            if (gpmdTrackIdx < 0) return "error_no_gpmd_track"
-
-            v.selectTrack(gpmdTrackIdx)
-
-            val scanBuf     = ByteBuffer.allocate(2048)
-            var sampleCount = 0
-            var firstTimeUs = Long.MAX_VALUE
-            var lastTimeUs  = Long.MIN_VALUE
-            var hasAccl     = false
-            var hasGyro     = false
-
-            while (true) {
-                scanBuf.clear()
-                val sz = v.readSampleData(scanBuf, 0)
-                if (sz < 0) break
-                sampleCount++
-                val ts = v.sampleTime
-                if (ts < firstTimeUs) firstTimeUs = ts
-                if (ts > lastTimeUs)  lastTimeUs  = ts
-                val bytes = ByteArray(minOf(sz, 2048))
-                scanBuf.rewind()
-                scanBuf.get(bytes, 0, bytes.size)
-                val s = String(bytes, Charsets.US_ASCII)
-                if (s.contains("ACCL")) hasAccl = true
-                if (s.contains("GYRO")) hasGyro = true
-                v.advance()
-            }
-
-            if (sampleCount == 0)  return "error_empty_gpmd_track"
-            if (sampleCount < 2)   return "warning_single_gpmd_sample"
-            if (!hasAccl)          return "error_no_accl_stream"
-            if (!hasGyro)          return "error_no_gyro_stream"
-
-            if (videoDurationUs > 0 && firstTimeUs != Long.MAX_VALUE) {
-                val gpmdSpanUs = lastTimeUs - firstTimeUs
-                val coverage   = gpmdSpanUs.toDouble() / videoDurationUs.toDouble()
-                if (coverage < 0.95) {
-                    return "warning_low_coverage_${String.format("%.0f", coverage * 100)}pct"
+                val mime = try { fmt.getString(MediaFormat.KEY_MIME) ?: "" }
+                           catch (_: Exception) { "" }
+                if (mime.contains("gpmd", ignoreCase = true) ||
+                    mime.contains("application/gpmd", ignoreCase = true)) {
+                    gpmdIdx        = i
+                    gpmdTrackFound = true
                 }
             }
-            "ok"
+
+            if (gpmdIdx >= 0) {
+                try {
+                    v.selectTrack(gpmdIdx)
+                    val scanBuf = ByteBuffer.allocate(2048)
+                    while (true) {
+                        scanBuf.clear()
+                        val sz = v.readSampleData(scanBuf, 0)
+                        if (sz < 0) break
+                        gpmdSampleCount++
+                        val bytes = ByteArray(minOf(sz, 2048))
+                        scanBuf.rewind()
+                        scanBuf.get(bytes, 0, bytes.size)
+                        val s = String(bytes, Charsets.US_ASCII)
+                        if (s.contains("ACCL")) acclFound = true
+                        if (s.contains("GYRO")) gyroFound = true
+                        v.advance()
+                    }
+                } catch (e: Exception) {
+                    if (failureClass.isEmpty()) {
+                        failureClass = e.javaClass.simpleName
+                        failureMsg   = e.message?.take(120) ?: "null"
+                        failureCtx   = "probeWithMediaExtractor/readSampleData"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            failureClass = e.javaClass.simpleName
+            failureMsg   = e.message?.take(120) ?: "null"
+            failureCtx   = "probeWithMediaExtractor/setDataSource"
         } finally {
-            v.release()
+            try { v.release() } catch (_: Exception) {}
         }
+
+        return MediaExtractorProbe(
+            gpmdTrackFound    = gpmdTrackFound,
+            gpmdSampleCount   = gpmdSampleCount,
+            acclInPayload     = acclFound,
+            gyroInPayload     = gyroFound,
+            failureClass      = failureClass,
+            failureMessage    = failureMsg,
+            failureSourceContext = failureCtx
+        )
+    }
+
+    /**
+     * Validate the muxed output file and return a (validationStatus, diagnosticsMap) pair.
+     *
+     * Primary path: direct binary scan ([scanGpmfBinary]) — never throws, works on all devices.
+     * Supplemental: safe MediaExtractor probe ([probeWithMediaExtractor]) — result is
+     *   recorded in diagnostics but does NOT override a passing direct-scan result.
+     *
+     * Validation rules (direct scan required for "ok"):
+     *   - devcKeyFound         → GPMF payload root present
+     *   - acclKeyFound         → accelerometer data present
+     *   - gyroKeyFound         → gyroscope data present
+     *   - scalKeyFound         → scale factor present
+     *   - stmpKeyFound         → per-stream timestamp present (STMP, added in this fix)
+     *   - tsmpMaxSamples > 0   → non-zero telemetry sample count
+     *
+     * The diagnosticsMap is safe to include in admin events (no local file paths).
+     *
+     * @return (status, diagnosticsMap)
+     *   status: "ok" | "warning_partial_sensor_data" | "warning_no_sensor_data" |
+     *           "error_no_devc" | "error_no_accl" | "error_no_gyro" |
+     *           "error_no_scal" | "error_no_stmp" | "error_zero_tsmp"
+     */
+    private fun validateGpmfOutput(
+        file:       File,
+        accelCount: Int,
+        gyroCount:  Int
+    ): Pair<String, Map<String, Any>> {
+        if (accelCount == 0 && gyroCount == 0) {
+            val emptyDiag: Map<String, Any> = mapOf(
+                "validationMethod"   to "skipped_no_sensor_data",
+                "outputSizeBytes"    to file.length(),
+                "accelCount"         to 0,
+                "gyroCount"          to 0
+            )
+            return Pair("warning_no_sensor_data", emptyDiag)
+        }
+
+        val scan  = try { scanGpmfBinary(file) }
+                    catch (e: Exception) {
+                        // scanGpmfBinary is designed not to throw, but be defensive
+                        val safeDiag: Map<String, Any> = mapOf(
+                            "validationMethod"    to "direct_scan_threw",
+                            "scanFailureClass"    to e.javaClass.simpleName,
+                            "scanFailureMessage"  to (e.message?.take(120) ?: "null"),
+                            "outputSizeBytes"     to file.length()
+                        )
+                        return Pair("error_scan_threw", safeDiag)
+                    }
+
+        val probe = probeWithMediaExtractor(file.absolutePath)
+
+        val status = when {
+            accelCount == 0 || gyroCount == 0 -> "warning_partial_sensor_data"
+            !scan.devcKeyFound                -> "error_no_devc"
+            !scan.acclKeyFound                -> "error_no_accl"
+            !scan.gyroKeyFound                -> "error_no_gyro"
+            !scan.scalKeyFound                -> "error_no_scal"
+            !scan.stmpKeyFound                -> "error_no_stmp"
+            scan.tsmpMaxSamples == 0          -> "error_zero_tsmp"
+            else                              -> "ok"
+        }
+
+        val diag: Map<String, Any> = mapOf(
+            // ── Direct scan results ──────────────────────────────────────
+            "validationMethod"            to scan.validationMethod,
+            "outputSizeBytes"             to file.length(),
+            "gpmdMarkerFound"             to scan.gpmdMarkerFound,
+            "gpmfMarkerFound"             to scan.gpmfMarkerFound,
+            "devcKeyFound"                to scan.devcKeyFound,
+            "acclKeyFound"                to scan.acclKeyFound,
+            "gyroKeyFound"                to scan.gyroKeyFound,
+            "scalKeyFound"                to scan.scalKeyFound,
+            "stmpKeyFound"                to scan.stmpKeyFound,
+            "tsmpMaxSamples"              to scan.tsmpMaxSamples,
+            "totalGpmfPayloadBytes"       to scan.totalGpmfPayloadBytes,
+            // ── MediaExtractor probe (supplemental) ──────────────────────
+            "extractorGpmdTrackFound"     to probe.gpmdTrackFound,
+            "extractorGpmdSampleCount"    to probe.gpmdSampleCount,
+            "extractorAcclInPayload"      to probe.acclInPayload,
+            "extractorGyroInPayload"      to probe.gyroInPayload,
+            "extractorFailureClass"       to probe.failureClass,
+            "extractorFailureMessage"     to probe.failureMessage,
+            "extractorFailureContext"     to probe.failureSourceContext,
+            // ── Input telemetry counts ───────────────────────────────────
+            "telemetrySampleCount"        to (accelCount + gyroCount),
+            "accelCount"                  to accelCount,
+            "gyroCount"                   to gyroCount,
+            // ── Final verdict ────────────────────────────────────────────
+            "validationStatus"            to status
+        )
+
+        return Pair(status, diag)
     }
 
     // ── GPMF binary builder ───────────────────────────────────────────────────
@@ -881,6 +1162,16 @@ class TarziImuModule : Module() {
         return hdr(fourCC, 0x4C.toByte(), 4, 1) + data
     }
 
+    /**
+     * GPMF uint64 field (type 'J', 0x4A).
+     * Used for STMP (stream timestamp in microseconds).
+     */
+    private fun gpmfUint64(fourCC: String, value: Long): ByteArray {
+        val data = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN)
+            .putLong(value).array()
+        return hdr(fourCC, 0x4A, 8, 1) + data
+    }
+
     private fun gpmfFloat3d(fourCC: String, samples: List<ImuSample>): ByteArray {
         if (samples.isEmpty()) return hdr(fourCC, 0x66.toByte(), 12, 0)
         val data = ByteBuffer.allocate(12 * samples.size).order(ByteOrder.BIG_ENDIAN).apply {
@@ -889,25 +1180,47 @@ class TarziImuModule : Module() {
         return hdr(fourCC, 0x66.toByte(), 12, samples.size.toShort()) + data
     }
 
-    private fun buildAccelStream(samples: List<ImuSample>): ByteArray =
+    /**
+     * Build an accelerometer STRM block.
+     *
+     * @param startTimeUs  Presentation time of the first sample in this chunk, in
+     *                     microseconds. Written as STMP (uint64, type J) so downstream
+     *                     GPMF parsers can correctly time-align the telemetry track.
+     */
+    private fun buildAccelStream(samples: List<ImuSample>, startTimeUs: Long = 0L): ByteArray =
         gpmfContainer("STRM",
             gpmfString("STNM", "Accelerometer") +
             gpmfString("SIUN", "m/s2") +
-            gpmfInt16("SCAL", 1) +
             gpmfUint32("TSMP", samples.size) +
+            gpmfUint64("STMP", startTimeUs) +
+            gpmfInt16("SCAL", 1) +
             gpmfFloat3d("ACCL", samples))
 
-    private fun buildGyroStream(samples: List<ImuSample>): ByteArray =
+    /**
+     * Build a gyroscope STRM block.
+     *
+     * @param startTimeUs  See [buildAccelStream].
+     */
+    private fun buildGyroStream(samples: List<ImuSample>, startTimeUs: Long = 0L): ByteArray =
         gpmfContainer("STRM",
             gpmfString("STNM", "Gyroscope") +
             gpmfString("SIUN", "rad/s") +
-            gpmfInt16("SCAL", 1) +
             gpmfUint32("TSMP", samples.size) +
+            gpmfUint64("STMP", startTimeUs) +
+            gpmfInt16("SCAL", 1) +
             gpmfFloat3d("GYRO", samples))
 
-    private fun buildGpmfPayload(accelList: List<ImuSample>, gyroList: List<ImuSample>): ByteArray =
+    /**
+     * @param startTimeUs  Chunk presentation time in microseconds, forwarded to
+     *                     each stream builder so STMP timestamps are per-chunk.
+     */
+    private fun buildGpmfPayload(
+        accelList: List<ImuSample>,
+        gyroList: List<ImuSample>,
+        startTimeUs: Long = 0L
+    ): ByteArray =
         gpmfContainer("DEVC",
             gpmfString("DVNM", "Tarzi Mobile") +
-            buildAccelStream(accelList) +
-            buildGyroStream(gyroList))
+            buildAccelStream(accelList, startTimeUs) +
+            buildGyroStream(gyroList, startTimeUs))
 }

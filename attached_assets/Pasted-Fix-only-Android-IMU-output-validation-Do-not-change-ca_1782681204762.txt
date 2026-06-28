@@ -1,0 +1,56 @@
+Fix only Android IMU output validation. Do not change capture, sensor streaming, task configuration, upload flow, backend, or iOS code.
+
+Real-device QA/Staging evidence:
+
+* `startCapture` succeeded.
+* IMU temp file exists: `170008 B`.
+* Parsed samples: `8095`.
+* Raw MP4 exists: about `80032270 B`.
+* Processed output MP4 exists: `80136028 B`.
+* Failure is only:
+
+`[output_validate] Validation threw: IllegalArgumentException: null`
+
+This means collection and muxing completed far enough to create an output file. Do not assume embedding failed until the output is inspected correctly.
+
+Required:
+
+1. Locate the exact native line/API that throws `IllegalArgumentException`.
+2. Preserve the processed output MP4 during validation failure; do not delete it before diagnostics complete.
+3. Replace the current validation dependency on Android `MediaExtractor` alone with a safe direct MP4/GPMF validation path.
+
+The direct validator must verify, without loading the full video into memory:
+
+* MP4 has a telemetry/data track or valid GPMF sample entry;
+* presence of `gpmd` where applicable;
+* at least one GPMF payload;
+* required GPMF keys:
+
+  * `GPMF`
+  * `ACCL`
+  * `GYRO`
+  * `SCAL`
+  * `STMP`
+* non-zero telemetry sample count.
+
+4. Keep MediaExtractor only as supplemental information. If it rejects the telemetry track, record that result but do not reject an otherwise valid GPMF MP4 solely because of MediaExtractor.
+
+5. On validation failure, return structured diagnostics:
+
+* exact API/class and source line that failed;
+* validation method used;
+* telemetry-track summary;
+* GPMF marker/key results;
+* processed-output byte size;
+* telemetry sample count;
+* safe exception class and message.
+
+Do not expose local file paths in the user popup.
+
+6. Treat the output as successful only when the direct validation proves telemetry exists. Otherwise keep `imuEmbedded=false`.
+
+7. Add a temporary admin diagnostic event:
+   `IMU_OUTPUT_VALIDATION_FAILED`
+   with the safe structured fields above.
+
+Run Android native compilation/type checks. Report whether the processed MP4 already contains valid GPMF and whether a fresh Tarzi QA APK is required.
