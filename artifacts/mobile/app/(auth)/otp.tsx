@@ -66,31 +66,6 @@ export default function OtpScreen() {
       { data: { sessionId, otp: otpStr } },
       {
         onSuccess: async (tokens) => {
-          // --- TEMPORARY DEBUG (remove once root cause is confirmed) ---
-          const _apiBase = process.env.EXPO_PUBLIC_API_BASE_URL
-            ? process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/api\/?$/, '')
-            : process.env.EXPO_PUBLIC_DOMAIN
-              ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-              : '(not set)';
-          const _tokType = typeof tokens;
-          const _tokKeys = tokens !== null && _tokType === 'object'
-            ? Object.keys(tokens as object).join(', ')
-            : 'n/a';
-          const _t = tokens as unknown as Record<string,unknown>;
-          const _hasAT = typeof _t?.accessToken === 'string' && _t.accessToken !== '';
-          const _hasRT = typeof _t?.refreshToken === 'string' && _t.refreshToken !== '';
-          const _debugMsg = [
-            `apiBase: ${_apiBase}`,
-            `httpStatus: 2xx (onSuccess fired)`,
-            `typeof tokens: ${_tokType}`,
-            `keys: ${_tokKeys}`,
-            `accessToken non-empty string: ${_hasAT}`,
-            `refreshToken non-empty string: ${_hasRT}`,
-          ].join('\n');
-          console.log('[OTP DEBUG]\n' + _debugMsg);
-          Alert.alert('OTP Debug', _debugMsg);
-          // --- END TEMPORARY DEBUG ---
-
           if (!tokens?.accessToken || !tokens?.refreshToken) {
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert(
