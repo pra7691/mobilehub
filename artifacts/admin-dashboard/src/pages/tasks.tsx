@@ -60,6 +60,7 @@ type FormData = {
   preferredFps: string; minimumFps: string;
   preferredCamera: string; preferredLens: string; requiredOrientation: string;
   audioRequired: boolean; pauseAllowed: boolean;
+  recordImu: boolean; imuRequired: boolean;
   maxSubmissionsPerUser: string; maxTotalSubmissions: string;
   startDate: string; endDate: string;
   displayOrder: string; status: string;
@@ -74,6 +75,7 @@ const defaultForm = (): FormData => ({
   minimumImageCount: "", maximumImageCount: "", preferredFps: "", minimumFps: "",
   preferredCamera: "ANY", preferredLens: "ANY", requiredOrientation: "ANY",
   audioRequired: false, pauseAllowed: true,
+  recordImu: false, imuRequired: false,
   maxSubmissionsPerUser: "", maxTotalSubmissions: "", startDate: "", endDate: "",
   displayOrder: "0", status: "draft",
 });
@@ -101,6 +103,8 @@ function taskToForm(t: Task): FormData {
     minimumFps: t.minimumFps != null ? String(t.minimumFps) : "",
     preferredCamera: t.preferredCamera, preferredLens: t.preferredLens, requiredOrientation: t.requiredOrientation,
     audioRequired: t.audioRequired, pauseAllowed: t.pauseAllowed,
+    recordImu: (t as any).recordImu ?? false,
+    imuRequired: (t as any).imuRequired ?? false,
     maxSubmissionsPerUser: t.maxSubmissionsPerUser != null ? String(t.maxSubmissionsPerUser) : "",
     maxTotalSubmissions: t.maxTotalSubmissions != null ? String(t.maxTotalSubmissions) : "",
     startDate: t.startDate ? t.startDate.slice(0, 16) : "",
@@ -134,6 +138,7 @@ function formToPayload(f: FormData): CreateTaskRequest {
     preferredCamera: f.preferredCamera as any, preferredLens: f.preferredLens as any,
     requiredOrientation: f.requiredOrientation as any,
     audioRequired: f.audioRequired, pauseAllowed: f.pauseAllowed,
+    recordImu: f.recordImu, imuRequired: f.imuRequired,
     maxSubmissionsPerUser: optNum(f.maxSubmissionsPerUser),
     maxTotalSubmissions: optNum(f.maxTotalSubmissions),
     startDate: opt(f.startDate), endDate: opt(f.endDate),
@@ -473,6 +478,18 @@ export default function Tasks() {
                   </div>
                 </div>
               )}
+              {form.collectionType === "VIDEO" && (
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Switch checked={form.recordImu} onCheckedChange={v => setField("recordImu", v)} />
+                    <span className="text-sm text-gray-300">Record IMU</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Switch checked={form.imuRequired} onCheckedChange={v => setField("imuRequired", v)} />
+                    <span className="text-sm text-gray-300">IMU Required</span>
+                  </label>
+                </div>
+              )}
               {isImage && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -709,6 +726,8 @@ export default function Tasks() {
                     {detailTask.minimumFps != null && <div className="text-gray-300">Min FPS: <span className="text-white">{detailTask.minimumFps}</span></div>}
                     <div className="text-gray-300">Audio req'd: <span className="text-white">{detailTask.audioRequired ? "Yes" : "No"}</span></div>
                     <div className="text-gray-300">Pause allowed: <span className="text-white">{detailTask.pauseAllowed ? "Yes" : "No"}</span></div>
+                    {detailTask.collectionType === "VIDEO" && <div className="text-gray-300">Record IMU: <span className={(detailTask as any).recordImu ? "text-cyan-400 font-medium" : "text-white"}>{(detailTask as any).recordImu ? "ON" : "OFF"}</span></div>}
+                    {detailTask.collectionType === "VIDEO" && <div className="text-gray-300">IMU Required: <span className="text-white">{(detailTask as any).imuRequired ? "Yes" : "No"}</span></div>}
                   </div>
                 </div>
 
