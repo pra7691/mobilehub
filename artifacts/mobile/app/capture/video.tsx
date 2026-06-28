@@ -579,7 +579,31 @@ export default function VideoCaptureScreen() {
             resetRecordingState();
             return;
           }
-          // Not backgrounded — show error and let user re-record.
+          // Not backgrounded — show debug alert, then user-facing error.
+          const _imuPath = currentImuTempPathRef.current;
+          const [_rawInfo, _imuInfo] = await Promise.all([
+            rawUri ? FileSystem.getInfoAsync(rawUri).catch(() => null) : Promise.resolve(null),
+            _imuPath ? FileSystem.getInfoAsync(_imuPath).catch(() => null) : Promise.resolve(null),
+          ]);
+          const _rawBytes = _rawInfo && "size" in _rawInfo ? _rawInfo.size : null;
+          const _imuBytes = _imuInfo && "size" in _imuInfo ? _imuInfo.size : null;
+          const _errMsg =
+            imuErr instanceof Error ? imuErr.message.slice(0, 200) : String(imuErr).slice(0, 200);
+          const _errName =
+            imuErr instanceof Error ? imuErr.name || "Error" : typeof imuErr;
+          const _debugBody = [
+            `Error: ${_errMsg}`,
+            `Type: ${_errName}`,
+            `startCapture done: ${_imuPath != null}`,
+            `IMU file size: ${_imuBytes != null ? `${_imuBytes} B` : "n/a"}`,
+            `Raw video size: ${_rawBytes != null ? `${_rawBytes} B` : "n/a"}`,
+            `taskId: ${taskId ?? "none"}`,
+            `recordImu: ${taskRecordImu}`,
+            `imuRequired: ${taskImuRequired}`,
+          ].join("\n");
+          await new Promise<void>(resolve => {
+            Alert.alert("IMU Embed Debug", _debugBody, [{ text: "OK", onPress: () => resolve() }]);
+          });
           setError(
             isTimeout
               ? "Motion data processing timed out. Please try again."
