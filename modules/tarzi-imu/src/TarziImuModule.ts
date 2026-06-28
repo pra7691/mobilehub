@@ -25,6 +25,21 @@ export function isAvailable(): boolean {
 }
 
 /**
+ * Returns the list of method/property names exposed by the native TarziImu module.
+ * Returns an empty array when the module is not loaded.
+ * Used for diagnostic logging only — do not use in production logic.
+ */
+export function getNativeMethodNames(): string[] {
+  const native = getNative();
+  if (!native) return [];
+  try {
+    return Object.keys(native as object);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Check whether the device has the required sensors.
  */
 export async function checkSensorAvailability(): Promise<SensorAvailability> {

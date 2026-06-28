@@ -368,6 +368,13 @@ async function _runUpload(
     void logUploadError(draft, new Error("File empty"), undefined, "preflight_file_check");
     throw new Error("Video file is empty. Please re-record.");
   }
+  console.log("[IMU-DIAG] upload preflight →", {
+    videoUri,
+    fileSizeBytes: fileSize,
+    draftId: draft.id,
+    collectionType: draft.collectionType,
+    imuRequired: draft.imuRequired,
+  });
 
   if (draft.durationSeconds != null && draft.durationSeconds <= 0) {
     draft = await applyTransition(draft, { type: "FAIL_RECOVERABLE", lastErrorCode: "ZERO_DURATION" }, saveDraft);

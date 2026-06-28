@@ -1,5 +1,6 @@
 export {
   isAvailable,
+  getNativeMethodNames,
   checkSensorAvailability,
   startCapture,
   stopAndEmbed,
@@ -14,6 +15,7 @@ export type {
 
 import {
   isAvailable,
+  getNativeMethodNames,
   checkSensorAvailability,
   startCapture,
   stopAndEmbed,
@@ -22,6 +24,7 @@ import {
 
 export const TarziImuVideoService = {
   isAvailable,
+  getNativeMethodNames,
   checkSensorAvailability,
   startCapture,
   stopAndEmbed,

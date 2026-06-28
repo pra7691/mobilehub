@@ -16,8 +16,10 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useGetTask, useGetAppSettings } from "@workspace/api-client-react";
+import Constants from "expo-constants";
 import {
   isAvailable as imuIsAvailable,
+  getNativeMethodNames as imuGetMethodNames,
   checkSensorAvailability,
   startCapture as imuStartCapture,
   stopAndEmbed as imuStopAndEmbed,
@@ -253,6 +255,26 @@ export default function VideoCaptureScreen() {
       });
   }, [task, taskRecordImu, taskImuRequired, sensorGateDone, router]);
 
+  // [IMU-DIAG] Log native module state and build info on screen open
+  useEffect(() => {
+    const available = imuIsAvailable();
+    const methodNames = imuGetMethodNames();
+    console.log("[IMU-DIAG] screen-open", {
+      imuModuleAvailable: available,
+      nativeMethodNames: methodNames,
+      appVersion: Constants.nativeAppVersion,
+      buildVersion: Constants.nativeBuildVersion,
+      appName: Constants.expoConfig?.name ?? "unknown",
+      easBuildId:
+        (Constants.easConfig as Record<string, string> | null)?.buildId ??
+        "not-eas-build",
+      taskId,
+      taskRecordImu,
+      taskImuRequired,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
+
   useEffect(() => {
     if (isRecording && !isPaused) {
       timerRef.current = setInterval(() => {
@@ -431,8 +453,17 @@ export default function VideoCaptureScreen() {
         const imuDir = await ensureImuDir();
         const imuTempPath = `${imuDir}imu_${Date.now()}.bin`;
         currentImuTempPathRef.current = imuTempPath;
+        console.log("[IMU-DIAG] startCapture →", { imuTempPath, taskId });
         await imuStartCapture(imuTempPath, taskId ?? null);
-      } catch {
+        console.log("[IMU-DIAG] startCapture OK", { imuTempPath });
+      } catch (imuStartErr: unknown) {
+        console.log("[IMU-DIAG] startCapture FAILED", {
+          error:
+            imuStartErr instanceof Error
+              ? imuStartErr.message
+              : String(imuStartErr),
+          imuTempPath: currentImuTempPathRef.current,
+        });
         // Non-fatal start failure — IMU will be missing for this segment
         currentImuTempPathRef.current = undefined;
       }
@@ -481,10 +512,30 @@ export default function VideoCaptureScreen() {
         ]);
         void timedOut; // consumed via rejection path
         imuSegmentMetaRef.current.push(embedResult.metadata);
+        console.log("[IMU-DIAG] stopAndEmbed OK", {
+          embeddedUri: embedResult.uri,
+          rawUri,
+          imuTempPath: currentImuTempPathRef.current,
+          imuEmbedded: embedResult.metadata?.imuEmbedded,
+          validationStatus: embedResult.metadata?.imuValidationStatus,
+          accelSamples: embedResult.metadata?.accelerometerSampleCount,
+          gyroSamples: embedResult.metadata?.gyroscopeSampleCount,
+          accelHz: embedResult.metadata?.accelerometerEffectiveHz,
+          gyroHz: embedResult.metadata?.gyroscopeEffectiveHz,
+          imuFormat: embedResult.metadata?.imuFormat,
+        });
         // Replace the last entry in-place with the GPMF-embedded URI
         segmentsRef.current[segmentsRef.current.length - 1] = embedResult.uri;
       } catch (imuErr) {
         if (isFinalStop) setImuProcessing(false);
+        console.log("[IMU-DIAG] stopAndEmbed FAILED", {
+          error:
+            imuErr instanceof Error ? imuErr.message : String(imuErr),
+          isTimeout:
+            imuErr instanceof Error && imuErr.message === "IMU_EMBED_TIMEOUT",
+          rawUri,
+          imuTempPath: currentImuTempPathRef.current,
+        });
 
         const isTimeout =
           imuErr instanceof Error && imuErr.message === "IMU_EMBED_TIMEOUT";
@@ -627,6 +678,13 @@ export default function VideoCaptureScreen() {
           }
         }
 
+        console.log("[IMU-DIAG] setPendingCapture (recordSegment) →", {
+          mediaUris: uris,
+          imuEmbedded: imuSummary?.imuEmbedded,
+          validationStatus: imuSummary?.imuValidationStatus,
+          accelSamples: imuSummary?.accelerometerSampleCount,
+          gyroSamples: imuSummary?.gyroscopeSampleCount,
+        });
         setPendingCapture({
           taskId: taskId ?? "",
           collectionType: "VIDEO",
@@ -741,6 +799,13 @@ export default function VideoCaptureScreen() {
           }
         }
 
+        console.log("[IMU-DIAG] setPendingCapture (stopRecording/paused) →", {
+          mediaUris: uris,
+          imuEmbedded: imuSummary?.imuEmbedded,
+          validationStatus: imuSummary?.imuValidationStatus,
+          accelSamples: imuSummary?.accelerometerSampleCount,
+          gyroSamples: imuSummary?.gyroscopeSampleCount,
+        });
         setPendingCapture({
           taskId: taskId ?? "",
           collectionType: "VIDEO",
