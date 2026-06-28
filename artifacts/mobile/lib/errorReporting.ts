@@ -45,6 +45,39 @@ function getAppVersion(): string {
   return Constants.expoConfig?.version ?? "unknown";
 }
 
+/**
+ * Returns a safe, credential-free snapshot of the API and build environment.
+ * These fields appear in every error report so admin incidents clearly show
+ * which backend and DB the mobile app was connected to.
+ *
+ * apiOrigin: hostname from EXPO_PUBLIC_API_BASE_URL, or "local" when unset.
+ * appVariant: "metro-dev" | "eas-dev" | "production" | "unknown".
+ */
+function getEnvContext(): { apiOrigin: string; appVariant: string } {
+  const raw = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+  let apiOrigin = "local";
+  try {
+    if (raw && !raw.startsWith("/")) {
+      apiOrigin = new URL(raw).hostname;
+    }
+  } catch {
+    // keep "local"
+  }
+
+  let appVariant: string;
+  if (__DEV__) {
+    appVariant = "metro-dev";
+  } else if (process.env.EXPO_PUBLIC_APP_VARIANT === "development") {
+    appVariant = "eas-dev";
+  } else if (process.env.EXPO_PUBLIC_APP_VARIANT === "production") {
+    appVariant = "production";
+  } else {
+    appVariant = "unknown";
+  }
+
+  return { apiOrigin, appVariant };
+}
+
 async function getNetworkState(): Promise<string> {
   try {
     const state = await NetInfo.fetch();
@@ -98,9 +131,13 @@ async function sendReport(report: QueuedReport): Promise<void> {
  */
 export async function reportError(report: ErrorReport): Promise<void> {
   const networkState = report.networkState ?? (await getNetworkState());
+  const envCtx = getEnvContext();
   const enriched: QueuedReport = {
     ...report,
     networkState,
+    // Merge env context into metadata so every admin incident shows
+    // which API host and build variant the mobile app was connected to.
+    metadata: { apiOrigin: envCtx.apiOrigin, appVariant: envCtx.appVariant, ...report.metadata },
     queuedAt: new Date().toISOString(),
     attemptCount: 0,
   };

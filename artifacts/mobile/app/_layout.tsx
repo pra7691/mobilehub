@@ -21,6 +21,7 @@ import { NetworkProvider } from "@/contexts/NetworkContext";
 import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
 import { recoverAllRecordingDrafts } from "@/lib/imuRecovery";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { EnvBanner } from "@/components/EnvBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
 import { AuthProvider, useAuth, _notifyDisabled, isDisabledError, AuthState } from "@/contexts/AuthContext";
 import { hasBeenPrompted } from "./referral-entry";
@@ -254,6 +255,7 @@ export default function RootLayout() {
                     <DraftProvider>
                       <RootLayoutNav onReady={hideSplash} />
                       <OfflineBanner />
+                      <EnvBanner />
                     </DraftProvider>
                   </AuthProvider>
                 </LanguageProvider>
