@@ -143,6 +143,7 @@ export default function VideoCaptureScreen() {
   // (EAS native build only). Set before imuStartCapture() so an interrupted
   // draft can reference it for relaunch GPMF re-muxing via recoverAllRecordingDrafts.
   const currentImuTempPathRef = useRef<string | undefined>(undefined);
+  const captureSessionIdRef   = useRef<string | undefined>(undefined);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -385,6 +386,7 @@ export default function VideoCaptureScreen() {
     segmentsRef.current = [];
     rawSegmentsRef.current = [];
     currentImuTempPathRef.current = undefined;
+    captureSessionIdRef.current   = undefined;
     segmentDurationsRef.current = [];
     imuSegmentMetaRef.current = [];
   }, []);
@@ -454,8 +456,12 @@ export default function VideoCaptureScreen() {
         const imuTempPath = `${imuDir}imu_${Date.now()}.bin`;
         currentImuTempPathRef.current = imuTempPath;
         console.log("[IMU-DIAG] startCapture →", { imuTempPath, taskId });
-        await imuStartCapture(imuTempPath, taskId ?? null);
-        console.log("[IMU-DIAG] startCapture OK", { imuTempPath });
+        const startResult = await imuStartCapture(imuTempPath, taskId ?? null);
+        captureSessionIdRef.current = startResult?.captureSessionId;
+        console.log("[IMU-DIAG] startCapture OK", {
+          imuTempPath,
+          captureSessionId: captureSessionIdRef.current,
+        });
       } catch (imuStartErr: unknown) {
         console.log("[IMU-DIAG] startCapture FAILED", {
           error:
@@ -466,6 +472,7 @@ export default function VideoCaptureScreen() {
         });
         // Non-fatal start failure — IMU will be missing for this segment
         currentImuTempPathRef.current = undefined;
+        captureSessionIdRef.current   = undefined;
       }
     }
 
@@ -594,6 +601,7 @@ export default function VideoCaptureScreen() {
           const _debugBody = [
             `Error: ${_errMsg}`,
             `Type: ${_errName}`,
+            `session: ${captureSessionIdRef.current ?? "none"}`,
             `startCapture done: ${_imuPath != null}`,
             `IMU file size: ${_imuBytes != null ? `${_imuBytes} B` : "n/a"}`,
             `Raw video size: ${_rawBytes != null ? `${_rawBytes} B` : "n/a"}`,

@@ -9,6 +9,7 @@ export {
 
 export type {
   SensorAvailability,
+  StartCaptureResult,
   ImuMetadata,
   StopAndEmbedResult,
 } from "./TarziImuModule.types";

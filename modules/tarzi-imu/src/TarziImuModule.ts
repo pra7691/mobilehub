@@ -1,6 +1,7 @@
 import { requireNativeModule } from "expo-modules-core";
 import type {
   SensorAvailability,
+  StartCaptureResult,
   StopAndEmbedResult,
 } from "./TarziImuModule.types";
 
@@ -60,16 +61,16 @@ export async function checkSensorAvailability(): Promise<SensorAvailability> {
 export async function startCapture(
   imuTempFilePath?: string | null,
   taskId?: string | null
-): Promise<void> {
+): Promise<StartCaptureResult | null> {
   const native = getNative();
   if (!native) {
     console.warn("[TarziImu] Native module unavailable — IMU capture skipped");
-    return;
+    return null;
   }
   return native.startCapture(
     imuTempFilePath ?? null,
     taskId ?? null
-  ) as Promise<void>;
+  ) as Promise<StartCaptureResult>;
 }
 
 /**

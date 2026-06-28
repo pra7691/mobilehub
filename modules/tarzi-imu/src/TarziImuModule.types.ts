@@ -3,6 +3,11 @@ export interface SensorAvailability {
   gyroscope: boolean;
 }
 
+/** Returned by startCapture on success. */
+export interface StartCaptureResult {
+  captureSessionId: string;
+}
+
 export interface ImuMetadata {
   imuEmbedded: boolean;
   imuFormat: string;
@@ -11,6 +16,8 @@ export interface ImuMetadata {
   accelerometerEffectiveHz: number;
   gyroscopeEffectiveHz: number;
   imuValidationStatus: string;
+  /** Short ID generated at startCapture — safe for diagnostic logging. */
+  captureSessionId?: string;
 }
 
 export interface StopAndEmbedResult {
