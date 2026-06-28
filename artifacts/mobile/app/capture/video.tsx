@@ -346,10 +346,12 @@ export default function VideoCaptureScreen() {
         paymentAmount: t.paymentAmount ?? 0,
         currency: t.currency ?? "INR",
         mediaUris: movedUris,
-        // rawVideoUri: original recording path before GPMF embedding.
-        // recoverAllRecordingDrafts reads this when scheduling a GPMF re-mux
-        // via the tarzi-imu EAS native module on next launch.
-        rawVideoUri: rawSegmentsRef.current[0],
+        // rawVideoUri: the file path that imuRecovery.ts will pass to resumeEmbed
+        // as the source video for re-muxing.  Use movedUris[0] — not the pre-move
+        // rawSegmentsRef path — because moveMediaToDrafts renames the file, so the
+        // original path no longer exists on disk.  movedUris[0] always holds the
+        // correct post-move location (or the original URI when the move failed).
+        rawVideoUri: movedUris[0] ?? rawSegmentsRef.current[0],
         // imuTempFilePath: disk-streamed IMU sample file path set before
         // imuStartCapture(). The EAS native module will write to this path
         // once disk-streaming support is enabled; until then the file may not
