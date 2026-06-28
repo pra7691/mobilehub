@@ -24,6 +24,10 @@ args = "typecheck"
 task = "workflow.run"
 args = "codegen-check"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/api-server: Staging API"
+
 [[workflows.workflow]]
 name = "typecheck"
 author = "agent"
@@ -45,6 +49,18 @@ args = "pnpm run codegen:check"
 
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow]]
+name = "artifacts/api-server: Staging API"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "DATABASE_URL=\"${DATABASE_URL/heliumdb/tarzi_staging}\" pnpm --filter @workspace/api-server run dev"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"

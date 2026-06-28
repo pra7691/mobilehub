@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import Constants from "expo-constants";
+import { getEnvInfo } from "@/components/EnvBanner";
 
 interface User {
   id: string;
@@ -202,12 +203,34 @@ export default function ProfileScreen() {
             colors={colors}
           />
         )}
-        <MenuRow icon="info" label={t("profile.version", { version: appVersion })} onPress={() => {}} colors={colors} chevron={false} last={Constants.expoConfig?.extra?.appVariant !== "preview"} />
-        {Constants.expoConfig?.extra?.appVariant === "preview" && (
-          <Text style={{ fontSize: 11, color: "#06b6d4", fontFamily: "Inter_500Medium", textAlign: "center", paddingVertical: 8, letterSpacing: 0.3 }}>
-            QA Build • Staging
-          </Text>
-        )}
+        {(() => {
+          const { apiHost, envLabel, dbLabel } = getEnvInfo();
+          const isNonProd = envLabel !== "Production";
+          return (
+            <>
+              <MenuRow
+                icon="info"
+                label={t("profile.version", { version: appVersion })}
+                onPress={() => {}}
+                colors={colors}
+                chevron={false}
+                last={!isNonProd}
+              />
+              {isNonProd && (
+                <View style={{ paddingTop: 6, paddingBottom: 10, gap: 4 }}>
+                  {envLabel === "Staging" && (
+                    <Text style={{ fontSize: 11, color: "#06b6d4", fontFamily: "Inter_500Medium", textAlign: "center", letterSpacing: 0.3, marginBottom: 4 }}>
+                      QA Build • Staging
+                    </Text>
+                  )}
+                  <DiagRow label="API" value={apiHost} />
+                  <DiagRow label="Environment" value={envLabel} />
+                  <DiagRow label="Database" value={dbLabel} />
+                </View>
+              )}
+            </>
+          );
+        })()}
       </View>
 
       {/* Logout */}
@@ -219,6 +242,15 @@ export default function ProfileScreen() {
   );
 }
 
+
+function DiagRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 4 }}>
+      <Text style={{ fontSize: 11, color: "#6b7280", fontFamily: "Inter_500Medium" }}>{label}</Text>
+      <Text style={{ fontSize: 11, color: "#9ca3af", fontFamily: "Inter_400Regular", flexShrink: 1, textAlign: "right" }} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
 
 function MenuRow({
   icon, label, sublabel, onPress, colors, chevron = true, muted = false, last = false,

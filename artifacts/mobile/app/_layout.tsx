@@ -22,7 +22,7 @@ import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
 import { sendScannerDiagnostic } from "@/lib/scannerDiagnostic";
 import { recoverAllRecordingDrafts } from "@/lib/imuRecovery";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { EnvBanner } from "@/components/EnvBanner";
+import { EnvBanner, getEnvInfo } from "@/components/EnvBanner";
 import { DisabledAccountView } from "@/components/DisabledAccountView";
 import { AuthProvider, useAuth, _notifyDisabled, isDisabledError, AuthState } from "@/contexts/AuthContext";
 import { hasBeenPrompted } from "./referral-entry";
@@ -47,6 +47,13 @@ if (process.env.EXPO_PUBLIC_API_BASE_URL) {
   setBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/api\/?$/, ''));
 } else if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+}
+
+// Startup diagnostic — logs API host, environment tier, and database tier.
+// Never logs connection strings or credentials.
+{
+  const _e = getEnvInfo();
+  console.log(`[Capto] env=${_e.envLabel} db=${_e.dbLabel} api=${_e.apiHost}`);
 }
 
 SplashScreen.preventAutoHideAsync();

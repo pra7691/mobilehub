@@ -25,7 +25,7 @@
       },
       "env": {
         "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_API_BASE_URL": "https://mobile-data-hub.replit.app/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://4fa41c10-8447-4b18-a153-a819a3ee3326-00-2ruv2we66ub4o.pike.replit.dev/api"
       }
     },
     "production": {
