@@ -48,9 +48,30 @@ async function secureGet(key: string): Promise<string | null> {
   return SecureStore.getItemAsync(key);
 }
 
-async function secureSet(key: string, value: string): Promise<void> {
-  if (Platform.OS === "web") { localStorage.setItem(key, value); return; }
-  return SecureStore.setItemAsync(key, value);
+/**
+ * Persist a value to SecureStore (native) or localStorage (web).
+ *
+ * SecureStore.setItemAsync rejects any non-string value with
+ * "Invalid value provided to SecureStore. Values must be strings".
+ * This wrapper enforces the invariant at runtime:
+ *   - null / undefined → throws a clear developer error instead of crashing
+ *   - plain string     → stored as-is (JWTs, tokens)
+ *   - object / array   → JSON.stringify'd before storing
+ *
+ * Matching reads: plain-string keys (TOKEN_KEY, REFRESH_KEY) use secureGet
+ * and return the value as-is.  Keys that store JSON objects would use
+ * JSON.parse(await secureGet(key)) at the call site — none exist here today.
+ */
+async function secureSet(key: string, value: unknown): Promise<void> {
+  if (value == null) {
+    throw new Error(
+      `[AuthContext] secureSet("${key}"): received ${String(value)} — ` +
+      "check that the API response is parsed as JSON (Content-Type must be application/json)"
+    );
+  }
+  const stored = typeof value === "string" ? value : JSON.stringify(value);
+  if (Platform.OS === "web") { localStorage.setItem(key, stored); return; }
+  return SecureStore.setItemAsync(key, stored);
 }
 
 async function secureDelete(key: string): Promise<void> {
