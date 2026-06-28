@@ -1,0 +1,63 @@
+Fix only the Android native IMU `stopAndEmbed` failure. Do not change login, upload flow, task platform filtering, Admin UI, or iOS code.
+
+Real-device evidence:
+
+* Native IMU module is available.
+* `startCapture()` is called successfully.
+* IMU temp input passed from JS is a file URI such as:
+  `file:///data/user/0/com.verbosetechlabs.tarzi.dev/cache/capto_imu/imu_....bin`
+* Raw camera MP4 exists and is about 82 MB.
+* `stopAndEmbed()` throws only: `embed failed`
+* JS debug shows `IMU file size: n/a`
+* Final uploaded MP4 has no `gpmd`, `GPMF`, `ACCL`, or `GYRO`.
+
+Inspect only the Android native IMU module and its MP4/GPMF muxing path.
+
+Required fixes:
+
+1. Normalize every input consistently:
+
+   * IMU temp path
+   * raw video URI
+   * output video URI
+     Accept both `file:///...` URIs and absolute file paths. Convert file URIs to valid Android `File` paths before opening, reading, writing, or muxing.
+
+2. In `startCapture`:
+
+   * ensure the IMU temp-file parent directory exists;
+   * confirm the temp file is created/writable;
+   * surface a structured native error if sensor streaming or file writing fails.
+
+3. Before embedding in `stopAndEmbed`:
+
+   * stop sensor collection;
+   * flush and close the IMU output stream;
+   * verify that the IMU file exists;
+   * report its byte size;
+   * validate the TIMU header and calculate the record/sample count;
+   * do not attempt muxing if the file is missing, empty, or invalid.
+
+4. Replace the generic native error `embed failed` with a structured error containing:
+
+   * stage: `imu_file_check`, `timu_parse`, `gpmf_build`, `mp4_mux`, or `output_validate`
+   * safe underlying exception message/cause
+   * IMU file byte size
+   * parsed sample count
+   * output MP4 existence and byte size, when applicable
+
+5. After muxing, validate that the produced MP4 contains a telemetry track/sample before returning success. Return failure when no `gpmd`/GPMF telemetry was actually written.
+
+6. Preserve the existing JS method contract and `file://` URI behavior. Expose only safe structured diagnostic fields to JS; do not expose full local paths in user-facing alerts.
+
+7. Add one `captureSessionId` generated at recording start and include it in all Android IMU diagnostic events so screen-open configuration and embed failures can be tied to the same recording session.
+
+Run Android native compilation/type checks available in this project. Do not claim the issue is fixed until a new real-device recording succeeds and the final MP4 contains `gpmd`, `GPMF`, `ACCL`, and `GYRO`.
+
+Report:
+
+* exact failing native stage;
+* whether the IMU file was created and its size;
+* sample count;
+* whether URI normalization was needed;
+* files changed;
+* whether a fresh Android Dev APK is required.

@@ -9,6 +9,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.net.Uri
 import android.os.SystemClock
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
@@ -18,6 +19,7 @@ import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -30,6 +32,19 @@ private data class ImuSample(
     val y: Float,
     val z: Float
 )
+
+/**
+ * Structured embed failure — carries stage label and diagnostic scalars so JS
+ * can show a meaningful debug alert without receiving any raw file paths.
+ */
+private class ImuEmbedException(
+    val stage: String,          // imu_file_check | timu_parse | gpmf_build | mp4_mux | output_validate
+    val detail: String,         // safe message, no full paths
+    val imuFileSizeBytes: Long = -1L,
+    val sampleCount: Int = -1,
+    val outputSizeBytes: Long = -1L,
+    cause: Throwable? = null
+) : Exception("[$stage] $detail", cause)
 
 /**
  * TIMU binary format — persisted incrementally during recording so samples survive
@@ -47,14 +62,6 @@ private data class ImuSample(
  *   [4]  X float32 big-endian
  *   [4]  Y float32 big-endian
  *   [4]  Z float32 big-endian
- *
- * Limits (cannot be worked around at the OS level):
- *  - SIGKILL may truncate the last partial write. The flush interval (200 samples,
- *    ~2 s at 100 Hz) bounds the data loss window.
- *  - Samples captured between the last flush and a force-kill are lost.
- *  - The TIMU file is NOT deleted by this module; the caller (imuRecovery.ts)
- *    deletes it only after the final MP4 passes GPMF validation.
- *  - Drafts cannot survive app uninstall or cleared app storage.
  */
 class TarziImuModule : Module() {
 
@@ -64,6 +71,14 @@ class TarziImuModule : Module() {
 
     @Volatile private var isCapturing = false
     private var captureStartNs = 0L
+
+    // ── Session tracking ─────────────────────────────────────────────────────
+    /** Short ID generated at startCapture — safe to expose to JS diagnostics. */
+    private var captureSessionId = ""
+    /** Normalized absolute path set by startCapture when disk streaming is active. */
+    private var currentImuFilePath: String? = null
+    /** True when an imuTempFilePath was provided and the file was opened successfully. */
+    private var diskStreamingActive = false
 
     // ── Sensor setup ────────────────────────────────────────────────────────
     private var sensorManager: SensorManager? = null
@@ -86,6 +101,21 @@ class TarziImuModule : Module() {
         private const val HEADER_BYTES  = 13
     }
 
+    // ── URI normalization ────────────────────────────────────────────────────
+
+    /**
+     * Convert any file URI or existing path to an Android File-compatible
+     * absolute path.  Accepts:
+     *   file:///data/user/0/…  →  /data/user/0/…   (standard Android file URI)
+     *   file://data/user/0/…   →  /data/user/0/…   (malformed — guard)
+     *   /data/user/0/…         →  /data/user/0/…   (already a path)
+     */
+    private fun uriToPath(uri: String): String {
+        if (!uri.startsWith("file://")) return uri
+        // android.net.Uri.parse handles file:// correctly including triple-slash form
+        return Uri.parse(uri).path ?: uri.removePrefix("file://")
+    }
+
     // ── Sensor listener ─────────────────────────────────────────────────────
     private val sensorListener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
@@ -105,7 +135,6 @@ class TarziImuModule : Module() {
     private fun appendToDisk(type: Byte, offsetNs: Long, s: ImuSample) {
         synchronized(diskLock) {
             val stream = diskStream ?: return
-            // 21 bytes: type(1) + offsetNs(8) + x(4) + y(4) + z(4)
             val rec = ByteBuffer.allocate(RECORD_BYTES).order(ByteOrder.BIG_ENDIAN)
                 .put(type)
                 .putLong(offsetNs)
@@ -120,7 +149,7 @@ class TarziImuModule : Module() {
                     stream.flush()
                     pendingDiskCount = 0
                 }
-            } catch (_: Exception) { /* non-fatal — samples still in memory */ }
+            } catch (_: Exception) { /* non-fatal — sample stays in memory */ }
         }
     }
 
@@ -139,35 +168,42 @@ class TarziImuModule : Module() {
         }
     }
 
-    private fun openDiskFile(filePath: String, captureStartNanoseconds: Long) {
-        try {
-            val f = File(filePath)
-            f.parentFile?.mkdirs()
-            val out = FileOutputStream(f, false) // truncate any previous content
-            // Header: TIMU(4) + version(1) + captureStartNs(8) = 13 bytes
-            val header = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.BIG_ENDIAN)
-                .put(TIMU_MAGIC.toByteArray(Charsets.US_ASCII))
-                .put(TIMU_VERSION)
-                .putLong(captureStartNanoseconds)
-                .array()
-            out.write(header)
-            diskStream = out
-        } catch (_: Exception) {
-            diskStream = null // disk streaming unavailable — samples stay in memory only
+    /**
+     * Open the TIMU disk file for streaming.
+     *
+     * @param normalizedPath  Already-converted absolute filesystem path (NOT a file:// URI).
+     * @param captureStartNanoseconds  Recording start time for the TIMU header.
+     * @throws Exception if the parent directory or file cannot be created/opened.
+     */
+    private fun openDiskFile(normalizedPath: String, captureStartNanoseconds: Long) {
+        val f = File(normalizedPath)
+        val parent = f.parentFile
+        if (parent != null && !parent.exists()) {
+            if (!parent.mkdirs()) {
+                throw Exception("Cannot create IMU directory: ${parent.name}")
+            }
         }
+        val out = FileOutputStream(f, false) // truncate any previous content
+        // Header: TIMU(4) + version(1) + captureStartNs(8) = 13 bytes
+        val header = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.BIG_ENDIAN)
+            .put(TIMU_MAGIC.toByteArray(Charsets.US_ASCII))
+            .put(TIMU_VERSION)
+            .putLong(captureStartNanoseconds)
+            .array()
+        out.write(header)
+        diskStream = out
     }
 
     /** Read a TIMU file back into sample lists for re-muxing. */
-    private fun readTimuFile(filePath: String): Pair<List<ImuSample>, List<ImuSample>> {
-        val file = File(filePath)
+    private fun readTimuFile(normalizedPath: String): Pair<List<ImuSample>, List<ImuSample>> {
+        val file = File(normalizedPath)
         if (!file.exists() || file.length() < HEADER_BYTES.toLong()) {
-            throw IllegalArgumentException("TIMU file missing or too small: $filePath")
+            throw IllegalArgumentException("TIMU file missing or too small (${file.length()} B)")
         }
         val accel = ArrayList<ImuSample>()
         val gyro  = ArrayList<ImuSample>()
 
         RandomAccessFile(file, "r").use { raf ->
-            // Validate header
             val header = ByteArray(HEADER_BYTES)
             raf.readFully(header)
             val hBuf = ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN)
@@ -179,11 +215,9 @@ class TarziImuModule : Module() {
             if (version != TIMU_VERSION) {
                 throw IllegalArgumentException("Unknown TIMU version: 0x${version.toInt().and(0xFF).toString(16)}")
             }
-            // captureStartNs from header (not needed for offset-based samples but validates file)
-            @Suppress("UNUSED_VARIABLE") val captureStartNs = hBuf.getLong()
+            @Suppress("UNUSED_VARIABLE") val startNs = hBuf.getLong()
 
-            // Read records
-            val rec = ByteArray(RECORD_BYTES)
+            val rec  = ByteArray(RECORD_BYTES)
             val rBuf = ByteBuffer.wrap(rec).order(ByteOrder.BIG_ENDIAN)
             while (raf.read(rec) == RECORD_BYTES) {
                 rBuf.rewind()
@@ -196,7 +230,6 @@ class TarziImuModule : Module() {
                 when (type) {
                     TYPE_ACCEL -> accel.add(sample)
                     TYPE_GYRO  -> gyro.add(sample)
-                    // unknown type — skip silently
                 }
             }
         }
@@ -220,14 +253,13 @@ class TarziImuModule : Module() {
         /**
          * Begin accelerometer + gyroscope capture at ~100 Hz.
          *
-         * @param imuTempFilePath  Optional path for incremental disk streaming.
-         *                         When provided, samples are flushed every
-         *                         DISK_FLUSH_INTERVAL writes so they survive a
-         *                         process kill. The caller must ensure the parent
-         *                         directory exists (or use ensureImuDir()).
-         * @param taskId           Diagnostic identifier only — not stored in data.
+         * @param imuTempFilePath  file:// URI or absolute path for disk streaming.
+         *                         Accepts file:///... form from React Native.
+         *                         If disk open fails, the error is surfaced (not
+         *                         swallowed) so JS can react appropriately.
+         * @param taskId           Diagnostic identifier — not stored in sensor data.
          *
-         * Requires an EAS development or production build. No-op in Expo Go.
+         * Resolves with { captureSessionId } on success.
          */
         AsyncFunction("startCapture") { imuTempFilePath: String?, taskId: String?, promise: Promise ->
             val ctx = appContext.reactContext
@@ -241,10 +273,25 @@ class TarziImuModule : Module() {
             gyroSamples.clear()
             closeDisk()
 
+            captureSessionId   = UUID.randomUUID().toString().replace("-", "").take(8)
+            currentImuFilePath = null
+            diskStreamingActive = false
             captureStartNs = SystemClock.elapsedRealtimeNanos()
 
             if (!imuTempFilePath.isNullOrBlank()) {
-                openDiskFile(imuTempFilePath, captureStartNs)
+                val normalizedPath = uriToPath(imuTempFilePath)
+                try {
+                    openDiskFile(normalizedPath, captureStartNs)
+                    currentImuFilePath  = normalizedPath
+                    diskStreamingActive = true
+                } catch (e: Exception) {
+                    // Surface the failure so the caller (JS/video.tsx) knows disk streaming failed.
+                    return@AsyncFunction promise.reject(
+                        "ERR_IMU_DISK",
+                        "[startCapture] Cannot open IMU file: ${e.javaClass.simpleName}: ${e.message?.take(120) ?: "null"} (session=$captureSessionId)",
+                        e
+                    )
+                }
             }
 
             isCapturing = true
@@ -255,40 +302,119 @@ class TarziImuModule : Module() {
                 sensorManager!!.registerListener(sensorListener, it, SensorManager.SENSOR_DELAY_GAME)
             }
 
-            promise.resolve(null)
+            promise.resolve(mapOf("captureSessionId" to captureSessionId))
         }
 
         /**
-         * Stop capture, flush disk, build time-aligned GPMF chunks, mux into the
-         * video file in-place, validate, and return URI + metadata.
+         * Stop capture, flush disk, validate the TIMU file, build time-aligned
+         * GPMF chunks, mux into the video file in-place, validate output, and
+         * return URI + metadata.
+         *
+         * Errors carry a structured message:  [stage] detail imu=NB samples=N session=ID
+         * Stage labels: imu_file_check | timu_parse | mp4_mux | output_validate
          *
          * imuEmbedded is set to true only when GPMF validation passes.
          */
         AsyncFunction("stopAndEmbed") { videoUri: String, promise: Promise ->
+            // Stop sensors immediately — do this before the background thread so no new
+            // samples arrive while we snapshot/flush.
             isCapturing = false
             sensorManager?.unregisterListener(sensorListener)
             finalFlushDisk()
             closeDisk()
 
-            val captureEndNs   = SystemClock.elapsedRealtimeNanos()
-            val durationSec    = (captureEndNs - captureStartNs).toDouble() / 1_000_000_000.0
+            val captureEndNs     = SystemClock.elapsedRealtimeNanos()
+            val durationSec      = (captureEndNs - captureStartNs).toDouble() / 1_000_000_000.0
+            val sessionId        = captureSessionId
+            val imuFilePath      = currentImuFilePath   // normalized absolute path or null
+            val wasDiskStreaming  = diskStreamingActive
 
-            val accelList = ArrayList(accelSamples)
-            val gyroList  = ArrayList(gyroSamples)
+            // Snapshot in-memory queues (backup if disk streaming wasn't used)
+            val accelMem = ArrayList(accelSamples)
+            val gyroMem  = ArrayList(gyroSamples)
             accelSamples.clear()
             gyroSamples.clear()
 
             Thread {
                 runCatching {
-                    val (_, validationStatus) = muxGpmf(videoUri, accelList, gyroList, outputUri = null)
+                    val videoPath = uriToPath(videoUri)
+
+                    // ── Stage: imu_file_check ────────────────────────────────
+                    val imuFileSize: Long
+                    val accelList: List<ImuSample>
+                    val gyroList: List<ImuSample>
+
+                    if (wasDiskStreaming && imuFilePath != null) {
+                        val imuFile = File(imuFilePath)
+                        imuFileSize = imuFile.length()
+
+                        if (!imuFile.exists()) {
+                            throw ImuEmbedException(
+                                "imu_file_check",
+                                "IMU file does not exist",
+                                imuFileSizeBytes = 0L,
+                                sampleCount = 0
+                            )
+                        }
+                        if (imuFileSize < HEADER_BYTES.toLong()) {
+                            throw ImuEmbedException(
+                                "imu_file_check",
+                                "IMU file too small to contain header (${imuFileSize} B)",
+                                imuFileSizeBytes = imuFileSize,
+                                sampleCount = 0
+                            )
+                        }
+
+                        // ── Stage: timu_parse ────────────────────────────────
+                        val (parsedAccel, parsedGyro) = try {
+                            readTimuFile(imuFilePath)
+                        } catch (e: Exception) {
+                            throw ImuEmbedException(
+                                "timu_parse",
+                                "${e.javaClass.simpleName}: ${e.message?.take(120) ?: "null"}",
+                                imuFileSizeBytes = imuFileSize,
+                                sampleCount = 0,
+                                cause = e
+                            )
+                        }
+                        accelList = parsedAccel
+                        gyroList  = parsedGyro
+                    } else {
+                        // No disk streaming — use in-memory samples
+                        imuFileSize = -1L
+                        accelList = accelMem
+                        gyroList  = gyroMem
+                    }
+
+                    val totalSamples = accelList.size + gyroList.size
+
+                    // ── Stage: mp4_mux / output_validate (inside muxGpmf) ────
+                    val (finalUri, validationStatus) = muxGpmf(
+                        sourcePath       = videoPath,
+                        accelList        = accelList,
+                        gyroList         = gyroList,
+                        outputUri        = null,
+                        imuFileSizeBytes = imuFileSize,
+                        totalSamples     = totalSamples,
+                        sessionId        = sessionId
+                    )
+
                     val accelHz = if (durationSec > 0) accelList.size / durationSec else 0.0
-                    val gyroHz  = if (durationSec > 0) gyroList.size / durationSec else 0.0
+                    val gyroHz  = if (durationSec > 0) gyroList.size  / durationSec else 0.0
+
                     promise.resolve(mapOf(
-                        "uri"      to videoUri,
-                        "metadata" to buildMetadataMap(validationStatus, accelList.size, gyroList.size, accelHz, gyroHz)
+                        "uri"      to finalUri,
+                        "metadata" to buildMetadataMap(
+                            validationStatus, accelList.size, gyroList.size,
+                            accelHz, gyroHz, sessionId
+                        )
                     ))
                 }.onFailure { e ->
-                    promise.reject("ERR_EMBED", e.message ?: "embed failed", e as? Exception)
+                    promise.reject(
+                        "ERR_EMBED",
+                        buildErrorMessage(e, captureSessionId),
+                        e as? Exception
+                    )
                 }
             }.start()
         }
@@ -298,42 +424,79 @@ class TarziImuModule : Module() {
          * an app restart. Called by imuRecovery.ts when a PROCESSING_IMU draft is
          * found on launch.
          *
-         * Writes the result to outputUri WITHOUT modifying rawVideoUri or
-         * imuTempFilePath — the caller is responsible for deleting those files
-         * only after this function returns imuEmbedded=true.
-         *
+         * Accepts file:// URIs or absolute paths for all three arguments.
          * Returns the same map shape as stopAndEmbed.
-         *
-         * Fails with ERR_IMU_FILE when the TIMU file is missing, corrupt, or empty.
-         * Fails with ERR_EMBED when the muxing step throws.
          */
         AsyncFunction("resumeEmbed") { rawVideoUri: String, imuTempFilePath: String, outputUri: String, promise: Promise ->
+            val sessionId = captureSessionId.ifBlank { "resume-${UUID.randomUUID().toString().take(6)}" }
+
             Thread {
                 runCatching {
-                    val (accelList, gyroList) = readTimuFile(imuTempFilePath)
-                    if (accelList.isEmpty() && gyroList.isEmpty()) {
-                        promise.reject("ERR_IMU_FILE", "TIMU file contains no samples", null)
-                        return@Thread
+                    val imuPath   = uriToPath(imuTempFilePath)
+                    val videoPath = uriToPath(rawVideoUri)
+
+                    val imuFile     = File(imuPath)
+                    val imuFileSize = imuFile.length()
+                    if (!imuFile.exists() || imuFileSize < HEADER_BYTES.toLong()) {
+                        throw ImuEmbedException(
+                            "imu_file_check",
+                            "TIMU file missing or too small (${imuFileSize} B)",
+                            imuFileSizeBytes = imuFileSize,
+                            sampleCount = 0
+                        )
                     }
 
-                    val (finalUri, validationStatus) = muxGpmf(rawVideoUri, accelList, gyroList, outputUri)
+                    val (accelList, gyroList) = try {
+                        readTimuFile(imuPath)
+                    } catch (e: Exception) {
+                        throw ImuEmbedException(
+                            "timu_parse",
+                            "${e.javaClass.simpleName}: ${e.message?.take(120) ?: "null"}",
+                            imuFileSizeBytes = imuFileSize,
+                            sampleCount = 0,
+                            cause = e
+                        )
+                    }
 
-                    val allOffsets = (accelList + gyroList).map { it.offsetNs }
-                    val durationNs  = if (allOffsets.size > 1) allOffsets.max()!! - allOffsets.min()!! else 0L
+                    if (accelList.isEmpty() && gyroList.isEmpty()) {
+                        throw ImuEmbedException(
+                            "timu_parse",
+                            "TIMU file contains no samples",
+                            imuFileSizeBytes = imuFileSize,
+                            sampleCount = 0
+                        )
+                    }
+
+                    val totalSamples = accelList.size + gyroList.size
+                    val (finalUri, validationStatus) = muxGpmf(
+                        sourcePath       = videoPath,
+                        accelList        = accelList,
+                        gyroList         = gyroList,
+                        outputUri        = outputUri,
+                        imuFileSizeBytes = imuFileSize,
+                        totalSamples     = totalSamples,
+                        sessionId        = sessionId
+                    )
+
+                    val allOffsets  = (accelList + gyroList).map { it.offsetNs }
+                    val durationNs  = if (allOffsets.size > 1) allOffsets.max() - allOffsets.min() else 0L
                     val durationSec = durationNs.toDouble() / 1_000_000_000.0
                     val accelHz     = if (durationSec > 0) accelList.size / durationSec else 0.0
-                    val gyroHz      = if (durationSec > 0) gyroList.size / durationSec else 0.0
+                    val gyroHz      = if (durationSec > 0) gyroList.size  / durationSec else 0.0
 
                     promise.resolve(mapOf(
                         "uri"      to finalUri,
-                        "metadata" to buildMetadataMap(validationStatus, accelList.size, gyroList.size, accelHz, gyroHz)
+                        "metadata" to buildMetadataMap(
+                            validationStatus, accelList.size, gyroList.size,
+                            accelHz, gyroHz, sessionId
+                        )
                     ))
                 }.onFailure { e ->
-                    if (e is IllegalArgumentException) {
-                        promise.reject("ERR_IMU_FILE", e.message ?: "Bad TIMU file", e)
-                    } else {
-                        promise.reject("ERR_EMBED", e.message ?: "resume embed failed", e as? Exception)
-                    }
+                    promise.reject(
+                        if (e is ImuEmbedException && e.stage == "imu_file_check") "ERR_IMU_FILE" else "ERR_EMBED",
+                        buildErrorMessage(e, sessionId),
+                        e as? Exception
+                    )
                 }
             }.start()
         }
@@ -346,7 +509,8 @@ class TarziImuModule : Module() {
         accelCount: Int,
         gyroCount: Int,
         accelHz: Double,
-        gyroHz: Double
+        gyroHz: Double,
+        sessionId: String = ""
     ): Map<String, Any> = mapOf(
         "imuEmbedded"                 to (validationStatus == "ok"),
         "imuFormat"                   to "GPMF",
@@ -354,115 +518,191 @@ class TarziImuModule : Module() {
         "gyroscopeSampleCount"        to gyroCount,
         "accelerometerEffectiveHz"    to accelHz,
         "gyroscopeEffectiveHz"        to gyroHz,
-        "imuValidationStatus"         to validationStatus
+        "imuValidationStatus"         to validationStatus,
+        "captureSessionId"            to sessionId
     )
+
+    private fun buildErrorMessage(e: Throwable, sessionId: String): String {
+        return when (e) {
+            is ImuEmbedException -> buildString {
+                append("[${e.stage}] ${e.detail}")
+                if (e.imuFileSizeBytes >= 0L) append(" imu=${e.imuFileSizeBytes}B")
+                if (e.sampleCount >= 0) append(" samples=${e.sampleCount}")
+                if (e.outputSizeBytes >= 0L) append(" out=${e.outputSizeBytes}B")
+                append(" session=$sessionId")
+            }
+            else -> "[unknown] ${e.javaClass.simpleName}: ${e.message?.take(120) ?: "null"} session=$sessionId"
+        }
+    }
 
     // ── MP4 muxing ───────────────────────────────────────────────────────────
 
     /**
      * Mux GPMF telemetry into an MP4 file.
      *
-     * Telemetry is split into 1-second chunks and written as separate muxer
-     * samples with accurate presentation timestamps, making the gpmd track
-     * compatible with GoPro-style GPMF parsers that require temporal alignment.
-     *
-     * @param sourceUri  File URI (file:// or plain path) of the source MP4.
-     * @param accelList  Accelerometer samples with offsetNs relative to recording start.
-     * @param gyroList   Gyroscope samples with offsetNs relative to recording start.
-     * @param outputUri  When non-null, write result here and do NOT touch sourceUri.
-     *                   When null, replace sourceUri in-place (stopAndEmbed path).
+     * @param sourcePath      Absolute filesystem path to the source MP4 (NOT a URI).
+     * @param accelList       Accelerometer samples with offsetNs relative to recording start.
+     * @param gyroList        Gyroscope samples.
+     * @param outputUri       When non-null, write result here (file:// URI or path).
+     *                        When null, replace sourcePath in-place (stopAndEmbed path).
+     * @param imuFileSizeBytes Passed through to structured error messages.
+     * @param totalSamples    Passed through to structured error messages.
+     * @param sessionId       Diagnostic session ID.
      *
      * @return (finalUri, validationStatus)
+     * @throws ImuEmbedException on any failure with stage label and diagnostics.
      */
     private fun muxGpmf(
-        sourceUri: String,
-        accelList: List<ImuSample>,
-        gyroList:  List<ImuSample>,
-        outputUri: String?
+        sourcePath:       String,
+        accelList:        List<ImuSample>,
+        gyroList:         List<ImuSample>,
+        outputUri:        String?,
+        imuFileSizeBytes: Long = -1L,
+        totalSamples:     Int  = -1,
+        sessionId:        String = ""
     ): Pair<String, String> {
-        val ctx        = appContext.reactContext!!
-        val sourcePath = sourceUri.removePrefix("file://")
+        // Resolve React context without !! — surface a real error if it's gone
+        val ctx = appContext.reactContext
+            ?: throw ImuEmbedException(
+                "mp4_mux", "React context unavailable",
+                imuFileSizeBytes, totalSamples
+            )
+
         val sourceFile = File(sourcePath)
+        if (!sourceFile.exists()) {
+            throw ImuEmbedException(
+                "mp4_mux", "Source video not found (${sourceFile.name})",
+                imuFileSizeBytes, totalSamples
+            )
+        }
+        val sourceSize = sourceFile.length()
+        if (sourceSize == 0L) {
+            throw ImuEmbedException(
+                "mp4_mux", "Source video is empty",
+                imuFileSizeBytes, totalSamples
+            )
+        }
 
         // Always write to a temp file first — prevents corrupting source on failure
         val tempFile = File(ctx.cacheDir, "tarzi_imu_${System.currentTimeMillis()}.mp4")
 
         try {
-            val extractor  = MediaExtractor()
-            extractor.setDataSource(sourcePath)
+            val extractor = try {
+                MediaExtractor().also { it.setDataSource(sourcePath) }
+            } catch (e: Exception) {
+                throw ImuEmbedException(
+                    "mp4_mux",
+                    "Cannot open source video: ${e.javaClass.simpleName}",
+                    imuFileSizeBytes, totalSamples, cause = e
+                )
+            }
+
             val trackCount = extractor.trackCount
 
-            val muxer = MediaMuxer(tempFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-
-            // Pass-through: copy every existing track
-            val trackMap = mutableMapOf<Int, Int>()
-            for (i in 0 until trackCount) {
-                trackMap[i] = muxer.addTrack(extractor.getTrackFormat(i))
+            val muxer = try {
+                MediaMuxer(tempFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            } catch (e: Exception) {
+                extractor.release()
+                throw ImuEmbedException(
+                    "mp4_mux",
+                    "Cannot create muxer: ${e.javaClass.simpleName}",
+                    imuFileSizeBytes, totalSamples, cause = e
+                )
             }
 
-            // Add GoPro-style GPMD metadata track
-            val gpmdFmt = MediaFormat()
-            gpmdFmt.setString(MediaFormat.KEY_MIME, "application/gpmd")
-            val gpmdIdx = muxer.addTrack(gpmdFmt)
-
-            muxer.start()
-
-            // Copy all source tracks
-            val copyBuf = ByteBuffer.allocate(5 * 1024 * 1024)
-            val info    = MediaCodec.BufferInfo()
-            for (extIdx in 0 until trackCount) {
-                extractor.selectTrack(extIdx)
-                extractor.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-                val muxIdx = trackMap[extIdx]!!
-                while (true) {
-                    copyBuf.clear()
-                    val sz = extractor.readSampleData(copyBuf, 0)
-                    if (sz < 0) break
-                    info.apply {
-                        offset = 0; size = sz
-                        presentationTimeUs = extractor.sampleTime
-                        flags = extractor.sampleFlags
-                    }
-                    muxer.writeSampleData(muxIdx, copyBuf, info)
-                    extractor.advance()
+            try {
+                // Pass-through: copy every existing track
+                val trackMap = mutableMapOf<Int, Int>()
+                for (i in 0 until trackCount) {
+                    trackMap[i] = muxer.addTrack(extractor.getTrackFormat(i))
                 }
-                extractor.unselectTrack(extIdx)
-            }
-            extractor.release()
 
-            // Build GPMF chunks (one per second) and write each as a separate sample
-            val chunks = buildGpmfChunks(accelList, gyroList)
-            if (chunks.isEmpty()) {
-                // No samples — write one minimal packet at t=0 so the track exists
-                val emptyPayload = buildGpmfPayload(emptyList(), emptyList())
-                val gpmfBuf      = ByteBuffer.wrap(emptyPayload)
-                info.apply { offset = 0; size = emptyPayload.size; presentationTimeUs = 0L; flags = MediaCodec.BUFFER_FLAG_KEY_FRAME }
-                muxer.writeSampleData(gpmdIdx, gpmfBuf, info)
-            } else {
-                for ((payload, presentationUs) in chunks) {
-                    val gpmfBuf = ByteBuffer.wrap(payload)
-                    info.apply {
-                        offset = 0; size = payload.size
-                        presentationTimeUs = presentationUs
-                        flags = MediaCodec.BUFFER_FLAG_KEY_FRAME
+                // Add GoPro-style GPMD metadata track
+                val gpmdFmt = MediaFormat()
+                gpmdFmt.setString(MediaFormat.KEY_MIME, "application/gpmd")
+                val gpmdIdx = muxer.addTrack(gpmdFmt)
+
+                muxer.start()
+
+                // Copy all source tracks sequentially
+                val copyBuf = ByteBuffer.allocate(5 * 1024 * 1024)
+                val info    = MediaCodec.BufferInfo()
+                for (extIdx in 0 until trackCount) {
+                    extractor.selectTrack(extIdx)
+                    extractor.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+                    val muxIdx = trackMap[extIdx]!!
+                    while (true) {
+                        copyBuf.clear()
+                        val sz = extractor.readSampleData(copyBuf, 0)
+                        if (sz < 0) break
+                        info.apply {
+                            offset = 0; size = sz
+                            presentationTimeUs = extractor.sampleTime
+                            flags = extractor.sampleFlags
+                        }
+                        copyBuf.position(0)   // ensure position is at data start for muxer
+                        muxer.writeSampleData(muxIdx, copyBuf, info)
+                        extractor.advance()
                     }
+                    extractor.unselectTrack(extIdx)
+                }
+                extractor.release()
+
+                // Build GPMF chunks (one per second) and write each as a separate sample
+                val chunks = buildGpmfChunks(accelList, gyroList)
+                if (chunks.isEmpty()) {
+                    val emptyPayload = buildGpmfPayload(emptyList(), emptyList())
+                    val gpmfBuf = ByteBuffer.wrap(emptyPayload)
+                    info.apply { offset = 0; size = emptyPayload.size; presentationTimeUs = 0L; flags = MediaCodec.BUFFER_FLAG_KEY_FRAME }
                     muxer.writeSampleData(gpmdIdx, gpmfBuf, info)
+                } else {
+                    for ((payload, presentationUs) in chunks) {
+                        val gpmfBuf = ByteBuffer.wrap(payload)
+                        info.apply {
+                            offset = 0; size = payload.size
+                            presentationTimeUs = presentationUs
+                            flags = MediaCodec.BUFFER_FLAG_KEY_FRAME
+                        }
+                        muxer.writeSampleData(gpmdIdx, gpmfBuf, info)
+                    }
                 }
+
+                try {
+                    muxer.stop()
+                } catch (e: Exception) {
+                    throw ImuEmbedException(
+                        "mp4_mux",
+                        "Muxer stop failed: ${e.javaClass.simpleName}: ${e.message?.take(80) ?: "null"}",
+                        imuFileSizeBytes, totalSamples, cause = e
+                    )
+                }
+            } finally {
+                try { muxer.release() } catch (_: Exception) {}
             }
 
-            muxer.stop()
-            muxer.release()
+            // ── Stage: output_validate ───────────────────────────────────────
+            val tempSize = tempFile.length()
+            val validationStatus = try {
+                validateGpmfFile(tempFile.absolutePath, accelList.size, gyroList.size, /* chunkCount see below */ 0)
+            } catch (e: Exception) {
+                throw ImuEmbedException(
+                    "output_validate",
+                    "Validation threw: ${e.javaClass.simpleName}: ${e.message?.take(80) ?: "null"}",
+                    imuFileSizeBytes, totalSamples, tempSize, cause = e
+                )
+            }
+            if (validationStatus.startsWith("error_")) {
+                throw ImuEmbedException(
+                    "output_validate",
+                    "GPMF validation: $validationStatus",
+                    imuFileSizeBytes, totalSamples, tempSize
+                )
+            }
 
-            // Validate before replacing any file
-            val validationStatus = validateGpmfFile(
-                tempFile.absolutePath, accelList.size, gyroList.size, chunks.size
-            )
-
-            // Place output
+            // ── Place output ─────────────────────────────────────────────────
             val finalUri: String
             if (outputUri != null) {
-                // resumeEmbed path: write to outputUri, don't touch source
-                val outPath = outputUri.removePrefix("file://")
+                val outPath = uriToPath(outputUri)
                 val outFile = File(outPath)
                 outFile.parentFile?.mkdirs()
                 if (!tempFile.renameTo(outFile)) {
@@ -471,29 +711,33 @@ class TarziImuModule : Module() {
                 }
                 finalUri = outputUri
             } else {
-                // stopAndEmbed path: replace source in-place
                 sourceFile.delete()
                 if (!tempFile.renameTo(sourceFile)) {
                     tempFile.copyTo(sourceFile, overwrite = true)
                     tempFile.delete()
                 }
-                finalUri = sourceUri
+                // Return the original URI so JS URIs remain valid
+                finalUri = if (sourcePath.startsWith("/")) "file://$sourcePath" else sourcePath
             }
 
             return Pair(finalUri, validationStatus)
-        } catch (e: Exception) {
+
+        } catch (e: ImuEmbedException) {
             tempFile.delete()
             throw e
+        } catch (e: Exception) {
+            tempFile.delete()
+            throw ImuEmbedException(
+                "mp4_mux",
+                "${e.javaClass.simpleName}: ${e.message?.take(120) ?: "null"}",
+                imuFileSizeBytes, totalSamples, cause = e
+            )
         }
     }
 
     /**
      * Split accel/gyro samples into 1-second windows and build one GPMF payload
      * per window. Returns [(payload_bytes, presentation_us)] sorted by time.
-     *
-     * Using multiple samples with accurate presentation timestamps makes the gpmd
-     * track readable by GoPro-compatible parsers that verify temporal alignment
-     * and reject a single untimed block at t = 0.
      */
     private fun buildGpmfChunks(
         accelList: List<ImuSample>,
@@ -501,7 +745,6 @@ class TarziImuModule : Module() {
     ): List<Pair<ByteArray, Long>> {
         if (accelList.isEmpty() && gyroList.isEmpty()) return emptyList()
 
-        // Determine the full offset range
         val maxOffsetNs = maxOf(
             accelList.lastOrNull()?.offsetNs ?: Long.MIN_VALUE,
             gyroList.lastOrNull()?.offsetNs  ?: Long.MIN_VALUE
@@ -514,14 +757,10 @@ class TarziImuModule : Module() {
         for (i in 0 until numChunks) {
             val windowStart = i.toLong() * CHUNK_NS
             val windowEnd   = windowStart + CHUNK_NS
-
-            val accelChunk = accelList.filter { it.offsetNs in windowStart until windowEnd }
-            val gyroChunk  = gyroList.filter  { it.offsetNs in windowStart until windowEnd }
+            val accelChunk  = accelList.filter { it.offsetNs in windowStart until windowEnd }
+            val gyroChunk   = gyroList.filter  { it.offsetNs in windowStart until windowEnd }
             if (accelChunk.isEmpty() && gyroChunk.isEmpty()) continue
-
-            val payload        = buildGpmfPayload(accelChunk, gyroChunk)
-            val presentationUs = i.toLong() * 1_000_000L   // chunk i starts at i seconds
-            result.add(Pair(payload, presentationUs))
+            result.add(Pair(buildGpmfPayload(accelChunk, gyroChunk), i.toLong() * 1_000_000L))
         }
         return result
     }
@@ -539,7 +778,7 @@ class TarziImuModule : Module() {
         path:       String,
         accelCount: Int,
         gyroCount:  Int,
-        chunkCount: Int
+        @Suppress("UNUSED_PARAMETER") chunkCount: Int
     ): String {
         if (accelCount == 0 && gyroCount == 0) return "warning_no_sensor_data"
         if (accelCount == 0 || gyroCount == 0)  return "warning_partial_sensor_data"
@@ -548,8 +787,8 @@ class TarziImuModule : Module() {
         return try {
             v.setDataSource(path)
 
-            var gpmdTrackIdx      = -1
-            var videoDurationUs   = 0L
+            var gpmdTrackIdx    = -1
+            var videoDurationUs = 0L
 
             for (i in 0 until v.trackCount) {
                 val fmt  = v.getTrackFormat(i)
@@ -565,12 +804,12 @@ class TarziImuModule : Module() {
 
             v.selectTrack(gpmdTrackIdx)
 
-            val scanBuf          = ByteBuffer.allocate(2048)
-            var sampleCount      = 0
-            var firstTimeUs      = Long.MAX_VALUE
-            var lastTimeUs       = Long.MIN_VALUE
-            var hasAccl          = false
-            var hasGyro          = false
+            val scanBuf     = ByteBuffer.allocate(2048)
+            var sampleCount = 0
+            var firstTimeUs = Long.MAX_VALUE
+            var lastTimeUs  = Long.MIN_VALUE
+            var hasAccl     = false
+            var hasGyro     = false
 
             while (true) {
                 scanBuf.clear()
@@ -580,15 +819,12 @@ class TarziImuModule : Module() {
                 val ts = v.sampleTime
                 if (ts < firstTimeUs) firstTimeUs = ts
                 if (ts > lastTimeUs)  lastTimeUs  = ts
-
-                // Scan first 2 KB of each sample for GPMF FourCCs
                 val bytes = ByteArray(minOf(sz, 2048))
                 scanBuf.rewind()
                 scanBuf.get(bytes, 0, bytes.size)
                 val s = String(bytes, Charsets.US_ASCII)
                 if (s.contains("ACCL")) hasAccl = true
                 if (s.contains("GYRO")) hasGyro = true
-
                 v.advance()
             }
 
@@ -597,7 +833,6 @@ class TarziImuModule : Module() {
             if (!hasAccl)          return "error_no_accl_stream"
             if (!hasGyro)          return "error_no_gyro_stream"
 
-            // Coverage check: telemetry must span ≥ 95 % of video duration
             if (videoDurationUs > 0 && firstTimeUs != Long.MAX_VALUE) {
                 val gpmdSpanUs = lastTimeUs - firstTimeUs
                 val coverage   = gpmdSpanUs.toDouble() / videoDurationUs.toDouble()
@@ -605,7 +840,6 @@ class TarziImuModule : Module() {
                     return "warning_low_coverage_${String.format("%.0f", coverage * 100)}pct"
                 }
             }
-
             "ok"
         } finally {
             v.release()
@@ -613,15 +847,6 @@ class TarziImuModule : Module() {
     }
 
     // ── GPMF binary builder ───────────────────────────────────────────────────
-    //
-    // GPMF KLV format (big-endian):
-    //   [4B FourCC][1B type][1B element-size][2B repeat-count][data padded to 4B]
-    //
-    // Container (DEVC, STRM): type=0x00, size=4, repeat=inner_len/4
-    // String ('c'):           type=0x63, size=1, repeat=strlen
-    // Int16 ('s'):            type=0x73, size=2, repeat=1
-    // UInt32 ('L'):           type=0x4C, size=4, repeat=1
-    // Float32 ('f'):          type=0x66, size=12 (3 axes × 4B), repeat=N samples
 
     private fun pad4(data: ByteArray): ByteArray {
         val rem = data.size % 4
