@@ -19,6 +19,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StartupScreen } from "@/components/StartupScreen";
 import { NetworkProvider } from "@/contexts/NetworkContext";
 import { reportRenderError, drainErrorQueue } from "@/lib/errorReporting";
+import { sendScannerDiagnostic } from "@/lib/scannerDiagnostic";
 import { recoverAllRecordingDrafts } from "@/lib/imuRecovery";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { EnvBanner } from "@/components/EnvBanner";
@@ -117,6 +118,7 @@ function RootLayoutNav({ onReady }: { onReady: () => void }) {
       onReady();
       drainErrorQueue().catch(() => {});
       recoverAllRecordingDrafts().catch(() => {});
+      sendScannerDiagnostic().catch(() => {});
     }
   }, [isLoading, isLanguageLoading, onReady]);
 

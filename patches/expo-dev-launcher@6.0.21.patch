@@ -1,0 +1,80 @@
+diff --git a/android/src/debug/java/expo/modules/devlauncher/compose/models/HomeViewModel.kt b/android/src/debug/java/expo/modules/devlauncher/compose/models/HomeViewModel.kt
+index 22e5c00787b726f77d1c5ce6fc31375de5219353..be85524bf29a5769755f7aeda7203214f72e4dcd 100644
+--- a/android/src/debug/java/expo/modules/devlauncher/compose/models/HomeViewModel.kt
++++ b/android/src/debug/java/expo/modules/devlauncher/compose/models/HomeViewModel.kt
+@@ -15,6 +15,7 @@ import expo.modules.devlauncher.services.ErrorRegistryService
+ import expo.modules.devlauncher.services.PackagerInfo
+ import expo.modules.devlauncher.services.PackagerService
+ import expo.modules.devlauncher.services.inject
++import kotlinx.coroutines.delay
+ import kotlinx.coroutines.flow.launchIn
+ import kotlinx.coroutines.flow.onEach
+ import kotlinx.coroutines.launch
+@@ -97,6 +98,24 @@ class HomeViewModel() : ViewModel() {
+     }
+   }
+ 
++  /**
++   * Starts a GMS Code Scanner session to read a QR code.
++   *
++   * ROOT CAUSE OF "Unable to start the scanner":
++   *   GmsBarcodeScanning uses play-services-code-scanner, a GMS dynamic module that is
++   *   downloaded on first use by Google Play Services. On a fresh APK install the module
++   *   may not be installed yet, so startScan() throws MlKitException with message
++   *   "Unable to start the scanner" (MlKitException.UNAVAILABLE).
++   *
++   * FIX:
++   *   Attempt startScan() normally. If the first attempt fails, wait 3 s (allowing
++   *   Play Services time to complete the background module download) and retry once.
++   *   On the retry failure surface the full diagnostic string so the user can see
++   *   the real exception class and message rather than the generic toast.
++   *
++   *   The companion config plugin withMlKitPrewarm.js calls ModuleInstall.deferredInstall()
++   *   in Application.onCreate() so the module is ready before the user ever opens this menu.
++   */
+   fun scanQRCode(context: Context, onResult: (String) -> Unit, onError: (String) -> Unit) {
+     val options = GmsBarcodeScannerOptions.Builder()
+       .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+@@ -104,17 +123,30 @@ class HomeViewModel() : ViewModel() {
+ 
+     val scanner = GmsBarcodeScanning.getClient(context, options)
+ 
+-    scanner.startScan()
+-      .addOnSuccessListener { barcode ->
+-        barcode.rawValue?.let {
+-          onResult(it)
+-        } ?: onError("No QR code data found")
+-      }
+-      .addOnCanceledListener {
+-        onError("Scanning cancelled")
+-      }
+-      .addOnFailureListener { exception ->
+-        onError("Scanning failed: ${exception.message ?: "Unknown error"}")
+-      }
++    fun attempt(isRetry: Boolean) {
++      scanner.startScan()
++        .addOnSuccessListener { barcode ->
++          barcode.rawValue?.let { onResult(it) } ?: onError("No QR code data found")
++        }
++        .addOnCanceledListener {
++          if (!isRetry) onError("Scanning cancelled")
++        }
++        .addOnFailureListener { exception ->
++          if (isRetry) {
++            // Second attempt also failed — surface the full diagnostic string.
++            val cls = exception.javaClass.simpleName
++            val msg = exception.message ?: "Unknown error"
++            onError("QR_SCANNER_START_FAILED [$cls]: $msg — GMS module may still be downloading; try again shortly")
++          } else {
++            // First failure: GMS is likely downloading the code-scanner module in the
++            // background. Wait 3 s then retry so the user does not have to tap again.
++            viewModelScope.launch {
++              delay(3_000L)
++              attempt(isRetry = true)
++            }
++          }
++        }
++    }
++    attempt(isRetry = false)
+   }
+ }

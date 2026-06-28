@@ -79,6 +79,11 @@ export default (_ctx: ConfigContext): ExpoConfig => ({
     // runs after expo-splash-screen has already injected SplashScreenManager and
     // written super.onCreate(null).
     ...(IS_DEV ? ["./plugins/withDevClientMainActivity"] : []),
+    // Dev builds only: pre-warm the GMS Code Scanner module at Application.onCreate()
+    // so the expo-dev-client "Scan QR Code" button works on first tap after a fresh install.
+    // Without this, GmsBarcodeScanning.startScan() throws MlKitException.UNAVAILABLE
+    // ("Unable to start the scanner") because the GMS dynamic module hasn't downloaded yet.
+    ...(IS_DEV ? ["./plugins/withMlKitPrewarm"] : []),
     [
       "expo-router",
       { origin: "https://mobile-data-hub.replit.app" },
