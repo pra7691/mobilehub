@@ -117,10 +117,18 @@ function isTextMediaType(mediaType: string | null): boolean {
 // even when the response carries a full payload readable via `.text()` or
 // `.json()`.  Loose equality (`== null`) matches both `null` and `undefined`,
 // which causes every React Native response to be treated as empty.
+//
+// NOTE: we intentionally do NOT check `content-length === "0"` here.
+// Android/OkHttp under HTTP/2 can report a stale or zero content-length
+// in the headers surfaced to JavaScript even when the body carries real
+// data (516 bytes for an AuthTokens payload, for example).  Treating that
+// as "no body" would cause parseSuccessBody to return null — the root cause
+// of `tokens.accessToken = undefined` on real Android devices.
+// Empty bodies are handled gracefully by the text/json parsing code below
+// (normalized.trim() === "" → return null), so skipping this check is safe.
 function hasNoBody(response: Response, method: string): boolean {
   if (method === "HEAD") return true;
   if (NO_BODY_STATUS.has(response.status)) return true;
-  if (response.headers.get("content-length") === "0") return true;
   if (response.body === null) return true;
   return false;
 }
@@ -241,7 +249,13 @@ async function parseJsonBody(
   const normalized = stripBom(raw);
 
   if (normalized.trim() === "") {
-    return null;
+    // React Native (Android/OkHttp) can return "" from response.text() even
+    // when the body has data — attempt response.json() as a last resort.
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
   }
 
   try {
@@ -308,13 +322,19 @@ async function parseSuccessBody(
 
     case "text": {
       const text = await response.text();
-      if (text === "") return null;
+      if (text === "") {
+        // React Native (Android/OkHttp) can return "" from response.text() even
+        // when the body has data — attempt response.json() as a last resort.
+        if (responseType === "auto") {
+          try { return await response.json(); } catch { /* ignore */ }
+        }
+        return null;
+      }
       // When responseType is "auto" and no Content-Type header was returned
       // (common in React Native where the fetch polyfill may not surface all
       // response headers), inferResponseType falls back to "text".  If the body
       // looks like JSON we must parse it — otherwise the resolved value is a raw
-      // JSON string and callers like login() receive `tokens.accessToken = undefined`,
-      // crashing SecureStore with "Values must be strings".
+      // JSON string and callers like login() receive `tokens.accessToken = undefined`.
       // This mirrors the looksLikeJson fallback already in parseErrorBody.
       if (responseType === "auto" && looksLikeJson(text)) {
         try {
