@@ -47,7 +47,7 @@ Mobile data-collection platform where field agents complete tasks via a mobile a
 
 ## Default credentials (dev seed)
 
-- Admin: `admin@capto.app` / `Admin@1234`
+- Admin: `admin@tarzi.app` (password set during setup — `admin@capto.app` was the old seed email and no longer exists)
 - Test OTP: `123456` (test mode on by default)
 
 ## User preferences
