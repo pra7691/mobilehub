@@ -176,7 +176,11 @@ export class AuthService {
       .split(/[,\n]/)
       .map((p) => p.trim())
       .filter(Boolean);
-    const isPhoneOnAllowlist = allowedPhones.length > 0 && allowedPhones.includes(phoneNumber);
+    // Empty allowlist means unrestricted — any phone may use the test OTP.
+    // A non-empty allowlist restricts test OTP to only the listed numbers.
+    // This matches the seed intent: isTestMode=true with no allowlist = open test mode.
+    const isPhoneOnAllowlist =
+      allowedPhones.length === 0 || allowedPhones.includes(phoneNumber);
     const useTestOtp = Boolean(settings?.isTestMode && settings?.testOtp && isPhoneOnAllowlist);
     const otp = useTestOtp
       ? settings!.testOtp!

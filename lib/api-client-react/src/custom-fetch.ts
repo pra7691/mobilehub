@@ -308,7 +308,22 @@ async function parseSuccessBody(
 
     case "text": {
       const text = await response.text();
-      return text === "" ? null : text;
+      if (text === "") return null;
+      // When responseType is "auto" and no Content-Type header was returned
+      // (common in React Native where the fetch polyfill may not surface all
+      // response headers), inferResponseType falls back to "text".  If the body
+      // looks like JSON we must parse it — otherwise the resolved value is a raw
+      // JSON string and callers like login() receive `tokens.accessToken = undefined`,
+      // crashing SecureStore with "Values must be strings".
+      // This mirrors the looksLikeJson fallback already in parseErrorBody.
+      if (responseType === "auto" && looksLikeJson(text)) {
+        try {
+          return JSON.parse(text);
+        } catch {
+          // Body looked like JSON but is not valid — fall through and return text
+        }
+      }
+      return text;
     }
 
     case "blob":
